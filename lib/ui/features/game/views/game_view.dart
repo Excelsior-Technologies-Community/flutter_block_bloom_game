@@ -41,6 +41,44 @@ class _GameViewState extends ConsumerState<GameView> {
   int? _hoveredStartCol;
 
   final ShakeController _shakeController = ShakeController();
+  final GlobalKey _gridKey = GlobalKey();
+
+  void _updateHoverFromTouch(Offset globalPosition, BlockShape piece, double touchOffsetY) {
+    final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final gridLocal = renderBox.globalToLocal(globalPosition);
+    final pieceLocalY = gridLocal.dy - touchOffsetY;
+    final pieceLocalX = gridLocal.dx;
+
+    final gridWidth = renderBox.size.width - 12; // Accounting for 6px padding on left & right
+    final level = ref.read(gameViewModelProvider).level;
+    if (level == null) return;
+
+    final cellSize = gridWidth / level.gridSize;
+
+    // Calculate top-left cell index based on piece dimensions
+    int targetR = ((pieceLocalY - (cellSize * (piece.rows - 1) / 2)) / cellSize).round();
+    int targetC = ((pieceLocalX - (cellSize * (piece.cols - 1) / 2)) / cellSize).round();
+
+    if (targetR >= -1 && targetR <= level.gridSize && targetC >= -1 && targetC <= level.gridSize) {
+      targetR = targetR.clamp(0, level.gridSize - piece.rows);
+      targetC = targetC.clamp(0, level.gridSize - piece.cols);
+      if (_hoveredStartRow != targetR || _hoveredStartCol != targetC) {
+        setState(() {
+          _hoveredStartRow = targetR;
+          _hoveredStartCol = targetC;
+        });
+      }
+    } else {
+      if (_hoveredStartRow != null || _hoveredStartCol != null) {
+        setState(() {
+          _hoveredStartRow = null;
+          _hoveredStartCol = null;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -593,6 +631,7 @@ class _GameViewState extends ConsumerState<GameView> {
                   child: AspectRatio(
                     aspectRatio: 1.0,
                     child: Container(
+                      key: _gridKey,
                       decoration: BoxDecoration(
                         color: const Color(0xFF090027),
                         borderRadius: BorderRadius.circular(16),
@@ -646,20 +685,18 @@ class _GameViewState extends ConsumerState<GameView> {
                               });
                               return true;
                             },
-                            onLeave: (data) {
-                              setState(() {
-                                if (_hoveredStartRow == r && _hoveredStartCol == c) {
-                                  _hoveredPieceIndex = null;
-                                  _hoveredStartRow = null;
-                                  _hoveredStartCol = null;
-                                }
-                              });
-                            },
+                            onLeave: (data) {},
                             onAcceptWithDetails: (details) {
                               final pIdx = details.data;
-                              ref
-                                  .read(gameViewModelProvider.notifier)
-                                  .placePiece(pIdx, r, c);
+                              if (_hoveredStartRow != null && _hoveredStartCol != null) {
+                                ref
+                                    .read(gameViewModelProvider.notifier)
+                                    .placePiece(pIdx, _hoveredStartRow!, _hoveredStartCol!);
+                              } else {
+                                ref
+                                    .read(gameViewModelProvider.notifier)
+                                    .placePiece(pIdx, r, c);
+                              }
                               setState(() {
                                 _selectedPieceIndex = null;
                                 _hoveredPieceIndex = null;
@@ -770,14 +807,47 @@ class _GameViewState extends ConsumerState<GameView> {
                           final maxScaleH = (pieceBox.maxHeight - 16) / piece.rows - 2.0;
                           final blockSize = math.max(8.0, math.min(22.0, math.min(maxScaleW, maxScaleH)));
 
+                          final gridWidth = (constraints.maxWidth - 44);
+                          final gridCellSize = gridWidth / level.gridSize;
+
                           return Center(
                             child: Draggable<int>(
                               data: pIdx,
                               dragAnchorStrategy: pointerDragAnchorStrategy,
-                              feedback: const SizedBox.shrink(),
-                              feedbackOffset: const Offset(0, -100),
+                              onDragStarted: () {
+                                AudioService.instance.playClickSound();
+                                setState(() {
+                                  _selectedPieceIndex = pIdx;
+                                  _hoveredPieceIndex = pIdx;
+                                });
+                              },
+                              onDragUpdate: (details) {
+                                _updateHoverFromTouch(details.globalPosition, piece, 60.0);
+                              },
+                              onDragEnd: (details) {
+                                if (_hoveredPieceIndex != null && _hoveredStartRow != null && _hoveredStartCol != null) {
+                                  final notifier = ref.read(gameViewModelProvider.notifier);
+                                  notifier.placePiece(_hoveredPieceIndex!, _hoveredStartRow!, _hoveredStartCol!);
+                                }
+                                setState(() {
+                                  _selectedPieceIndex = null;
+                                  _hoveredPieceIndex = null;
+                                  _hoveredStartRow = null;
+                                  _hoveredStartCol = null;
+                                });
+                              },
+                              feedback: Material(
+                                color: Colors.transparent,
+                                child: Transform.translate(
+                                  offset: const Offset(0, -60),
+                                  child: Transform.scale(
+                                    scale: 1.05,
+                                    child: _buildPiecePreview(piece, colorIdx, scale: gridCellSize),
+                                  ),
+                                ),
+                              ),
                               childWhenDragging: Opacity(
-                                opacity: 0.2,
+                                opacity: 0.15,
                                 child: _buildPiecePreview(piece, colorIdx, scale: blockSize),
                               ),
                               child: GestureDetector(
@@ -804,6 +874,37 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
+  // Translucent Ghost Target Slot Guide (Eliminates double-block visual confusion!)
+  Widget _buildGhostBlock(Color blockColor) {
+    return Container(
+      decoration: BoxDecoration(
+        color: blockColor.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(4.0),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.9),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: blockColor.withValues(alpha: 0.35),
+            blurRadius: 5,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+        ),
+      ),
+    );
+  }
+
   // Cell Content Rendering with bright block PNG images from assets/blocks/
   Widget _buildCellContent({
     required BoardCell cell,
@@ -818,6 +919,7 @@ class _GameViewState extends ConsumerState<GameView> {
     required GameViewModelState state,
   }) {
     final isClearing = state.clearingRows.contains(r) || state.clearingCols.contains(c) || isBombAffected;
+    final blockColor = AppColors.blockColors[(activeColorIndex - 1) % AppColors.blockColors.length];
 
     if (cell.type == CellType.occupied) {
       final block = _buildBlockAsset(cell.colorIndex);
@@ -840,12 +942,24 @@ class _GameViewState extends ConsumerState<GameView> {
       }
       return block;
     } else if (cell.type == CellType.bloom) {
-      // Bloom Sprout Cell 🌱 (Game Leaf)
+      // Bloom Sprout Cell 🌱 (Game Leaf) - Glowing Golden Highlight on potential Line Clear!
       return Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0A2218),
+          color: isLineGlowing ? const Color(0xFF1E3A8A) : const Color(0xFF0A2218),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF10B981), width: 1.0),
+          border: Border.all(
+            color: isLineGlowing ? const Color(0xFFFFC800) : const Color(0xFF10B981),
+            width: isLineGlowing ? 2.0 : 1.0,
+          ),
+          boxShadow: isLineGlowing
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFC800).withValues(alpha: 0.6),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: Image.asset(
@@ -864,12 +978,24 @@ class _GameViewState extends ConsumerState<GameView> {
         ),
       );
     } else if (cell.type == CellType.flower) {
-      // Flower Cell 🌸
+      // Flower Cell 🌸 - Glowing Golden Highlight on potential Line Clear!
       return Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A3A),
+          color: isLineGlowing ? const Color(0xFF1E3A8A) : const Color(0xFF1A1A3A),
           borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFFFFC800), width: 1.2),
+          border: Border.all(
+            color: const Color(0xFFFFC800),
+            width: isLineGlowing ? 2.2 : 1.2,
+          ),
+          boxShadow: isLineGlowing
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFC800).withValues(alpha: 0.7),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: Image.asset(
@@ -889,15 +1015,20 @@ class _GameViewState extends ConsumerState<GameView> {
       );
     } else if (isPreviewCell) {
       if (!isValidPlacement) {
+        // Red Invalid Placement Warning Container with X icon
         return Container(
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.4),
+            color: Colors.red.withValues(alpha: 0.45),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.red, width: 1.0),
+            border: Border.all(color: Colors.redAccent, width: 1.5),
+          ),
+          child: const Center(
+            child: Icon(Icons.close_rounded, color: Colors.white, size: 14),
           ),
         );
       }
-      return _buildBlockAsset(activeColorIndex, isPreview: true);
+      // Ghost Target Slot Outline (Clean drop zone indicator without duplicate 3D block rendering)
+      return _buildGhostBlock(blockColor);
     } else {
       // Empty cell
       return AnimatedContainer(
