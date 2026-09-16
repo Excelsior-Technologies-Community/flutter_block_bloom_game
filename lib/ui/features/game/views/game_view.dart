@@ -40,8 +40,114 @@ class _GameViewState extends ConsumerState<GameView> {
   int? _hoveredStartRow;
   int? _hoveredStartCol;
 
+  int? _activeDragIndex;
+  Offset? _dragPosition;
+  Offset? _pointerDownPosition;
+
+  static const double _kLiftOffsetY = 75.0;
+
   final ShakeController _shakeController = ShakeController();
   final GlobalKey _gridKey = GlobalKey();
+  final List<GlobalKey> _slotKeys = List.generate(3, (_) => GlobalKey());
+
+  void _onPointerDown(PointerDownEvent details) {
+    final gameState = ref.read(gameViewModelProvider);
+    int? touchedSlotIndex;
+
+    for (int i = 0; i < 3; i++) {
+      if (i >= gameState.availablePieces.length || gameState.availablePieces[i] == null) continue;
+      final box = _slotKeys[i].currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize) {
+        final localPos = box.globalToLocal(details.position);
+        if (box.paintBounds.contains(localPos)) {
+          touchedSlotIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (touchedSlotIndex != null) {
+      AudioService.instance.playClickSound();
+      setState(() {
+        _activeDragIndex = touchedSlotIndex;
+        _dragPosition = details.position;
+        _pointerDownPosition = details.position;
+        _selectedPieceIndex = touchedSlotIndex;
+        _hoveredPieceIndex = touchedSlotIndex;
+      });
+      final piece = gameState.availablePieces[touchedSlotIndex];
+      if (piece != null) {
+        _updateHoverFromTouch(details.position, piece, _kLiftOffsetY);
+      }
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent details) {
+    if (_activeDragIndex == null) return;
+    final gameState = ref.read(gameViewModelProvider);
+    if (_activeDragIndex! >= gameState.availablePieces.length) return;
+    final piece = gameState.availablePieces[_activeDragIndex!];
+    if (piece == null) return;
+
+    setState(() {
+      _dragPosition = details.position;
+    });
+    _updateHoverFromTouch(details.position, piece, _kLiftOffsetY);
+  }
+
+  void _onPointerUp(PointerUpEvent details) {
+    if (_activeDragIndex == null) return;
+    final moveDist = _pointerDownPosition != null
+        ? (details.position - _pointerDownPosition!).distance
+        : 100.0;
+
+    final pIdx = _activeDragIndex!;
+
+    if (moveDist < 12.0) {
+      // Tap on card slot without significant dragging -> Toggle tap selection mode!
+      setState(() {
+        if (_selectedPieceIndex == pIdx && _hoveredStartRow == null) {
+          _selectedPieceIndex = null;
+          _hoveredPieceIndex = null;
+        } else {
+          _selectedPieceIndex = pIdx;
+          _hoveredPieceIndex = pIdx;
+        }
+        _activeDragIndex = null;
+        _dragPosition = null;
+        _pointerDownPosition = null;
+      });
+    } else {
+      // Drag gesture release
+      if (_hoveredStartRow != null && _hoveredStartCol != null) {
+        final placed = ref.read(gameViewModelProvider.notifier).placePiece(pIdx, _hoveredStartRow!, _hoveredStartCol!);
+        if (placed) {
+          AudioService.instance.playClearSound();
+        }
+      }
+      setState(() {
+        _selectedPieceIndex = null;
+        _hoveredPieceIndex = null;
+        _hoveredStartRow = null;
+        _hoveredStartCol = null;
+        _activeDragIndex = null;
+        _dragPosition = null;
+        _pointerDownPosition = null;
+      });
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent details) {
+    if (_activeDragIndex != null) {
+      setState(() {
+        _activeDragIndex = null;
+        _dragPosition = null;
+        _pointerDownPosition = null;
+        _hoveredStartRow = null;
+        _hoveredStartCol = null;
+      });
+    }
+  }
 
   void _updateHoverFromTouch(Offset globalPosition, BlockShape piece, double touchOffsetY) {
     final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
@@ -56,16 +162,20 @@ class _GameViewState extends ConsumerState<GameView> {
     final gridContentY = (gridLocal.dy - touchOffsetY) - 6.0;
 
     final gridWidth = renderBox.size.width - 12.0;
-    final cellSize = gridWidth / level.gridSize;
+    final gridSize = level.gridSize;
 
-    final pieceCenterX = gridContentX;
-    final pieceCenterY = gridContentY;
+    // Grid spacing between cells is 3.0
+    final cellWidth = (gridWidth - (gridSize - 1) * 3.0) / gridSize;
+    final cellStride = cellWidth + 3.0;
 
-    final pieceTopLeftX = pieceCenterX - (cellSize * (piece.cols - 1) / 2.0);
-    final pieceTopLeftY = pieceCenterY - (cellSize * (piece.rows - 1) / 2.0);
+    final pieceWidth = piece.cols * cellStride;
+    final pieceHeight = piece.rows * cellStride;
 
-    final double floatR = pieceTopLeftY / cellSize;
-    final double floatC = pieceTopLeftX / cellSize;
+    final pieceTopLeftX = gridContentX - (pieceWidth / 2.0);
+    final pieceTopLeftY = gridContentY - (pieceHeight / 2.0);
+
+    final double floatC = pieceTopLeftX / cellStride;
+    final double floatR = pieceTopLeftY / cellStride;
 
     final gameState = ref.read(gameViewModelProvider);
 
@@ -75,16 +185,16 @@ class _GameViewState extends ConsumerState<GameView> {
     int? bestR;
     int? bestC;
     double minDistanceSq = double.infinity;
-
-    for (int dr = -1; dr <= 1; dr++) {
-      for (int dc = -1; dc <= 1; dc++) {
+  
+    for (int dr = -2; dr <= 2; dr++) {
+      for (int dc = -2; dc <= 2; dc++) {
         final candR = baseR + dr;
         final candC = baseC + dc;
 
         final isInBounds = candR >= 0 &&
-            (candR + piece.rows) <= level.gridSize &&
+            (candR + piece.rows) <= gridSize &&
             candC >= 0 &&
-            (candC + piece.cols) <= level.gridSize;
+            (candC + piece.cols) <= gridSize;
 
         if (isInBounds) {
           final canPlace = BlockBlastRules.canPlacePiece(gameState.board, piece, candR, candC);
@@ -103,8 +213,8 @@ class _GameViewState extends ConsumerState<GameView> {
       }
     }
 
-    // Magnet snap threshold radius (within ~0.85 cells)
-    if (bestR != null && bestC != null && minDistanceSq <= 0.85) {
+    // Magnet snap threshold radius (within ~1.5 cells)
+    if (bestR != null && bestC != null && minDistanceSq <= 2.25) {
       if (_hoveredStartRow != bestR || _hoveredStartCol != bestC) {
         HapticFeedback.selectionClick();
         setState(() {
@@ -160,83 +270,145 @@ class _GameViewState extends ConsumerState<GameView> {
 
     return Scaffold(
       backgroundColor: AppColors.gameBg, // Card / Scaffold Background #090027
-      body: ShakeWidget(
-        controller: _shakeController,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  // Header / Top Navigation Bar
-                  _buildTopBar(context, state),
+      body: Listener(
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: ShakeWidget(
+          controller: _shakeController,
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    // Header / Top Navigation Bar
+                    _buildTopBar(context, state),
 
-                  // Power Threshold Bar (Optional Booster info)
-                  _buildGardenPowerBar(state),
+                    // Power Threshold Bar (Optional Booster info)
+                    _buildGardenPowerBar(state),
 
-                  Expanded(
-                    child: state.isLoading
-                        ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFC800)))
-                        : state.error != null
-                            ? Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      state.error!,
-                                      style: const TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: state.isLoading
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFC800)))
+                          : state.error != null
+                              ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        state.error!,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    ElevatedButton(
-                                      onPressed: () => ref
-                                          .read(gameViewModelProvider.notifier)
-                                          .resetLevel(),
-                                      child: const Text('Retry'),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : _buildGame(state),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () => ref
+                                            .read(gameViewModelProvider.notifier)
+                                            .resetLevel(),
+                                        child: const Text('Retry'),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : _buildGame(state),
+                    ),
+                  ],
+                ),
+
+                // Bottom Right Floating Flower / Score Union Pill Badge (#001834 background + game_leaf)
+                Positioned(
+                  bottom: 12,
+                  right: 16,
+                  child: _buildBottomFlowerBadge(state),
+                ),
+
+                // Floating Score, Combo & Curved "LINE CLEAR!" Overlay
+                FloatingScoreOverlay(
+                  lastScore: state.lastMoveScore,
+                  combo: state.comboCount,
+                  clearedLines: state.lastClearedLines,
+                ),
+
+                ConfettiExplosion(trigger: state.isComplete),
+
+                if (_activeDragIndex != null && _dragPosition != null)
+                  _buildFloatingDraggedPiece(state),
+
+                if (state.isGameOver)
+                  Positioned.fill(
+                    child: widget.isDaily
+                        ? DailyGardenGameOverView(
+                            onHome: () {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            },
+                          )
+                        : GameOverView(
+                            onPlayAgain: () {
+                              ref.read(gameViewModelProvider.notifier).resetLevel();
+                            },
+                            onHome: () {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            },
+                          ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingDraggedPiece(GameViewModelState state) {
+    if (_activeDragIndex == null || _dragPosition == null) return const SizedBox.shrink();
+    final pIdx = _activeDragIndex!;
+    if (pIdx >= state.availablePieces.length) return const SizedBox.shrink();
+    final piece = state.availablePieces[pIdx];
+    if (piece == null) return const SizedBox.shrink();
+
+    final colorIdx = pIdx < state.pieceColors.length ? state.pieceColors[pIdx] + 1 : 1;
+    final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    final level = state.level;
+    if (renderBox == null || level == null) return const SizedBox.shrink();
+
+    final gridWidth = renderBox.size.width - 12.0;
+    final gridCellSize = (gridWidth - (level.gridSize - 1) * 3.0) / level.gridSize;
+    final cellStride = gridCellSize + 3.0;
+
+    final pieceWidth = piece.cols * cellStride;
+    final pieceHeight = piece.rows * cellStride;
+
+    final left = _dragPosition!.dx - (pieceWidth / 2.0);
+    final top = _dragPosition!.dy - _kLiftOffsetY - (pieceHeight / 2.0);
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: IgnorePointer(
+        child: Material(
+          color: Colors.transparent,
+          child: Transform.scale(
+            scale: 1.04,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: AppColors.blockColors[(colorIdx - 1) % AppColors.blockColors.length].withValues(alpha: 0.5),
+                    blurRadius: 12,
                   ),
                 ],
               ),
-
-              // Bottom Right Floating Flower / Score Union Pill Badge (#001834 background + game_leaf)
-              Positioned(
-                bottom: 12,
-                right: 16,
-                child: _buildBottomFlowerBadge(state.sessionFlowersEarned > 0 ? state.sessionFlowersEarned : 125),
-              ),
-
-              // Floating Score, Combo & Curved "LINE CLEAR!" Overlay
-              FloatingScoreOverlay(
-                lastScore: state.lastMoveScore,
-                combo: state.comboCount,
-                clearedLines: state.lastClearedLines,
-              ),
-
-              ConfettiExplosion(trigger: state.isComplete),
-
-              if (state.isGameOver)
-                Positioned.fill(
-                  child: widget.isDaily
-                      ? DailyGardenGameOverView(
-                          onHome: () {
-                            Navigator.of(context).popUntil((route) => route.isFirst);
-                          },
-                        )
-                      : GameOverView(
-                          onPlayAgain: () {
-                            ref.read(gameViewModelProvider.notifier).resetLevel();
-                          },
-                          onHome: () {
-                            Navigator.of(context).popUntil((route) => route.isFirst);
-                          },
-                        ),
-                ),
-            ],
+              child: _buildPiecePreview(piece, colorIdx, scale: gridCellSize),
+            ),
           ),
         ),
       ),
@@ -245,7 +417,7 @@ class _GameViewState extends ConsumerState<GameView> {
 
   // --- TOP BAR HEADER ---
   Widget _buildTopBar(BuildContext context, GameViewModelState state) {
-    const displayTarget = 25000;
+    final displayTarget = state.level?.targetScore ?? 25000;
 
     return Container(
       height: 60,
@@ -460,14 +632,22 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
-  // Bottom Right Flower / Score Badge (#001834 background + game_flower + leaf)
-  Widget _buildBottomFlowerBadge(int count) {
+  // Bottom Right Dual Stats Badge: Flowers Harvested (🌸) & Active Leaves (🌱)
+  Widget _buildBottomFlowerBadge(GameViewModelState state) {
+    int activeBloomCount = 0;
+    for (final row in state.board) {
+      for (final cell in row) {
+        if (cell.type == CellType.bloom) activeBloomCount++;
+      }
+    }
+    final flowerCount = state.sessionFlowersEarned;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Container(
           height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
             color: const Color(0xFF001834),
             borderRadius: BorderRadius.circular(20),
@@ -486,47 +666,60 @@ class _GameViewState extends ConsumerState<GameView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Image.asset(
+                'assets/game_flower.png',
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => const Text('🌸', style: TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 4),
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                  colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ).createShader(bounds),
                 child: Text(
-                  '$count',
+                  '$flowerCount',
                   style: GoogleFonts.chakraPetch(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
+              Container(
+                width: 1,
+                height: 16,
+                color: const Color(0xFF103975),
+              ),
+              const SizedBox(width: 10),
               Image.asset(
-                'assets/game_flower.png',
-                width: 22,
-                height: 22,
+                'assets/game_leaf.png',
+                width: 20,
+                height: 20,
                 fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Image.asset(
-                  'assets/small_flower.png',
-                  width: 22,
-                  height: 22,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx2, err2, st2) => const Text('🌸', style: TextStyle(fontSize: 16)),
+                errorBuilder: (ctx, err, st) => const Text('🌱', style: TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(width: 4),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6EE7B7), Color(0xFF10B981)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ).createShader(bounds),
+                child: Text(
+                  '$activeBloomCount',
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
-          ),
-        ),
-        Positioned(
-          bottom: -3,
-          right: -4,
-          child: Image.asset(
-            'assets/leaf.png',
-            width: 16,
-            height: 16,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
           ),
         ),
       ],
@@ -607,6 +800,51 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
+  Widget _buildLosingWarningBanner() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.8, end: 1.0),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B0815),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: const Color(0xFFFF3B30).withValues(alpha: value),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF3B30).withValues(alpha: 0.45 * value),
+                blurRadius: 10,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF3B30), size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'WARNING: YOU ARE LOSING THE GAME!',
+                style: GoogleFonts.chakraPetch(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFFF8080),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // --- MAIN GAME VIEW ---
   Widget _buildGame(GameViewModelState state) {
     final level = state.level;
@@ -663,147 +901,237 @@ class _GameViewState extends ConsumerState<GameView> {
       }
     }
 
+    int totalAvailablePieces = 0;
+    int playablePiecesCount = 0;
+    for (int i = 0; i < state.availablePieces.length; i++) {
+      if (state.availablePieces[i] != null) {
+        totalAvailablePieces++;
+        if (i < state.isPiecePlayable.length && state.isPiecePlayable[i]) {
+          playablePiecesCount++;
+        }
+      }
+    }
+
+    final bool isLosingWarning = !state.isGameOver &&
+        totalAvailablePieces > 0 &&
+        playablePiecesCount == 0;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Column(
           children: [
+            if (isLosingWarning) _buildLosingWarningBanner(),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Center(
                   child: AspectRatio(
                     aspectRatio: 1.0,
-                    child: Container(
-                      key: _gridKey,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF090027),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFF007AFF),
-                          width: 2.0,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF007AFF).withValues(alpha: 0.25),
-                            blurRadius: 14,
-                            spreadRadius: 1,
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(6),
-                      child: GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: level.gridSize,
-                          crossAxisSpacing: 3,
-                          mainAxisSpacing: 3,
-                        ),
-                        itemCount: level.gridSize * level.gridSize,
-                        itemBuilder: (context, index) {
-                          final r = index ~/ level.gridSize;
-                          final c = index % level.gridSize;
-                          final cell = state.board[r][c];
-                          final isPreviewCell = previewCells.contains('$r,$c');
-                          final isLineGlowing = glowingRows.contains(r) || glowingCols.contains(c);
-                          final isBombAffected = state.bombClearedCells.contains('$r,$c');
-
-                          bool isBombHovered = false;
-                          if (activePiece != null && activePiece.isBomb && _hoveredStartRow != null && _hoveredStartCol != null) {
-                            if ((r - _hoveredStartRow!).abs() <= 1 && (c - _hoveredStartCol!).abs() <= 1) {
-                              isBombHovered = true;
-                            }
+                    child: DragTarget<int>(
+                      onWillAcceptWithDetails: (details) {
+                        final pIdx = details.data;
+                        setState(() {
+                          _hoveredPieceIndex = pIdx;
+                        });
+                        if (pIdx < state.availablePieces.length) {
+                          final piece = state.availablePieces[pIdx];
+                          if (piece != null) {
+                            _updateHoverFromTouch(details.offset, piece, _kLiftOffsetY);
                           }
+                        }
+                        return true;
+                      },
+                      onLeave: (_) {
+                        setState(() {
+                          _hoveredStartRow = null;
+                          _hoveredStartCol = null;
+                        });
+                      },
+                      onAcceptWithDetails: (details) {
+                        final pIdx = details.data;
+                        if (_hoveredStartRow != null && _hoveredStartCol != null) {
+                          ref
+                              .read(gameViewModelProvider.notifier)
+                              .placePiece(pIdx, _hoveredStartRow!, _hoveredStartCol!);
+                        }
+                        setState(() {
+                          _selectedPieceIndex = null;
+                          _hoveredPieceIndex = null;
+                          _hoveredStartRow = null;
+                          _hoveredStartCol = null;
+                        });
+                      },
+                      builder: (context, candidateData, rejectedData) {
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              key: _gridKey,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF090027),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFF007AFF),
+                                  width: 2.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF007AFF).withValues(alpha: 0.25),
+                                    blurRadius: 14,
+                                    spreadRadius: 1,
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(6),
+                              child: GridView.builder(
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: level.gridSize,
+                                  crossAxisSpacing: 3,
+                                  mainAxisSpacing: 3,
+                                ),
+                                itemCount: level.gridSize * level.gridSize,
+                                itemBuilder: (context, index) {
+                                  final r = index ~/ level.gridSize;
+                                  final c = index % level.gridSize;
+                                  final cell = state.board[r][c];
+                                  final isPreviewCell = previewCells.contains('$r,$c');
+                                  final isLineGlowing = glowingRows.contains(r) || glowingCols.contains(c);
+                                  final isBombAffected = state.bombClearedCells.contains('$r,$c');
 
-                          return DragTarget<int>(
-                            onWillAcceptWithDetails: (details) {
-                              final pIdx = details.data;
-                              setState(() {
-                                _hoveredPieceIndex = pIdx;
-                              });
-                              if (pIdx < state.availablePieces.length) {
-                                final piece = state.availablePieces[pIdx];
-                                if (piece != null) {
-                                  _updateHoverFromTouch(details.offset, piece, 60.0);
-                                }
-                              }
-                              return true;
-                            },
-                            onLeave: (data) {},
-                            onAcceptWithDetails: (details) {
-                              final pIdx = details.data;
-                              if (_hoveredStartRow != null && _hoveredStartCol != null) {
-                                ref
-                                    .read(gameViewModelProvider.notifier)
-                                    .placePiece(pIdx, _hoveredStartRow!, _hoveredStartCol!);
-                              }
-                              setState(() {
-                                _selectedPieceIndex = null;
-                                _hoveredPieceIndex = null;
-                                _hoveredStartRow = null;
-                                _hoveredStartCol = null;
-                              });
-                            },
-                            builder: (context, candidateData, rejectedData) {
-                              Widget cellWidget = _buildCellContent(
-                                cell: cell,
-                                r: r,
-                                c: c,
-                                isPreviewCell: isPreviewCell,
-                                isValidPlacement: isValidPlacement,
-                                activeColorIndex: activeColorIndex,
-                                isLineGlowing: isLineGlowing,
-                                isBombHovered: isBombHovered,
-                                isBombAffected: isBombAffected,
-                                state: state,
-                              );
-
-                              return MouseRegion(
-                                onEnter: (_) {
-                                  if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
-                                    final piece = state.availablePieces[_selectedPieceIndex!];
-                                    if (piece != null) {
-                                      final isInBounds = r >= 0 && (r + piece.rows) <= level.gridSize && c >= 0 && (c + piece.cols) <= level.gridSize;
-                                      if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, r, c)) {
-                                        setState(() {
-                                          _hoveredStartRow = r;
-                                          _hoveredStartCol = c;
-                                        });
-                                      } else {
-                                        setState(() {
-                                          _hoveredStartRow = null;
-                                          _hoveredStartCol = null;
-                                        });
-                                      }
+                                  bool isBombHovered = false;
+                                  if (activePiece != null && activePiece.isBomb && _hoveredStartRow != null && _hoveredStartCol != null) {
+                                    if ((r - _hoveredStartRow!).abs() <= 1 && (c - _hoveredStartCol!).abs() <= 1) {
+                                      isBombHovered = true;
                                     }
                                   }
-                                },
-                                onExit: (_) {},
-                                child: InkWell(
-                                  onTap: () {
-                                    final notifier = ref.read(gameViewModelProvider.notifier);
-                                    if (_selectedPieceIndex != null) {
-                                      final placed = notifier.placePiece(_selectedPieceIndex!, r, c);
-                                      if (placed) {
-                                        setState(() {
-                                          _selectedPieceIndex = null;
-                                          _hoveredStartRow = null;
-                                          _hoveredStartCol = null;
-                                        });
+
+                                  Widget cellWidget = _buildCellContent(
+                                    cell: cell,
+                                    r: r,
+                                    c: c,
+                                    isPreviewCell: isPreviewCell,
+                                    isValidPlacement: isValidPlacement,
+                                    activeColorIndex: activeColorIndex,
+                                    isLineGlowing: isLineGlowing,
+                                    isBombHovered: isBombHovered,
+                                    isBombAffected: isBombAffected,
+                                    state: state,
+                                  );
+
+                                  return MouseRegion(
+                                    onEnter: (_) {
+                                      if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
+                                        final piece = state.availablePieces[_selectedPieceIndex!];
+                                        if (piece != null) {
+                                          int targetR = r - (piece.rows - 1) ~/ 2;
+                                          int targetC = c - (piece.cols - 1) ~/ 2;
+                                          int? bestR;
+                                          int? bestC;
+                                          double minDistanceSq = double.infinity;
+
+                                          for (int dr = -1; dr <= 1; dr++) {
+                                            for (int dc = -1; dc <= 1; dc++) {
+                                              final candR = targetR + dr;
+                                              final candC = targetC + dc;
+                                              final isInBounds = candR >= 0 &&
+                                                  (candR + piece.rows) <= level.gridSize &&
+                                                  candC >= 0 &&
+                                                  (candC + piece.cols) <= level.gridSize;
+
+                                              if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
+                                                final distSq = (dr * dr + dc * dc).toDouble();
+                                                if (distSq < minDistanceSq) {
+                                                  minDistanceSq = distSq;
+                                                  bestR = candR;
+                                                  bestC = candC;
+                                                }
+                                              }
+                                            }
+                                          }
+
+                                          if (bestR != null && bestC != null) {
+                                            setState(() {
+                                              _hoveredStartRow = bestR;
+                                              _hoveredStartCol = bestC;
+                                            });
+                                          } else {
+                                            setState(() {
+                                              _hoveredStartRow = null;
+                                              _hoveredStartCol = null;
+                                            });
+                                          }
+                                        }
                                       }
-                                    }
-                                  },
-                                  child: cellWidget,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                                    },
+                                    onExit: (_) {},
+                                    child: InkWell(
+                                      onTap: () {
+                                        final notifier = ref.read(gameViewModelProvider.notifier);
+                                        if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
+                                          final piece = state.availablePieces[_selectedPieceIndex!];
+                                          if (piece != null) {
+                                            int targetR = r - (piece.rows - 1) ~/ 2;
+                                            int targetC = c - (piece.cols - 1) ~/ 2;
+                                            int? bestR;
+                                            int? bestC;
+                                            double minDistanceSq = double.infinity;
+
+                                            for (int dr = -1; dr <= 1; dr++) {
+                                              for (int dc = -1; dc <= 1; dc++) {
+                                                final candR = targetR + dr;
+                                                final candC = targetC + dc;
+                                                final isInBounds = candR >= 0 &&
+                                                    (candR + piece.rows) <= level.gridSize &&
+                                                    candC >= 0 &&
+                                                    (candC + piece.cols) <= level.gridSize;
+
+                                                if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
+                                                  final distSq = (dr * dr + dc * dc).toDouble();
+                                                  if (distSq < minDistanceSq) {
+                                                    minDistanceSq = distSq;
+                                                    bestR = candR;
+                                                    bestC = candC;
+                                                  }
+                                                }
+                                              }
+                                            }
+
+                                            if (bestR != null && bestC != null) {
+                                              final placed = notifier.placePiece(_selectedPieceIndex!, bestR, bestC);
+                                              if (placed) {
+                                                setState(() {
+                                                  _selectedPieceIndex = null;
+                                                  _hoveredPieceIndex = null;
+                                                  _hoveredStartRow = null;
+                                                  _hoveredStartCol = null;
+                                                });
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      child: cellWidget,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // Combo Card Banner at bottom edge of board grid (pops up & wipes out after a few seconds)
+                            Positioned(
+                              bottom: -18,
+                              child: PersistentComboBanner(comboCount: state.comboCount),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -831,99 +1159,100 @@ class _GameViewState extends ConsumerState<GameView> {
 
                   final colorIdx = pIdx < state.pieceColors.length ? state.pieceColors[pIdx] + 1 : 1;
                   final isSelected = _selectedPieceIndex == pIdx;
+                  final isPlayable = pIdx < state.isPiecePlayable.length ? state.isPiecePlayable[pIdx] : true;
 
                   return Expanded(
                     child: Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF001834),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFFFFC800) : const Color(0xFF103975),
-                          width: isSelected ? 2.0 : 1.0,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFFFFC800).withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                )
-                              ]
-                            : null,
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, pieceBox) {
-                          final maxScaleW = (pieceBox.maxWidth - 16) / piece.cols - 2.0;
-                          final maxScaleH = (pieceBox.maxHeight - 16) / piece.rows - 2.0;
-                          final blockSize = math.max(8.0, math.min(22.0, math.min(maxScaleW, maxScaleH)));
+                      key: _slotKeys[pIdx],
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey('piece_arrival_${state.trayGenerationId}_$pIdx'),
+                        tween: Tween<double>(begin: 0.0, end: 1.0),
+                        duration: Duration(milliseconds: 380 + pIdx * 90),
+                        curve: Curves.easeOutBack,
+                        builder: (context, animVal, child) {
+                          final scale = (0.2 + 0.8 * animVal).clamp(0.0, 1.05);
+                          final offsetY = (1.0 - animVal) * 32.0;
 
-                          final gridWidth = (constraints.maxWidth - 44);
-                          final gridCellSize = gridWidth / level.gridSize;
-
-                          return Center(
-                            child: Draggable<int>(
-                              data: pIdx,
-                              dragAnchorStrategy: pointerDragAnchorStrategy,
-                              onDragStarted: () {
-                                AudioService.instance.playClickSound();
-                                setState(() {
-                                  _selectedPieceIndex = pIdx;
-                                  _hoveredPieceIndex = pIdx;
-                                });
-                              },
-                              onDragUpdate: (details) {
-                                _updateHoverFromTouch(details.globalPosition, piece, 60.0);
-                              },
-                              onDragEnd: (details) {
-                                if (_hoveredPieceIndex != null && _hoveredStartRow != null && _hoveredStartCol != null) {
-                                  final notifier = ref.read(gameViewModelProvider.notifier);
-                                  notifier.placePiece(_hoveredPieceIndex!, _hoveredStartRow!, _hoveredStartCol!);
-                                }
-                                setState(() {
-                                  _selectedPieceIndex = null;
-                                  _hoveredPieceIndex = null;
-                                  _hoveredStartRow = null;
-                                  _hoveredStartCol = null;
-                                });
-                              },
-                              feedback: Material(
-                                color: Colors.transparent,
-                                child: Transform.translate(
-                                  offset: const Offset(0, -65),
-                                  child: Transform.scale(
-                                    scale: 1.02,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.35),
-                                            blurRadius: 14,
-                                            offset: const Offset(0, 8),
-                                          ),
-                                        ],
-                                      ),
-                                      child: _buildPiecePreview(piece, colorIdx, scale: gridCellSize),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              childWhenDragging: Opacity(
-                                opacity: 0.15,
-                                child: _buildPiecePreview(piece, colorIdx, scale: blockSize),
-                              ),
-                              child: GestureDetector(
-                                onTap: () {
-                                  AudioService.instance.playClickSound();
-                                  setState(() {
-                                    _selectedPieceIndex = isSelected ? null : pIdx;
-                                  });
-                                },
-                                child: _buildPiecePreview(piece, colorIdx, scale: blockSize),
-                              ),
+                          return Transform.translate(
+                            offset: Offset(0, offsetY),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: child,
                             ),
                           );
                         },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          margin: const EdgeInsets.all(4),
+                          transform: Matrix4.diagonal3Values(
+                            isSelected ? 1.05 : 1.0,
+                            isSelected ? 1.05 : 1.0,
+                            1.0,
+                          ),
+                          transformAlignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF002855)
+                                : !isPlayable
+                                    ? const Color(0xFF160A18)
+                                    : const Color(0xFF001834),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFFFFC800)
+                                  : !isPlayable
+                                      ? const Color(0xFF6B1D2F)
+                                      : const Color(0xFF103975),
+                              width: isSelected ? 2.5 : 1.0,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFFFFC800).withValues(alpha: 0.5),
+                                      blurRadius: 12,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, pieceBox) {
+                              final maxScaleW = (pieceBox.maxWidth - 16) / piece.cols - 2.0;
+                              final maxScaleH = (pieceBox.maxHeight - 16) / piece.rows - 2.0;
+                              final blockSize = math.max(8.0, math.min(22.0, math.min(maxScaleW, maxScaleH)));
+                              final isBeingDragged = _activeDragIndex == pIdx;
+
+                              return Stack(
+                                children: [
+                                  Center(
+                                    child: Opacity(
+                                      opacity: isBeingDragged ? 0.15 : (!isPlayable ? 0.38 : 1.0),
+                                      child: _buildPiecePreview(piece, colorIdx, scale: blockSize),
+                                    ),
+                                  ),
+                                  if (!isPlayable && !isBeingDragged)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF881B1B),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.block_rounded,
+                                          color: Colors.white,
+                                          size: 10,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -935,6 +1264,8 @@ class _GameViewState extends ConsumerState<GameView> {
       },
     );
   }
+
+
 
 
 
@@ -1492,7 +1823,7 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
       TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 1.0), weight: 50),
     ]).animate(_controller);
 
-    if (widget.lastScore > 0 || widget.clearedLines > 0 || widget.combo > 1) {
+    if (widget.lastScore > 0 || widget.clearedLines > 0) {
       _controller.forward();
     }
   }
@@ -1501,8 +1832,7 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
   void didUpdateWidget(FloatingScoreOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if ((widget.lastScore > 0 && widget.lastScore != oldWidget.lastScore) ||
-        (widget.clearedLines > 0 && widget.clearedLines != oldWidget.clearedLines) ||
-        (widget.combo > 1 && widget.combo != oldWidget.combo)) {
+        (widget.clearedLines > 0 && widget.clearedLines != oldWidget.clearedLines)) {
       _controller.forward(from: 0.0);
     }
   }
@@ -1515,7 +1845,7 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lastScore <= 0 && widget.clearedLines <= 0 && widget.combo <= 1) {
+    if (widget.lastScore <= 0 && widget.clearedLines <= 0) {
       return const SizedBox.shrink();
     }
 
@@ -1528,7 +1858,7 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
 
         return Stack(
           children: [
-            // Center Curved LINE CLEAR! or COMBO 2X Overlay Banner
+            // Center Curved LINE CLEAR! Overlay Banner
             Positioned(
               top: MediaQuery.of(context).size.height * 0.33,
               left: 0,
@@ -1567,9 +1897,6 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
                               ),
                             ),
                           ),
-                        ] else if (widget.combo > 1) ...[
-                          // Auto-Disappearing Combo Board Banner Popup
-                          _buildComboBoardBanner(widget.combo),
                         ],
                       ],
                     ),
@@ -1677,53 +2004,6 @@ class _FloatingScoreOverlayState extends State<FloatingScoreOverlay> with Single
       ),
     );
   }
-
-  // Combo Board Banner Overlay matching attached screenshot
-  Widget _buildComboBoardBanner(int comboCount) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Image.asset(
-          'assets/combo_board.png',
-          width: 170,
-          fit: BoxFit.contain,
-          errorBuilder: (ctx, err, st) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF814D00),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFC800), width: 1.5),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 12,
-          child: ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ).createShader(bounds),
-            child: Text(
-              'COMBO ${comboCount}X',
-              style: GoogleFonts.chakraPetch(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(
-                    color: Color(0xFF4A2800),
-                    offset: Offset(1.5, 2.0),
-                    blurRadius: 3,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class ShakeController {
@@ -1783,6 +2063,176 @@ class _ShakeWidgetState extends State<ShakeWidget> with SingleTickerProviderStat
         );
       },
       child: widget.child,
+    );
+  }
+}
+
+/// Combo Card Banner at bottom edge of game grid (pops up & wipes out after ~2 seconds)
+class PersistentComboBanner extends StatefulWidget {
+  final int comboCount;
+
+  const PersistentComboBanner({
+    super.key,
+    required this.comboCount,
+  });
+
+  @override
+  State<PersistentComboBanner> createState() => _PersistentComboBannerState();
+}
+
+class _PersistentComboBannerState extends State<PersistentComboBanner> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+  late Animation<double> _offsetY;
+  int _activeCombo = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeCombo = widget.comboCount;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
+
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.4, end: 1.08).chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.08, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 47,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.5).chain(CurveTween(curve: Curves.easeInBack)),
+        weight: 25,
+      ),
+    ]).animate(_controller);
+
+    _opacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 60,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)),
+        weight: 25,
+      ),
+    ]).animate(_controller);
+
+    _offsetY = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 22.0, end: 0.0).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 18,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(0.0),
+        weight: 57,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 15.0).chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 25,
+      ),
+    ]).animate(_controller);
+
+    if (widget.comboCount > 1) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void didUpdateWidget(PersistentComboBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.comboCount > 1 && widget.comboCount != oldWidget.comboCount) {
+      setState(() {
+        _activeCombo = widget.comboCount;
+      });
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_activeCombo <= 1) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        if (!_controller.isAnimating && _controller.isCompleted) {
+          return const SizedBox.shrink();
+        }
+
+        return Transform.translate(
+          offset: Offset(0, _offsetY.value),
+          child: Transform.scale(
+            scale: _scale.value,
+            child: Opacity(
+              opacity: _opacity.value,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(
+            'assets/combo_board.png',
+            width: 175,
+            fit: BoxFit.contain,
+            errorBuilder: (ctx, err, st) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF814D00),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFC800), width: 1.5),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 11,
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ).createShader(bounds),
+              child: Text(
+                'COMBO ${_activeCombo}X',
+                style: GoogleFonts.chakraPetch(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1.0,
+                  shadows: const [
+                    Shadow(
+                      color: Color(0xFF4A2800),
+                      offset: Offset(1.5, 2.0),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

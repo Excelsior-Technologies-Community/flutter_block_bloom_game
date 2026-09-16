@@ -9,6 +9,7 @@ import 'package:block_bloom/ui/features/garden/widgets/flower_counter_badge.dart
 import 'package:block_bloom/ui/features/garden/widgets/garden_nav_bar.dart';
 import 'package:block_bloom/ui/features/garden/widgets/garden_shield_badge.dart';
 import 'package:block_bloom/ui/providers.dart';
+import 'package:block_bloom/domain/models/user_progress.dart';
 
 /// Screen 1: My Garden Main View Screen
 /// Contains Top Bar (Back button, MY GARDEN title, FlowerCounterBadge using sample.png),
@@ -25,7 +26,7 @@ class GardenView extends ConsumerStatefulWidget {
 
 class _GardenViewState extends ConsumerState<GardenView> {
   int _selectedTabIndex = 0; // Default: 0 = OVERVIEW
-  String _activeThemeBg = 'assets/decorate/1.png';
+  String _activeThemeBg = 'assets/decorate/6.png';
 
   static const List<Map<String, dynamic>> gardenStages = [
     {
@@ -90,6 +91,9 @@ class _GardenViewState extends ConsumerState<GardenView> {
     final progress = homeState.progress;
     final flowers = progress?.flowers ?? 1200;
     final currentGardenLvl = progress?.gardenLevel ?? 1;
+    final activeThemeAsset = (progress != null && progress.activeTheme.isNotEmpty)
+        ? progress.activeTheme
+        : _activeThemeBg;
 
     final currentStage = gardenStages.firstWhere(
       (g) => g['level'] == currentGardenLvl,
@@ -100,22 +104,23 @@ class _GardenViewState extends ConsumerState<GardenView> {
       backgroundColor: const Color(0xFF05001C),
       body: Stack(
         children: [
-          // Background Garden Image (e.g. assets/decorate/1.png)
-          Positioned.fill(
-            child: Image.asset(
-              _activeThemeBg,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) => Image.asset(
-                'assets/splash_img.png',
+          // Background Garden Image (Rendered on Overview tab 0; Themes page has solid dark navy background matching Figma design)
+          if (_selectedTabIndex == 0)
+            Positioned.fill(
+              child: Image.asset(
+                activeThemeAsset,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
-                errorBuilder: (c2, e2, s2) => Container(color: const Color(0xFF0F172A)),
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/splash_img.png',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (c2, e2, s2) => Container(color: const Color(0xFF0F172A)),
+                ),
               ),
             ),
-          ),
 
           // Subtle Vignette Dark Gradient Overlay
           Positioned.fill(
@@ -153,12 +158,12 @@ class _GardenViewState extends ConsumerState<GardenView> {
                       description: currentStage['description'] as String,
                     ),
                     const Spacer(),
-                    _buildOverviewContent(context, flowers),
+                    _buildOverviewContent(context, flowers, activeThemeAsset),
                   ] else ...[
                     Expanded(
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 250),
-                        child: _buildTabContent(flowers, currentGardenLvl),
+                        child: _buildTabContent(flowers, currentGardenLvl, progress, activeThemeAsset),
                       ),
                     ),
                   ],
@@ -259,23 +264,23 @@ class _GardenViewState extends ConsumerState<GardenView> {
   }
 
   // --- 3. DYNAMIC TAB CONTENT SWITCHER ---
-  Widget _buildTabContent(int flowers, int currentGardenLvl) {
+  Widget _buildTabContent(int flowers, int currentGardenLvl, UserProgress? progress, String activeThemeAsset) {
     switch (_selectedTabIndex) {
       case 0:
-        return _buildOverviewContent(context, flowers);
+        return _buildOverviewContent(context, flowers, activeThemeAsset);
       case 1:
         return _buildDecorateContent(flowers, currentGardenLvl);
       case 2:
-        return _buildThemesContent();
+        return _buildThemesContent(flowers, currentGardenLvl, progress, activeThemeAsset);
       case 3:
         return _buildStatsContent(flowers, currentGardenLvl);
       default:
-        return _buildOverviewContent(context, flowers);
+        return _buildOverviewContent(context, flowers, activeThemeAsset);
     }
   }
 
   // --- TAB 0: OVERVIEW CONTENT ---
-  Widget _buildOverviewContent(BuildContext context, int flowers) {
+  Widget _buildOverviewContent(BuildContext context, int flowers, String activeThemeAsset) {
     return Column(
       key: const ValueKey('OverviewTab'),
       mainAxisSize: MainAxisSize.min,
@@ -430,7 +435,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
               context,
               MaterialPageRoute(
                 builder: (context) => GardenFullscreenView(
-                  backgroundAsset: _activeThemeBg,
+                  backgroundAsset: activeThemeAsset,
                 ),
               ),
             );
@@ -729,113 +734,393 @@ class _GardenViewState extends ConsumerState<GardenView> {
   }
 
   // --- TAB 2: THEMES CONTENT ---
-  Widget _buildThemesContent() {
-    final List<Map<String, String>> themes = [
-      {'name': 'Night Garden', 'asset': 'assets/decorate/1.png'},
-      {'name': 'Sprout Sanctuary', 'asset': 'assets/decorate/2.png'},
-      {'name': 'Tree Haven', 'asset': 'assets/decorate/3.png'},
-      {'name': 'Cottage Paradise', 'asset': 'assets/decorate/4.png'},
-      {'name': 'Sparkling Fountain', 'asset': 'assets/decorate/5.png'},
-      {'name': 'Harmonious Eden', 'asset': 'assets/decorate/6.png'},
+  Widget _buildThemesContent(int flowers, int currentGardenLvl, UserProgress? progress, String activeThemeAsset) {
+    final unlockedThemes = progress?.unlockedThemes ?? ['classic'];
+    final activeTheme = (progress != null && progress.activeTheme.isNotEmpty)
+        ? progress.activeTheme
+        : activeThemeAsset;
+
+    final List<Map<String, dynamic>> themesData = [
+      {
+        'id': 'classic',
+        'name': 'Classic Garden',
+        'asset': 'assets/decorate/6.png',
+        'alignment': const Alignment(-0.95, -0.35),
+        'subtitle': 'Lvl $currentGardenLvl/Lvl 6',
+        'cost': 0,
+      },
+      {
+        'id': 'space',
+        'name': 'Space Garden',
+        'asset': 'assets/themes/1.png',
+        'alignment': const Alignment(-0.95, -0.35),
+        'subtitle': 'Unlocks after completion of classic garden',
+        'cost': 1000,
+      },
+      {
+        'id': 'candy',
+        'name': 'Candy Garden',
+        'asset': 'assets/themes/2.png',
+        'alignment': const Alignment(-0.95, -0.35),
+        'subtitle': 'Available after unlocking Space Garden.',
+        'cost': 2000,
+      },
+      {
+        'id': 'ocean',
+        'name': 'Ocean Garden',
+        'asset': 'assets/themes/3.png',
+        'alignment': const Alignment(-0.95, -0.35),
+        'subtitle': 'Available after unlocking Candy Garden.',
+        'cost': 3000,
+      },
     ];
 
     return Column(
       key: const ValueKey('ThemesTab'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Subtitle Text: "Change the look and feel of your garden."
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          padding: const EdgeInsets.only(top: 2, bottom: 12),
           child: Text(
-            'GARDEN THEMES',
+            'Change the look and feel of your garden.',
+            textAlign: TextAlign.center,
             style: GoogleFonts.chakraPetch(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFFFC800),
-              letterSpacing: 1.0,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              letterSpacing: 0.2,
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.2,
-            ),
-            itemCount: themes.length,
-            itemBuilder: (context, index) {
-              final theme = themes[index];
-              final isSelected = _activeThemeBg == theme['asset'];
 
-              return GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  AudioService.instance.playClickSound();
-                  setState(() {
-                    _activeThemeBg = theme['asset']!;
-                  });
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFFFFC800) : const Color(0xFF103975),
-                      width: isSelected ? 2.0 : 1.0,
-                    ),
-                    image: DecorationImage(
-                      image: AssetImage(theme['asset']!),
-                      fit: BoxFit.cover,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            const BoxShadow(
-                              color: Color(0x66FFC800),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
+        // Scrollable List of Theme Cards
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 8),
+            itemCount: themesData.length,
+            itemBuilder: (context, index) {
+              final theme = themesData[index];
+              final themeId = theme['id'] as String;
+              final themeAsset = theme['asset'] as String;
+              final themeName = theme['name'] as String;
+              final subtitle = theme['subtitle'] as String;
+              final cost = theme['cost'] as int;
+              final alignment = (theme['alignment'] as Alignment?) ?? const Alignment(-0.95, -0.35);
+
+              final isUnlocked = unlockedThemes.contains(themeId) || themeId == 'classic';
+              final isActive = activeTheme == themeAsset;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF001126),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isActive ? const Color(0xFFFFC800) : const Color(0xFFFFC800).withValues(alpha: 0.7),
+                    width: isActive ? 1.5 : 1.0,
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                      gradient: const LinearGradient(
-                        colors: [Colors.transparent, Colors.black87],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 6,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Left: Theme Image Thumbnail focusing on House Side View (Zoomed 1.25x)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 145,
+                        height: 98,
+                        color: const Color(0xFF0F172A),
+                        child: Transform.scale(
+                          scale: 1.25,
+                          alignment: alignment,
+                          child: Image.asset(
+                            themeAsset,
+                            fit: BoxFit.cover,
+                            alignment: alignment,
+                            width: 145,
+                            height: 98,
+                            errorBuilder: (ctx, err, st) => Image.asset(
+                              'assets/splash_img.png',
+                              fit: BoxFit.cover,
+                              alignment: alignment,
+                              width: 145,
+                              height: 98,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    child: Align(
-                      alignment: Alignment.bottomLeft,
-                      child: Row(
+
+                    const SizedBox(width: 12),
+
+                    // Right: Details Column
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(
+                          // Title with Linear Gradient (#FFFFFF -> #E9CC70) - Exact Figma 20px spec
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ).createShader(bounds),
                             child: Text(
-                              theme['name']!,
+                              themeName,
                               style: GoogleFonts.chakraPetch(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
                                 color: Colors.white,
+                                height: 1.0,
+                                letterSpacing: 0.0,
                               ),
                             ),
                           ),
-                          if (isSelected)
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              color: Color(0xFFFFC800),
-                              size: 16,
+
+                          const SizedBox(height: 6),
+
+                          // Subtitle / Requirement / Progress (12px clean text)
+                          if (themeId == 'classic') ...[
+                            // Progress pill bar: Lvl 4/Lvl 6
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFE9C46A), Color(0xFF8B5CF6)],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                              ),
+                              child: Text(
+                                subtitle,
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
+                          ] else ...[
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.lock_rounded,
+                                  size: 15,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 5),
+                                Expanded(
+                                  child: Text(
+                                    subtitle,
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 12,
+                                      color: const Color(0xFFB0C4DE),
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const SizedBox(height: 10),
+
+                          // Action Element: ACTIVE Badge (Frame 140) / USE THEME / UNLOCK FOR 🌸 Cost (Frame 152)
+                          if (isActive) ...[
+                            // ACTIVE BADGE (Frame 140 Specs: green gradient fill, 1px gradient border)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                                border: Border.all(
+                                  color: const Color(0xFFDBF19A),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFDBF19A),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'ACTIVE',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else if (isUnlocked) ...[
+                            // USE THEME Button
+                            GestureDetector(
+                              onTap: () async {
+                                HapticFeedback.mediumImpact();
+                                AudioService.instance.playClickSound();
+                                setState(() {
+                                  _activeThemeBg = themeAsset;
+                                });
+                                final repo = ref.read(progressRepositoryProvider);
+                                await repo.setActiveTheme(themeAsset);
+                                ref.read(homeViewModelProvider.notifier).loadProgress();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0xFFDBF19A),
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Text(
+                                  'USE THEME',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            // UNLOCK FOR 🌸 COST Button (Frame 152 Specs: 142.89px Hug x 24px Hug)
+                            GestureDetector(
+                              onTap: () async {
+                                HapticFeedback.heavyImpact();
+                                final repo = ref.read(progressRepositoryProvider);
+                                if (flowers >= cost) {
+                                  final success = await repo.unlockTheme(themeId, cost, themeAsset);
+                                  if (success) {
+                                    setState(() {
+                                      _activeThemeBg = themeAsset;
+                                    });
+                                    ref.read(homeViewModelProvider.notifier).loadProgress();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '$themeName unlocked and activated!',
+                                            style: GoogleFonts.chakraPetch(color: Colors.white),
+                                          ),
+                                          backgroundColor: const Color(0xFF52A421),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  AudioService.instance.playClickSound();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Need ${cost - flowers} more 🌸 to unlock $themeName!',
+                                          style: GoogleFonts.chakraPetch(color: Colors.white),
+                                        ),
+                                        backgroundColor: const Color(0xFFD32F2F),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                  border: Border.all(
+                                    color: const Color(0xFFDBF19A),
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x40000000),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'UNLOCK FOR ',
+                                      style: GoogleFonts.chakraPetch(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                    Image.asset(
+                                      'assets/small_flower.png',
+                                      width: 14,
+                                      height: 14,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (c, e, s) => const Text('🌸', style: TextStyle(fontSize: 10)),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$cost',
+                                      style: GoogleFonts.chakraPetch(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFFFC800),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
               );
             },
           ),
+        ),
       ],
     );
   }

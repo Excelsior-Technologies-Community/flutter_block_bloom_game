@@ -15,6 +15,7 @@ class GameViewModelState {
   final List<int> pieceColors;
   final int score;
   final int comboCount;
+  final int maxComboCount;
   final int totalClears;
   final bool isComplete;
   final bool isGameOver;
@@ -23,6 +24,8 @@ class GameViewModelState {
   final bool isDailyMode;
   final String? randomDifficulty;
   final String? error;
+  final List<bool> isPiecePlayable;
+  final int trayGenerationId;
 
   // Flower Pools & Powers (GDD Thresholds: 3 Sun, 3 Blue, 5 Red)
   final int sunflowerPool; // 0..3 (3 grants 2x Boost on next clear)
@@ -47,8 +50,11 @@ class GameViewModelState {
     this.board = const [],
     this.availablePieces = const [],
     this.pieceColors = const [],
+    this.isPiecePlayable = const [true, true, true],
+    this.trayGenerationId = 0,
     this.score = 0,
     this.comboCount = 0,
+    this.maxComboCount = 0,
     this.totalClears = 0,
     this.isComplete = false,
     this.isGameOver = false,
@@ -79,8 +85,11 @@ class GameViewModelState {
     List<List<BoardCell>>? board,
     List<BlockShape?>? availablePieces,
     List<int>? pieceColors,
+    List<bool>? isPiecePlayable,
+    int? trayGenerationId,
     int? score,
     int? comboCount,
+    int? maxComboCount,
     int? totalClears,
     bool? isComplete,
     bool? isGameOver,
@@ -108,8 +117,11 @@ class GameViewModelState {
       board: board ?? this.board,
       availablePieces: availablePieces ?? this.availablePieces,
       pieceColors: pieceColors ?? this.pieceColors,
+      isPiecePlayable: isPiecePlayable ?? this.isPiecePlayable,
+      trayGenerationId: trayGenerationId ?? this.trayGenerationId,
       score: score ?? this.score,
       comboCount: comboCount ?? this.comboCount,
+      maxComboCount: maxComboCount ?? this.maxComboCount,
       totalClears: totalClears ?? this.totalClears,
       isComplete: isComplete ?? this.isComplete,
       isGameOver: isGameOver ?? this.isGameOver,
@@ -191,14 +203,43 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       ),
     );
 
-    final pieces = _generate3Pieces();
+    // Seed initial Flowers 🌸 and Leaf 🌱 on empty spots
+    final random = Random();
+    final flowerTypes = FlowerType.values;
+    int placedFlowers = 0;
+    int attempts = 0;
+    while (placedFlowers < 5 && attempts < 50) {
+      attempts++;
+      final r = random.nextInt(level.gridSize);
+      final c = random.nextInt(level.gridSize);
+      if (board[r][c].type == CellType.empty) {
+        final fType = flowerTypes[random.nextInt(flowerTypes.length)];
+        board[r][c] = BoardCell(type: CellType.flower, flowerType: fType);
+        placedFlowers++;
+      }
+    }
+    // Seed 1 sprout leaf 🌱
+    attempts = 0;
+    while (attempts < 20) {
+      attempts++;
+      final r = random.nextInt(level.gridSize);
+      final c = random.nextInt(level.gridSize);
+      if (board[r][c].type == CellType.empty) {
+        board[r][c] = const BoardCell(type: CellType.bloom);
+        break;
+      }
+    }
+
+    final pieces = _generate3Pieces(board);
     final colors = _generate3Colors();
+    final playable = _computePlayablePieces(board, pieces);
 
     state = GameViewModelState(
       level: level,
       board: board,
       availablePieces: pieces,
       pieceColors: colors,
+      isPiecePlayable: playable,
       score: 0,
       comboCount: 0,
       totalClears: 0,
@@ -218,11 +259,56 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     );
   }
 
-  List<BlockShape> _generate3Pieces() {
+  List<bool> _computePlayablePieces(List<List<BoardCell>> board, List<BlockShape?> pieces) {
+    return pieces.map((piece) {
+      if (piece == null) return false;
+      return BlockBlastRules.canPieceBePlacedAnywhere(board, piece);
+    }).toList();
+  }
+
+  List<BlockShape> _generate3Pieces([List<List<BoardCell>>? board]) {
     final random = Random();
-    return List.generate(3, (_) {
-      return BlockShape.allShapes[random.nextInt(BlockShape.allShapes.length)];
-    });
+    final result = <BlockShape>[];
+
+    if (board != null) {
+      // Find all shapes that can actually fit on the current board
+      final playableShapes = BlockShape.allShapes.where((shape) => BlockBlastRules.canPieceBePlacedAnywhere(board, shape)).toList();
+      if (playableShapes.isNotEmpty) {
+        // Guarantee at least 1 or 2 playable shapes
+        result.add(playableShapes[random.nextInt(playableShapes.length)]);
+        if (playableShapes.length > 1) {
+          final second = playableShapes[random.nextInt(playableShapes.length)];
+          if (!result.contains(second)) result.add(second);
+        }
+      } else {
+        // Fallback to small 1x1 tile if board is tight so player can always clear lines
+        result.add(BlockShape.single);
+      }
+    } else {
+      final smallShapes = [
+        BlockShape.single,
+        BlockShape.line2H,
+        BlockShape.line2V,
+        BlockShape.square2x2,
+        BlockShape.l2x2TL,
+        BlockShape.l2x2TR,
+        BlockShape.l2x2BL,
+        BlockShape.l2x2BR,
+        BlockShape.line3H,
+        BlockShape.line3V,
+      ];
+      result.add(smallShapes[random.nextInt(smallShapes.length)]);
+    }
+
+    // Pick distinct shapes for remaining slots
+    while (result.length < 3) {
+      final candidate = BlockShape.allShapes[random.nextInt(BlockShape.allShapes.length)];
+      if (!result.contains(candidate)) {
+        result.add(candidate);
+      }
+    }
+    result.shuffle(random);
+    return result;
   }
 
   List<int> _generate3Colors() {
@@ -235,12 +321,15 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   bool triggerBlueRefresh() {
     if (state.blueRefreshCharges <= 0 || state.isAnimating) return false;
 
-    final freshPieces = _generate3Pieces();
+    final freshPieces = _generate3Pieces(state.board);
     final freshColors = _generate3Colors();
+    final playable = _computePlayablePieces(state.board, freshPieces);
 
     state = state.copyWith(
       availablePieces: freshPieces,
       pieceColors: freshColors,
+      isPiecePlayable: playable,
+      trayGenerationId: state.trayGenerationId + 1,
       blueRefreshCharges: state.blueRefreshCharges - 1,
     );
     return true;
@@ -249,12 +338,15 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   bool useContinue() {
     if (!state.canContinue || !state.isGameOver) return false;
 
-    final freshPieces = _generate3Pieces();
+    final freshPieces = _generate3Pieces(state.board);
     final freshColors = _generate3Colors();
+    final playable = _computePlayablePieces(state.board, freshPieces);
 
     state = state.copyWith(
       availablePieces: freshPieces,
       pieceColors: freshColors,
+      isPiecePlayable: playable,
+      trayGenerationId: state.trayGenerationId + 1,
       isGameOver: false,
       canContinue: false,
     );
@@ -314,7 +406,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
     final rawLinePoints = BlockBlastRules.getLineClearPoints(clearedLines);
     final comboMult = BlockBlastRules.getComboMultiplier(currentCombo);
-    final baseMoveScore = (placedBlocks * 10) + (rawLinePoints * comboMult).toInt();
+    final baseMoveScore = (placedBlocks * 20) + (rawLinePoints * comboMult).toInt();
 
     // Check Sunflower 2x Boost
     final moveScore = baseMoveScore * state.scoreMultiplier;
@@ -329,8 +421,10 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
     final newPieceColors = List<int>.from(state.pieceColors);
 
+    int nextTrayGenId = state.trayGenerationId;
     if (newPieces.every((p) => p == null)) {
-      final freshPieces = _generate3Pieces();
+      nextTrayGenId++;
+      final freshPieces = _generate3Pieces(newBoard);
       final freshColors = _generate3Colors();
       for (int i = 0; i < 3; i++) {
         newPieces[i] = freshPieces[i];
@@ -343,10 +437,12 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     bool isComplete = false;
     final level = state.level;
     if (level != null && !state.isRandomMode && !state.isDailyMode) {
-      if (newScore >= level.targetScore || newTotalClears >= level.targetClears) {
+      if (newScore >= level.targetScore) {
         isComplete = true;
       }
     }
+
+    final newMaxCombo = max(state.maxComboCount, currentCombo);
 
     if (clearedLines > 0) {
       AudioService.instance.playClearSound();
@@ -356,6 +452,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         pieceColors: newPieceColors,
         score: newScore,
         comboCount: currentCombo,
+        maxComboCount: newMaxCombo,
         totalClears: newTotalClears,
         isComplete: false,
         isGameOver: false,
@@ -443,16 +540,36 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         }
 
         if (occupiedCoords.isNotEmpty) {
-          final sproutCoord = occupiedCoords[random.nextInt(occupiedCoords.length)];
-          clearedBoard[sproutCoord.x][sproutCoord.y] = const BoardCell(type: CellType.bloom);
+          occupiedCoords.shuffle(random);
+          // Spawn up to 3 mature Flowers 🌸 directly on cleared positions
+          final flowersToSpawn = min(occupiedCoords.length, 3);
+          for (int i = 0; i < flowersToSpawn; i++) {
+            final coord = occupiedCoords[i];
+            final fType = flowerTypes[random.nextInt(flowerTypes.length)];
+            clearedBoard[coord.x][coord.y] = BoardCell(type: CellType.flower, flowerType: fType);
+          }
+          // If there are additional cleared coords, spawn 1 sprout leaf 🌱
+          if (occupiedCoords.length > flowersToSpawn) {
+            final leafCoord = occupiedCoords.last;
+            clearedBoard[leafCoord.x][leafCoord.y] = const BoardCell(type: CellType.bloom);
+          }
         }
 
         final updatedScore = state.score + bloomBonusPoints;
+        var playable = _computePlayablePieces(clearedBoard, newPieces);
 
-        bool isGameOver = false;
-        if (!isComplete && !BlockBlastRules.canAnyPieceBePlaced(clearedBoard, newPieces)) {
-          isGameOver = true;
+        if (!isComplete && !playable.any((p) => p)) {
+          // Anti-Loss Protection: Auto-generate playable pieces so player doesn't lose!
+          final rescued = _generate3Pieces(clearedBoard);
+          final rescuedColors = _generate3Colors();
+          for (int i = 0; i < 3; i++) {
+            newPieces[i] = rescued[i];
+            newPieceColors[i] = rescuedColors[i];
+          }
+          playable = _computePlayablePieces(clearedBoard, newPieces);
         }
+
+        final isGameOver = !isComplete && !playable.any((p) => p);
 
         if (state.isDailyMode && isGameOver) {
           final now = DateTime.now().toUtc();
@@ -464,6 +581,9 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
           board: clearedBoard,
           score: updatedScore,
           availablePieces: newPieces,
+          pieceColors: newPieceColors,
+          isPiecePlayable: playable,
+          trayGenerationId: nextTrayGenId,
           sunflowerPool: sunPool,
           sunflowerBoostActive: sunBoost,
           blueFlowerPool: bluePool,
@@ -479,10 +599,21 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       });
     } else {
       AudioService.instance.playBlockPlaceSound();
-      bool isGameOver = false;
-      if (!isComplete && !BlockBlastRules.canAnyPieceBePlaced(newBoard, newPieces)) {
-        isGameOver = true;
+      var playable = _computePlayablePieces(newBoard, newPieces);
+
+      if (!isComplete && !playable.any((p) => p)) {
+        // Anti-Loss Protection: Auto-generate playable pieces so player doesn't lose!
+        nextTrayGenId++;
+        final rescued = _generate3Pieces(newBoard);
+        final rescuedColors = _generate3Colors();
+        for (int i = 0; i < 3; i++) {
+          newPieces[i] = rescued[i];
+          newPieceColors[i] = rescuedColors[i];
+        }
+        playable = _computePlayablePieces(newBoard, newPieces);
       }
+
+      final isGameOver = !isComplete && !playable.any((p) => p);
 
       if (state.isDailyMode && isGameOver) {
         final now = DateTime.now().toUtc();
@@ -494,8 +625,11 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         board: newBoard,
         availablePieces: newPieces,
         pieceColors: newPieceColors,
+        isPiecePlayable: playable,
+        trayGenerationId: nextTrayGenId,
         score: newScore,
         comboCount: currentCombo,
+        maxComboCount: newMaxCombo,
         totalClears: newTotalClears,
         isComplete: isComplete,
         isGameOver: isGameOver,
@@ -591,10 +725,13 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       }
     }
 
+    final playable = _computePlayablePieces(newBoard, newPieces);
+
     state = state.copyWith(
       board: newBoard,
       score: state.score + totalBonus,
       availablePieces: newPieces,
+      isPiecePlayable: playable,
       sunflowerPool: sunPool,
       sunflowerBoostActive: sunBoost,
       blueFlowerPool: bluePool,
@@ -608,7 +745,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
     Timer(const Duration(milliseconds: 350), () {
       bool isGameOver = false;
-      if (!state.isComplete && !BlockBlastRules.canAnyPieceBePlaced(newBoard, newPieces)) {
+      if (!state.isComplete && !playable.any((p) => p)) {
         isGameOver = true;
       }
       state = state.copyWith(

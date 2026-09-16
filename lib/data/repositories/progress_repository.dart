@@ -39,6 +39,12 @@ class ProgressRepository extends ChangeNotifier {
     final lastDailyPlayedDate = box.get('lastDailyPlayedDate', defaultValue: '') as String;
     final dailyBestScore = box.get('dailyBestScore', defaultValue: 0) as int;
 
+    final activeTheme = box.get('activeTheme', defaultValue: 'assets/decorate/6.png') as String;
+    final rawUnlockedThemes = box.get('unlockedThemes', defaultValue: <dynamic>['classic']);
+    final unlockedThemes = (rawUnlockedThemes is List)
+        ? rawUnlockedThemes.map((e) => e.toString()).toList()
+        : <String>['classic'];
+
     return UserProgress(
       currentLevel: currentLevel,
       highestScore: highestScore,
@@ -50,6 +56,8 @@ class ProgressRepository extends ChangeNotifier {
       gardenLevel: gardenLevel,
       lastDailyPlayedDate: lastDailyPlayedDate,
       dailyBestScore: dailyBestScore,
+      activeTheme: activeTheme,
+      unlockedThemes: unlockedThemes,
     );
   }
 
@@ -65,7 +73,30 @@ class ProgressRepository extends ChangeNotifier {
     await box.put('gardenLevel', progress.gardenLevel);
     await box.put('lastDailyPlayedDate', progress.lastDailyPlayedDate);
     await box.put('dailyBestScore', progress.dailyBestScore);
+    await box.put('activeTheme', progress.activeTheme);
+    await box.put('unlockedThemes', progress.unlockedThemes);
     notifyListeners();
+  }
+
+  Future<void> setActiveTheme(String themeAsset) async {
+    final current = await getProgress();
+    final updated = current.copyWith(activeTheme: themeAsset);
+    await saveProgress(updated);
+  }
+
+  Future<bool> unlockTheme(String themeId, int flowerCost, String themeAsset) async {
+    final current = await getProgress();
+    if (current.flowers >= flowerCost && !current.unlockedThemes.contains(themeId)) {
+      final updatedUnlocked = [...current.unlockedThemes, themeId];
+      final updated = current.copyWith(
+        flowers: current.flowers - flowerCost,
+        unlockedThemes: updatedUnlocked,
+        activeTheme: themeAsset,
+      );
+      await saveProgress(updated);
+      return true;
+    }
+    return false;
   }
 
   Future<void> addFlowers(int amount) async {

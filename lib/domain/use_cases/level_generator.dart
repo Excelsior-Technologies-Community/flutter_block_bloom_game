@@ -59,7 +59,7 @@ class LevelGenerator {
     // Blank grid with no pre-existing blocks at game start
     final initialGrid = List.generate(gridSize, (_) => List<int>.filled(gridSize, 0));
     
-    // Target score is 25000 only
+    // Target score set to 25000 to complete the level/game
     const targetScore = 25000;
     final targetClears = 10 + (levelNumber > 1 ? (levelNumber ~/ 2) : 0);
 

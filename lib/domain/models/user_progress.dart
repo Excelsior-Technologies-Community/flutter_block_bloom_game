@@ -10,6 +10,8 @@ class UserProgress {
     this.gardenLevel = 1,
     this.lastDailyPlayedDate = '',
     this.dailyBestScore = 0,
+    this.activeTheme = 'assets/decorate/6.png',
+    this.unlockedThemes = const ['classic'],
   });
 
   final int currentLevel;
@@ -22,6 +24,8 @@ class UserProgress {
   final int gardenLevel;
   final String lastDailyPlayedDate;
   final int dailyBestScore;
+  final String activeTheme;
+  final List<String> unlockedThemes;
 
   UserProgress copyWith({
     int? currentLevel,
@@ -34,6 +38,8 @@ class UserProgress {
     int? gardenLevel,
     String? lastDailyPlayedDate,
     int? dailyBestScore,
+    String? activeTheme,
+    List<String>? unlockedThemes,
   }) {
     return UserProgress(
       currentLevel: currentLevel ?? this.currentLevel,
@@ -46,6 +52,8 @@ class UserProgress {
       gardenLevel: gardenLevel ?? this.gardenLevel,
       lastDailyPlayedDate: lastDailyPlayedDate ?? this.lastDailyPlayedDate,
       dailyBestScore: dailyBestScore ?? this.dailyBestScore,
+      activeTheme: activeTheme ?? this.activeTheme,
+      unlockedThemes: unlockedThemes ?? this.unlockedThemes,
     );
   }
 }

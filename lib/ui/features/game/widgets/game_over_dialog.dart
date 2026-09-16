@@ -30,7 +30,7 @@ class GameOverView extends ConsumerWidget {
     final currentScore = state.score;
     final sessionFlowers = state.sessionFlowersEarned > 0 ? state.sessionFlowersEarned : 42;
     final totalBlooms = state.totalClears > 0 ? state.totalClears : 24;
-    final maxCombo = state.comboCount > 1 ? state.comboCount : 6;
+    final maxCombo = state.maxComboCount > 0 ? state.maxComboCount : (state.comboCount > 0 ? state.comboCount : 0);
 
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
