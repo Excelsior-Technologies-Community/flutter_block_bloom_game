@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "900790491091",
+    "project_id": "blockbloomgame",
+    "storage_bucket": "blockbloomgame.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900790491091:android:628b24c7d6f33f9b088126",
+        "android_client_info": {
+          "package_name": "com.example.block_bloom"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "900790491091-jt9874qkbubr6vrgfs1di9d8cl3sk8j9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.block_bloom",
+            "certificate_hash": "5292616dbe048493843ea95714966ca1aff1c93f"
+          }
+        },
+        {
+          "client_id": "900790491091-vp842v2tjbep2g5ael175ih1cg4n59kk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2tQECcLoENf2DuNMK6T3TPPjKbk6kUlA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "900790491091-vp842v2tjbep2g5ael175ih1cg4n59kk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "900790491091-tjbdpha990h2umkjf2etb3dt761j48ov.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.blockBloom"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

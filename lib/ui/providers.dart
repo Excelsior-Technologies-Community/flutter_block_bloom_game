@@ -5,10 +5,22 @@ import 'package:block_bloom/domain/use_cases/level_generator.dart';
 import 'package:block_bloom/ui/features/game/view_models/game_view_model.dart';
 import 'package:block_bloom/ui/features/home/view_models/home_view_model.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/data/services/auth_service.dart';
+import 'package:block_bloom/ui/features/auth/view_models/auth_view_model.dart';
 
 final audioServiceProvider = Provider<AudioService>((ref) {
   return AudioService.instance;
 });
+
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService.instance;
+});
+
+final authViewModelProvider =
+    StateNotifierProvider<AuthViewModel, AuthViewModelState>((ref) {
+      final authService = ref.watch(authServiceProvider);
+      return AuthViewModel(authService);
+    });
 
 final hiveServiceProvider = Provider<HiveService>((ref) {
   throw UnimplementedError('Must be overridden in main');

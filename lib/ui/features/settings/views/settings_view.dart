@@ -1,18 +1,21 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
+import 'package:block_bloom/ui/features/auth/views/auth_view.dart';
+import 'package:block_bloom/ui/providers.dart';
 
-class SettingsView extends StatefulWidget {
+class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
 
   @override
-  State<SettingsView> createState() => _SettingsViewState();
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsViewState extends State<SettingsView> {
+class _SettingsViewState extends ConsumerState<SettingsView> {
   late double _soundVolume;
   late double _musicVolume;
   late bool _hapticEnabled;
@@ -227,7 +230,109 @@ class _SettingsViewState extends State<SettingsView> {
                           },
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
+
+                        // USER ACCOUNT Section
+                        _buildSectionHeader('ACCOUNT'),
+                        const SizedBox(height: 10),
+                        Builder(
+                          builder: (context) {
+                            final authState = ref.watch(authViewModelProvider);
+                            final user = authState.user;
+                            return Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF000B1A),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFF103975),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 16,
+                                        backgroundColor: const Color(0xFFFFC800),
+                                        child: Text(
+                                          user?.readableName.isNotEmpty == true
+                                              ? user!.readableName[0].toUpperCase()
+                                              : '🌸',
+                                          style: GoogleFonts.chakraPetch(
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFF001834),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              user?.readableName ?? 'Guest Gardener',
+                                              style: GoogleFonts.chakraPetch(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (user?.email != null)
+                                              Text(
+                                                user!.email!,
+                                                style: GoogleFonts.chakraPetch(
+                                                  fontSize: 11,
+                                                  color: Colors.white60,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF420914),
+                                    foregroundColor: const Color(0xFFFF8080),
+                                    side: const BorderSide(color: Color(0xFFFF3B30), width: 1.2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                  ),
+                                  icon: const Icon(Icons.logout_rounded, size: 18),
+                                  label: Text(
+                                    user?.isGuest == true ? 'LOG IN / SIGN UP' : 'LOG OUT',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    AudioService.instance.playClickSound();
+                                    await ref.read(authViewModelProvider.notifier).logout();
+                                    if (context.mounted) {
+                                      Navigator.of(context).pushAndRemoveUntil(
+                                        MaterialPageRoute(builder: (context) => const AuthView()),
+                                        (route) => false,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 28),
 
                         // ABOUT APP Button Link
                         GestureDetector(

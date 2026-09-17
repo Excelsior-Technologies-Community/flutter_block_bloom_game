@@ -1,17 +1,20 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:block_bloom/ui/features/auth/views/auth_view.dart';
 import 'package:block_bloom/ui/features/home/views/home_view.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
+import 'package:block_bloom/ui/providers.dart';
 
-class SplashView extends StatefulWidget {
+class SplashView extends ConsumerStatefulWidget {
   const SplashView({super.key});
 
   @override
-  State<SplashView> createState() => _SplashViewState();
+  ConsumerState<SplashView> createState() => _SplashViewState();
 }
 
-class _SplashViewState extends State<SplashView>
+class _SplashViewState extends ConsumerState<SplashView>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -39,17 +42,20 @@ class _SplashViewState extends State<SplashView>
     super.dispose();
   }
 
-  void _navigateToHome() {
+  void _handlePlayNow() {
     if (_isNavigating) return;
     setState(() {
       _isNavigating = true;
     });
     AudioService.instance.playClickSound();
 
+    final authState = ref.read(authViewModelProvider);
+
+    final Widget targetScreen = authState.isAuthenticated ? const HomeView() : const AuthView();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const HomeView(),
+        pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -135,7 +141,7 @@ class _SplashViewState extends State<SplashView>
                     width: math.min(size.width * 0.75, 280),
                     child: GlossyGameButton.play(
                       text: 'PLAY NOW',
-                      onPressed: _navigateToHome,
+                      onPressed: _handlePlayNow,
                     ),
                   ),
 
