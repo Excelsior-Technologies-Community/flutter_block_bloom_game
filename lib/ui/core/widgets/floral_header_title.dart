@@ -155,39 +155,16 @@ class FloralHeaderTitle extends StatelessWidget {
       centerTitleWidget = buildMainArchedText();
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // Left Flower with Green Leaves (Portion 1)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Transform.rotate(
-            angle: -0.15,
-            child: Image.asset(
-              'assets/flower.png',
-              width: flowerSize,
-              height: flowerSize,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Text(
-                '🌸',
-                style: TextStyle(fontSize: flowerSize * 0.7),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(width: letterSpacing * 2),
-
-        // Center Title Portion (Portion 2: Top Little Title + Main Arched Title)
-        centerTitleWidget,
-        SizedBox(width: letterSpacing * 2),
-
-        // Right Flower Portion (Portion 3: Mirrored flower asset)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Transform.scale(
-            scaleX: -1,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Left Flower with Green Leaves (Portion 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
             child: Transform.rotate(
               angle: -0.15,
               child: Image.asset(
@@ -202,8 +179,34 @@ class FloralHeaderTitle extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ],
+          SizedBox(width: letterSpacing * 2),
+
+          // Center Title Portion (Portion 2: Top Little Title + Main Arched Title)
+          centerTitleWidget,
+          SizedBox(width: letterSpacing * 2),
+
+          // Right Flower Portion (Portion 3: Mirrored flower asset)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Transform.scale(
+              scaleX: -1,
+              child: Transform.rotate(
+                angle: -0.15,
+                child: Image.asset(
+                  'assets/flower.png',
+                  width: flowerSize,
+                  height: flowerSize,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Text(
+                    '🌸',
+                    style: TextStyle(fontSize: flowerSize * 0.7),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

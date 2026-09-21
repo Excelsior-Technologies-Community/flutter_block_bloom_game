@@ -98,7 +98,6 @@ class AudioService {
 
     try {
       final player = _getNextSfxPlayer();
-      await player.stop();
       await player.setVolume(_sfxVolume);
       await player.play(AssetSource('sounds/click.wav'));
     } catch (_) {}
@@ -115,7 +114,6 @@ class AudioService {
 
     try {
       final player = _getNextSfxPlayer();
-      await player.stop();
       await player.setVolume(_sfxVolume);
       await player.play(AssetSource('sounds/place.wav'));
     } catch (_) {}
@@ -132,7 +130,6 @@ class AudioService {
 
     try {
       final player = _getNextSfxPlayer();
-      await player.stop();
       await player.setVolume(_sfxVolume);
       await player.play(AssetSource('sounds/clear.wav'));
     } catch (_) {}
@@ -149,7 +146,6 @@ class AudioService {
 
     try {
       final player = _getNextSfxPlayer();
-      await player.stop();
       await player.setVolume(_sfxVolume);
       await player.play(AssetSource('sounds/game_over.wav'));
     } catch (_) {}

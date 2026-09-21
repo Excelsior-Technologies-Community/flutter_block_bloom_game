@@ -86,10 +86,16 @@ class _GardenViewState extends ConsumerState<GardenView> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(homeViewModelProvider.notifier).loadProgress());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final homeState = ref.watch(homeViewModelProvider);
     final progress = homeState.progress;
-    final flowers = progress?.flowers ?? 1200;
+    final flowers = progress?.flowers ?? 0;
     final currentGardenLvl = progress?.gardenLevel ?? 1;
     final activeThemeAsset = (progress != null && progress.activeTheme.isNotEmpty)
         ? progress.activeTheme
@@ -273,7 +279,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
       case 2:
         return _buildThemesContent(flowers, currentGardenLvl, progress, activeThemeAsset);
       case 3:
-        return _buildStatsContent(flowers, currentGardenLvl);
+        return _buildStatsContent(flowers, currentGardenLvl, progress);
       default:
         return _buildOverviewContent(context, flowers, activeThemeAsset);
     }
@@ -1126,41 +1132,60 @@ class _GardenViewState extends ConsumerState<GardenView> {
   }
 
   // --- TAB 3: STATS CONTENT ---
-  Widget _buildStatsContent(int flowers, int currentGardenLvl) {
+  Widget _buildStatsContent(int flowers, int currentGardenLvl, UserProgress? progress) {
+    String formatNum(int num) {
+      final str = num.toString();
+      final buffer = StringBuffer();
+      for (int i = 0; i < str.length; i++) {
+        if (i > 0 && (str.length - i) % 3 == 0) {
+          buffer.write(',');
+        }
+        buffer.write(str[i]);
+      }
+      return buffer.toString();
+    }
+
+    final highestScore = progress?.highestScore ?? 0;
+    final gamesPlayed = progress?.gamesPlayed ?? 0;
+    final bestCombo = progress?.bestCombo ?? 0;
+    final flowersCollected = progress?.flowers ?? flowers;
+    final linesCleared = progress?.linesCleared ?? 0;
+    final avgScore = progress?.avgScore ?? 0;
+
     final List<Map<String, dynamic>> statCards = [
       {
         'title': 'HIGHEST SCORE',
-        'value': '24,580',
+        'value': formatNum(highestScore),
         'icon': 'assets/stats/score.png',
         'fallbackIcon': Icons.emoji_events_rounded,
       },
       {
         'title': 'GAMES PLAYED',
-        'value': '128',
+        'value': formatNum(gamesPlayed),
         'icon': 'assets/stats/game_played.png',
         'fallbackIcon': Icons.sports_esports_rounded,
       },
       {
         'title': 'BEST COMBO',
-        'value': 'X8',
+        'value': 'X$bestCombo',
         'icon': 'assets/stats/star.png',
         'fallbackIcon': Icons.star_rounded,
       },
       {
         'title': 'FLOWERS COLLECTED',
-        'value': flowers > 0 ? '$flowers' : '2,450',
+        'value': formatNum(flowersCollected),
         'icon': 'assets/stats/flower.png',
         'fallbackIcon': Icons.local_florist_rounded,
       },
       {
         'title': 'LINES CLEARED',
-        'value': '1,820',
+        'value': formatNum(linesCleared),
         'icon': 'assets/stats/lines.png',
         'fallbackIcon': Icons.grid_view_rounded,
       },
       {
         'title': 'AVG SCORE',
-        'value': '12,340',
+        'value': formatNum(avgScore),
         'icon': 'assets/stats/avg.png',
         'fallbackIcon': Icons.trending_up_rounded,
       },

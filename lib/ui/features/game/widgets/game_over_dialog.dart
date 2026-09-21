@@ -28,9 +28,9 @@ class GameOverView extends ConsumerWidget {
     final progressRepo = ref.watch(progressRepositoryProvider);
 
     final currentScore = state.score;
-    final sessionFlowers = state.sessionFlowersEarned > 0 ? state.sessionFlowersEarned : 42;
-    final totalBlooms = state.totalClears > 0 ? state.totalClears : 24;
-    final maxCombo = state.maxComboCount > 0 ? state.maxComboCount : (state.comboCount > 0 ? state.comboCount : 0);
+    final sessionFlowers = state.sessionFlowersEarned;
+    final totalBlooms = state.totalClears;
+    final maxCombo = state.maxComboCount;
 
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
@@ -38,7 +38,7 @@ class GameOverView extends ConsumerWidget {
         final userProgress = snapshot.data;
         final highestScore = userProgress?.highestScore ?? 0;
         final isNewBest = currentScore > 0 && currentScore >= highestScore;
-        final displayBestScore = isNewBest ? currentScore : (highestScore > 0 ? highestScore : (currentScore > 0 ? currentScore : 26000));
+        final displayBestScore = isNewBest ? currentScore : highestScore;
 
         return Container(
           width: double.infinity,
@@ -109,7 +109,7 @@ class GameOverView extends ConsumerWidget {
                                 end: Alignment.bottomCenter,
                               ).createShader(bounds),
                               child: Text(
-                                _formatScore(currentScore > 0 ? currentScore : 26000),
+                                _formatScore(currentScore),
                                 style: GoogleFonts.chakraPetch(
                                   fontSize: 42,
                                   fontWeight: FontWeight.w900,

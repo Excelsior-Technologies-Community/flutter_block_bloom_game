@@ -95,12 +95,18 @@ class PauseDialog extends ConsumerWidget {
                     width: 145.0,
                     height: 46.0,
                     fontSize: 16.0,
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      if (onHome != null) {
-                        onHome!();
-                      } else {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                    onPressed: () async {
+                      final state = ref.read(gameViewModelProvider);
+                      if (state.isDailyMode && state.hasMadeMove) {
+                        await ref.read(gameViewModelProvider.notifier).quitDailyGameIfMoved();
+                      }
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        if (onHome != null) {
+                          onHome!();
+                        } else {
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                        }
                       }
                     },
                   ),

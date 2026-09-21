@@ -28,7 +28,18 @@ final hiveServiceProvider = Provider<HiveService>((ref) {
 
 final progressRepositoryProvider = ChangeNotifierProvider<ProgressRepository>((ref) {
   final hiveService = ref.watch(hiveServiceProvider);
-  return ProgressRepository(hiveService: hiveService);
+  final repo = ProgressRepository(hiveService: hiveService);
+
+  ref.listen<AuthViewModelState>(authViewModelProvider, (previous, next) {
+    repo.setCurrentUser(next.user?.uid);
+  });
+
+  final currentUser = ref.read(authViewModelProvider).user;
+  if (currentUser != null && currentUser.uid.isNotEmpty) {
+    repo.setCurrentUser(currentUser.uid);
+  }
+
+  return repo;
 });
 
 final levelGeneratorProvider = Provider<LevelGenerator>((ref) {

@@ -23,15 +23,17 @@ class DailyGardenGameOverView extends ConsumerWidget {
     final state = ref.watch(gameViewModelProvider);
     final progressRepo = ref.watch(progressRepositoryProvider);
 
-    final currentScore = state.score > 0 ? state.score : 22000;
-    final sessionFlowers = state.sessionFlowersEarned > 0 ? state.sessionFlowersEarned : 42;
-    final totalBlooms = state.totalClears > 0 ? state.totalClears : 24;
-    final maxCombo = state.maxComboCount > 0 ? state.maxComboCount : (state.comboCount > 0 ? state.comboCount : 0);
+    final currentScore = state.score;
+    final sessionFlowers = state.sessionFlowersEarned;
+    final totalBlooms = state.totalClears;
+    final maxCombo = state.maxComboCount;
 
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
       builder: (context, snapshot) {
-        final displayScore = currentScore;
+        final progress = snapshot.data;
+        final savedDailyScore = progress?.dailyBestScore ?? 0;
+        final displayScore = currentScore > 0 ? currentScore : savedDailyScore;
 
         return Scaffold(
           backgroundColor: const Color(0xFF05001C),

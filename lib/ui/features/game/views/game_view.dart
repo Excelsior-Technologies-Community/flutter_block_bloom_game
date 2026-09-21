@@ -268,96 +268,156 @@ class _GameViewState extends ConsumerState<GameView> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: AppColors.gameBg, // Card / Scaffold Background #090027
-      body: Listener(
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: ShakeWidget(
-          controller: _shakeController,
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    // Header / Top Navigation Bar
-                    _buildTopBar(context, state),
+    return PopScope(
+      canPop: !widget.isDaily || !state.hasMadeMove,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (widget.isDaily && state.hasMadeMove) {
+          final shouldQuit = await _showQuitDailyConfirmDialog(context);
+          if (shouldQuit == true && context.mounted) {
+            await ref.read(gameViewModelProvider.notifier).quitDailyGameIfMoved();
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.gameBg, // Card / Scaffold Background #090027
+        body: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: ShakeWidget(
+            controller: _shakeController,
+            child: SafeArea(
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      // Header / Top Navigation Bar
+                      _buildTopBar(context, state),
 
-                    // Power Threshold Bar (Optional Booster info)
-                    _buildGardenPowerBar(state),
+                      // Power Threshold Bar (Optional Booster info)
+                      _buildGardenPowerBar(state),
 
-                    Expanded(
-                      child: state.isLoading
-                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFC800)))
-                          : state.error != null
-                              ? Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        state.error!,
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: state.isLoading
+                            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFC800)))
+                            : state.error != null
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          state.error!,
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: () => ref
-                                            .read(gameViewModelProvider.notifier)
-                                            .resetLevel(),
-                                        child: const Text('Retry'),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : _buildGame(state),
-                    ),
-                  ],
-                ),
-
-                // Bottom Right Floating Flower / Score Union Pill Badge (#001834 background + game_leaf)
-                Positioned(
-                  bottom: 12,
-                  right: 16,
-                  child: _buildBottomFlowerBadge(state),
-                ),
-
-                // Floating Score, Combo & Curved "LINE CLEAR!" Overlay
-                FloatingScoreOverlay(
-                  lastScore: state.lastMoveScore,
-                  combo: state.comboCount,
-                  clearedLines: state.lastClearedLines,
-                ),
-
-                ConfettiExplosion(trigger: state.isComplete),
-
-                if (_activeDragIndex != null && _dragPosition != null)
-                  _buildFloatingDraggedPiece(state),
-
-                if (state.isGameOver)
-                  Positioned.fill(
-                    child: widget.isDaily
-                        ? DailyGardenGameOverView(
-                            onHome: () {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
-                            },
-                          )
-                        : GameOverView(
-                            onPlayAgain: () {
-                              ref.read(gameViewModelProvider.notifier).resetLevel();
-                            },
-                            onHome: () {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
-                            },
-                          ),
+                                        const SizedBox(height: 16),
+                                        ElevatedButton(
+                                          onPressed: () => ref
+                                              .read(gameViewModelProvider.notifier)
+                                              .resetLevel(),
+                                          child: const Text('Retry'),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : _buildGame(state),
+                      ),
+                    ],
                   ),
-              ],
+
+                  // Bottom Right Floating Flower / Score Union Pill Badge (#001834 background + game_leaf)
+                  Positioned(
+                    bottom: 12,
+                    right: 16,
+                    child: _buildBottomFlowerBadge(state),
+                  ),
+
+                  // Floating Score, Combo & Curved "LINE CLEAR!" Overlay
+                  FloatingScoreOverlay(
+                    lastScore: state.lastMoveScore,
+                    combo: state.comboCount,
+                    clearedLines: state.lastClearedLines,
+                  ),
+
+                  ConfettiExplosion(trigger: state.isComplete),
+
+                  if (_activeDragIndex != null && _dragPosition != null)
+                    _buildFloatingDraggedPiece(state),
+
+                  if (state.isGameOver)
+                    Positioned.fill(
+                      child: widget.isDaily
+                          ? DailyGardenGameOverView(
+                              onHome: () {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                              },
+                            )
+                          : GameOverView(
+                              onPlayAgain: () {
+                                ref.read(gameViewModelProvider.notifier).resetLevel();
+                              },
+                              onHome: () {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                              },
+                            ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<bool?> _showQuitDailyConfirmDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF001834),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFFFC800), width: 1.5),
+        ),
+        title: Text(
+          'QUIT DAILY CHALLENGE?',
+          style: GoogleFonts.chakraPetch(
+            color: const Color(0xFFFFC800),
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        content: Text(
+          'You have made moves in today\'s challenge. Quitting now will save your attempt for today with your current score.',
+          style: GoogleFonts.chakraPetch(
+            color: Colors.white,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'KEEP PLAYING',
+              style: GoogleFonts.chakraPetch(color: const Color(0xFF6EE7B7)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'QUIT & SAVE',
+              style: GoogleFonts.chakraPetch(color: const Color(0xFFFF4081)),
+            ),
+          ),
+        ],
       ),
     );
   }
