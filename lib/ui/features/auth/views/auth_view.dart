@@ -19,12 +19,15 @@ class _AuthViewState extends ConsumerState<AuthView> {
   bool _isSignUp = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _rememberMe = true;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+
 
   @override
   void dispose() {
@@ -63,12 +66,31 @@ class _AuthViewState extends ConsumerState<AuthView> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _nameController.text.trim(),
+        rememberMe: _rememberMe,
       );
-      if (success) _onSuccessNavigate();
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account created successfully! Please log in to continue.'),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          setState(() {
+            _emailController.clear();
+            _passwordController.clear();
+            _nameController.clear();
+            _confirmPasswordController.clear();
+            _isSignUp = false;
+          });
+        }
+      }
     } else {
       final success = await authVm.loginWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        rememberMe: _rememberMe,
       );
       if (success) _onSuccessNavigate();
     }
@@ -91,7 +113,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
   }
 
   void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(text: _emailController.text);
+    final resetEmailController = TextEditingController();
     HapticFeedback.lightImpact();
 
     showDialog(
@@ -419,26 +441,68 @@ class _AuthViewState extends ConsumerState<AuthView> {
                                 ),
                               ],
 
-                              // Forgot Password Text Link (Log In mode only)
+                              // Remember Me Checkbox & Forgot Password Link
                               if (!_isSignUp) ...[
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: _showForgotPasswordDialog,
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.only(top: 6, bottom: 2),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'Forgot Password?',
-                                      style: GoogleFonts.chakraPetch(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFFFFC800),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _rememberMe = !_rememberMe;
+                                        });
+                                      },
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: Checkbox(
+                                              value: _rememberMe,
+                                              activeColor: const Color(0xFFFFC800),
+                                              checkColor: const Color(0xFF001834),
+                                              side: const BorderSide(color: Color(0xFFFFC800), width: 1.2),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              onChanged: (val) {
+                                                setState(() {
+                                                  _rememberMe = val ?? false;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Remember Me',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFFFFC800),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
+                                    TextButton(
+                                      onPressed: _showForgotPasswordDialog,
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      child: Text(
+                                        'Forgot Password?',
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFFFC800),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
 
@@ -555,6 +619,10 @@ class _AuthViewState extends ConsumerState<AuthView> {
                   HapticFeedback.selectionClick();
                   ref.read(authViewModelProvider.notifier).clearError();
                   setState(() {
+                    _emailController.clear();
+                    _passwordController.clear();
+                    _nameController.clear();
+                    _confirmPasswordController.clear();
                     _isSignUp = false;
                   });
                 }
@@ -597,6 +665,10 @@ class _AuthViewState extends ConsumerState<AuthView> {
                   HapticFeedback.selectionClick();
                   ref.read(authViewModelProvider.notifier).clearError();
                   setState(() {
+                    _emailController.clear();
+                    _passwordController.clear();
+                    _nameController.clear();
+                    _confirmPasswordController.clear();
                     _isSignUp = true;
                   });
                 }

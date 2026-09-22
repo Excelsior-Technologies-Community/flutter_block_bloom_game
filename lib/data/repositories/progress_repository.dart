@@ -9,12 +9,14 @@ class ProgressRepository extends ChangeNotifier {
 
   final HiveService hiveService;
   String? _currentUserId;
+  UserProgress? _cachedProgress;
 
   String get currentUserId => _currentUserId ?? '';
 
   void setCurrentUser(String? userId) {
     if (_currentUserId != userId) {
       _currentUserId = userId;
+      _cachedProgress = null;
       if (userId != null && userId.isNotEmpty) {
         _ensureUserInitialized(userId).then((_) {
           syncWithFirebase(userId);
@@ -37,6 +39,7 @@ class ProgressRepository extends ChangeNotifier {
       'linesCleared',
       'totalScore',
       'dailyBestScore',
+      'totalFlowersCollected',
     ];
     for (final k in legacyKeys) {
       if (box.containsKey(k)) {
@@ -53,6 +56,7 @@ class ProgressRepository extends ChangeNotifier {
         bestScore: {},
         bestTimeSeconds: {},
         flowers: 0,
+        totalFlowersCollected: 0,
         gems: 0,
         gardenLevel: 1,
         gamesPlayed: 0,
@@ -99,6 +103,10 @@ class ProgressRepository extends ChangeNotifier {
   }
 
   Future<UserProgress> getProgress() async {
+    if (_cachedProgress != null) {
+      return _cachedProgress!;
+    }
+
     final box = hiveService.progressBox;
 
     int getInt(String field, int defaultValue) {
@@ -145,6 +153,8 @@ class ProgressRepository extends ChangeNotifier {
         : {};
 
     final flowers = getInt('flowers', 0);
+    final totalFlowersCollectedRaw = getInt('totalFlowersCollected', flowers);
+    final totalFlowersCollected = max(totalFlowersCollectedRaw, flowers);
     final gems = getInt('gems', 0);
     final gardenLevel = getInt('gardenLevel', 1);
     final lastDailyPlayedDate = box.containsKey(_getKey('lastDailyPlayedDate'))
@@ -153,6 +163,9 @@ class ProgressRepository extends ChangeNotifier {
             ? (box.get('lastDailyPlayedDate', defaultValue: '') as String)
             : '');
     final dailyBestScore = getInt('dailyBestScore', 0);
+    final dailyFlowers = getInt('dailyFlowers', 0);
+    final dailyBlooms = getInt('dailyBlooms', 0);
+    final dailyMaxCombo = getInt('dailyMaxCombo', 0);
 
     final activeTheme = box.containsKey(_getKey('activeTheme'))
         ? (box.get(_getKey('activeTheme'), defaultValue: 'assets/decorate/6.png') as String)
@@ -172,17 +185,21 @@ class ProgressRepository extends ChangeNotifier {
     final linesCleared = getInt('linesCleared', 0);
     final totalScore = getInt('totalScore', 0);
 
-    return UserProgress(
+    _cachedProgress = UserProgress(
       currentLevel: currentLevel,
       highestScore: highestScore,
       unlockedLevels: unlockedLevels,
       bestScore: bestScore,
       bestTimeSeconds: bestTimeSeconds,
       flowers: flowers,
+      totalFlowersCollected: totalFlowersCollected,
       gems: gems,
       gardenLevel: gardenLevel,
       lastDailyPlayedDate: lastDailyPlayedDate,
       dailyBestScore: dailyBestScore,
+      dailyFlowers: dailyFlowers,
+      dailyBlooms: dailyBlooms,
+      dailyMaxCombo: dailyMaxCombo,
       activeTheme: activeTheme,
       unlockedThemes: unlockedThemes,
       gamesPlayed: gamesPlayed,
@@ -190,9 +207,12 @@ class ProgressRepository extends ChangeNotifier {
       linesCleared: linesCleared,
       totalScore: totalScore,
     );
+
+    return _cachedProgress!;
   }
 
   Future<void> _saveToLocal(UserProgress progress) async {
+    _cachedProgress = progress;
     final box = hiveService.progressBox;
     await box.put(_getKey('currentLevel'), progress.currentLevel);
     await box.put(_getKey('highestScore'), progress.highestScore);
@@ -200,10 +220,14 @@ class ProgressRepository extends ChangeNotifier {
     await box.put(_getKey('bestScore'), progress.bestScore);
     await box.put(_getKey('bestTimeSeconds'), progress.bestTimeSeconds);
     await box.put(_getKey('flowers'), progress.flowers);
+    await box.put(_getKey('totalFlowersCollected'), progress.totalFlowersCollected);
     await box.put(_getKey('gems'), progress.gems);
     await box.put(_getKey('gardenLevel'), progress.gardenLevel);
     await box.put(_getKey('lastDailyPlayedDate'), progress.lastDailyPlayedDate);
     await box.put(_getKey('dailyBestScore'), progress.dailyBestScore);
+    await box.put(_getKey('dailyFlowers'), progress.dailyFlowers);
+    await box.put(_getKey('dailyBlooms'), progress.dailyBlooms);
+    await box.put(_getKey('dailyMaxCombo'), progress.dailyMaxCombo);
     await box.put(_getKey('activeTheme'), progress.activeTheme);
     await box.put(_getKey('unlockedThemes'), progress.unlockedThemes);
     await box.put(_getKey('gamesPlayed'), progress.gamesPlayed);
@@ -266,6 +290,7 @@ class ProgressRepository extends ChangeNotifier {
       bestCombo: max(current.bestCombo, maxCombo),
       linesCleared: current.linesCleared + linesClearedInGame,
       totalScore: current.totalScore + score,
+      totalFlowersCollected: max(current.totalFlowersCollected, current.flowers),
     );
     await saveProgress(updated);
   }
@@ -293,7 +318,10 @@ class ProgressRepository extends ChangeNotifier {
 
   Future<void> addFlowers(int amount) async {
     final current = await getProgress();
-    final updated = current.copyWith(flowers: current.flowers + amount);
+    final updated = current.copyWith(
+      flowers: current.flowers + amount,
+      totalFlowersCollected: current.totalFlowersCollected + amount,
+    );
     await saveProgress(updated);
   }
 
@@ -321,13 +349,29 @@ class ProgressRepository extends ChangeNotifier {
     return progress.isDailyAttemptCompletedToday(today);
   }
 
-  Future<void> saveDailyScore(int score, String dateStr) async {
+  Future<void> saveDailyScore(
+    int score,
+    String dateStr, {
+    int flowers = 0,
+    int blooms = 0,
+    int maxCombo = 0,
+  }) async {
     final current = await getProgress();
-    final newDailyBest = score > current.dailyBestScore ? score : current.dailyBestScore;
+    final isSameDay = current.lastDailyPlayedDate == dateStr;
+
+    final newDailyBest = (isSameDay && current.dailyBestScore > score) ? current.dailyBestScore : score;
+    final newFlowers = (isSameDay && current.dailyFlowers > flowers) ? current.dailyFlowers : flowers;
+    final newBlooms = (isSameDay && current.dailyBlooms > blooms) ? current.dailyBlooms : blooms;
+    final newMaxCombo = (isSameDay && current.dailyMaxCombo > maxCombo) ? current.dailyMaxCombo : maxCombo;
+
     final updated = current.copyWith(
       lastDailyPlayedDate: dateStr,
       dailyBestScore: newDailyBest,
-      highestScore: score > current.highestScore ? score : current.highestScore,
+      dailyFlowers: newFlowers,
+      dailyBlooms: newBlooms,
+      dailyMaxCombo: newMaxCombo,
+      highestScore: max(current.highestScore, score),
+      bestCombo: max(current.bestCombo, maxCombo),
     );
     await saveProgress(updated);
   }

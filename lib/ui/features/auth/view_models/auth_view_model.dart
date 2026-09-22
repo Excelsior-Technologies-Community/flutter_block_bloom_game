@@ -63,12 +63,21 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
     });
   }
 
-  Future<bool> loginWithEmail(String email, String password) async {
+  Future<Map<String, String>?> getRememberedCredentials() async {
+    return await _authService.getRememberedCredentials();
+  }
+
+  Future<bool> loginWithEmail(String email, String password, {bool rememberMe = true}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final user = await _authService.signInWithEmailAndPassword(
         email: email,
         password: password,
+      );
+      await _authService.saveRememberedCredentials(
+        email: email,
+        password: password,
+        rememberMe: rememberMe,
       );
       state = state.copyWith(user: user, isLoading: false);
       return true;
@@ -79,15 +88,20 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
     }
   }
 
-  Future<bool> signUpWithEmail(String email, String password, String name) async {
+  Future<bool> signUpWithEmail(String email, String password, String name, {bool rememberMe = true}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final user = await _authService.signUpWithEmailAndPassword(
+      await _authService.signUpWithEmailAndPassword(
         email: email,
         password: password,
         name: name,
       );
-      state = state.copyWith(user: user, isLoading: false);
+      await _authService.saveRememberedCredentials(
+        email: email,
+        password: password,
+        rememberMe: rememberMe,
+      );
+      state = state.copyWith(clearUser: true, isLoading: false);
       return true;
     } catch (e) {
       final message = e.toString().replaceAll('Exception: ', '');

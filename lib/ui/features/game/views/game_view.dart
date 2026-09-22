@@ -269,10 +269,10 @@ class _GameViewState extends ConsumerState<GameView> {
     });
 
     return PopScope(
-      canPop: !widget.isDaily || !state.hasMadeMove,
+      canPop: !widget.isDaily || !state.hasMadeMove || state.isGameOver || state.isComplete,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (widget.isDaily && state.hasMadeMove) {
+        if (widget.isDaily && state.hasMadeMove && !state.isGameOver && !state.isComplete) {
           final shouldQuit = await _showQuitDailyConfirmDialog(context);
           if (shouldQuit == true && context.mounted) {
             await ref.read(gameViewModelProvider.notifier).quitDailyGameIfMoved();
@@ -356,7 +356,7 @@ class _GameViewState extends ConsumerState<GameView> {
                       child: widget.isDaily
                           ? DailyGardenGameOverView(
                               onHome: () {
-                                Navigator.of(context).popUntil((route) => route.isFirst);
+                                Navigator.of(context).pop();
                               },
                             )
                           : GameOverView(

@@ -23,17 +23,21 @@ class DailyGardenGameOverView extends ConsumerWidget {
     final state = ref.watch(gameViewModelProvider);
     final progressRepo = ref.watch(progressRepositoryProvider);
 
-    final currentScore = state.score;
-    final sessionFlowers = state.sessionFlowersEarned;
-    final totalBlooms = state.totalClears;
-    final maxCombo = state.maxComboCount;
+    final isCurrentGameActiveDaily = state.isDailyMode && (state.score > 0 || state.sessionFlowersEarned > 0 || state.totalClears > 0 || state.maxComboCount > 0);
 
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
       builder: (context, snapshot) {
         final progress = snapshot.data;
         final savedDailyScore = progress?.dailyBestScore ?? 0;
-        final displayScore = currentScore > 0 ? currentScore : savedDailyScore;
+        final savedDailyFlowers = progress?.dailyFlowers ?? 0;
+        final savedDailyBlooms = progress?.dailyBlooms ?? 0;
+        final savedDailyMaxCombo = progress?.dailyMaxCombo ?? 0;
+
+        final displayScore = isCurrentGameActiveDaily ? state.score : savedDailyScore;
+        final displayFlowers = isCurrentGameActiveDaily ? state.sessionFlowersEarned : savedDailyFlowers;
+        final displayBlooms = isCurrentGameActiveDaily ? state.totalClears : savedDailyBlooms;
+        final displayMaxCombo = isCurrentGameActiveDaily ? state.maxComboCount : savedDailyMaxCombo;
 
         return Scaffold(
           backgroundColor: const Color(0xFF05001C),
@@ -295,7 +299,7 @@ class DailyGardenGameOverView extends ConsumerWidget {
                                       ),
                                     ),
                                     label: 'FLOWERS',
-                                    value: '+$sessionFlowers',
+                                    value: '+$displayFlowers',
                                   ),
                                 ),
 
@@ -319,7 +323,7 @@ class DailyGardenGameOverView extends ConsumerWidget {
                                       ),
                                     ),
                                     label: 'BLOOM',
-                                    value: '$totalBlooms',
+                                    value: '$displayBlooms',
                                   ),
                                 ),
 
@@ -335,7 +339,7 @@ class DailyGardenGameOverView extends ConsumerWidget {
                                       size: 28,
                                     ),
                                     label: 'MAX COMBO',
-                                    value: 'X$maxCombo',
+                                    value: 'X$displayMaxCombo',
                                   ),
                                 ),
                               ],

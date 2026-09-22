@@ -15,6 +15,9 @@ class AuthService {
   bool _isFirebaseInitialized = false;
   static const String _userBoxName = 'auth_session_box';
   static const String _userKey = 'current_user_data';
+  static const String _rememberMeKey = 'remember_me_enabled';
+  static const String _rememberEmailKey = 'remember_me_email';
+  static const String _rememberPasswordKey = 'remember_me_password';
 
   final StreamController<AppUser?> _authStreamController = StreamController<AppUser?>.broadcast();
 
@@ -77,6 +80,42 @@ class AuthService {
     try {
       final box = await Hive.openBox(_userBoxName);
       await box.delete(_userKey);
+    } catch (_) {}
+  }
+
+  Future<Map<String, String>?> getRememberedCredentials() async {
+    try {
+      final box = await Hive.openBox(_userBoxName);
+      final isRemembered = box.get(_rememberMeKey, defaultValue: false) as bool;
+      if (isRemembered) {
+        final email = box.get(_rememberEmailKey, defaultValue: '') as String;
+        final password = box.get(_rememberPasswordKey, defaultValue: '') as String;
+        if (email.isNotEmpty) {
+          return {
+            'email': email,
+            'password': password,
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> saveRememberedCredentials({
+    required String email,
+    required String password,
+    required bool rememberMe,
+  }) async {
+    try {
+      final box = await Hive.openBox(_userBoxName);
+      await box.put(_rememberMeKey, rememberMe);
+      if (rememberMe) {
+        await box.put(_rememberEmailKey, email);
+        await box.put(_rememberPasswordKey, password);
+      } else {
+        await box.delete(_rememberEmailKey);
+        await box.delete(_rememberPasswordKey);
+      }
     } catch (_) {}
   }
 
@@ -147,8 +186,9 @@ class AuthService {
             photoUrl: fbUser.photoURL,
             isGuest: false,
           );
-          await _saveUserToLocal(user);
-          _authStreamController.add(user);
+          await _firebaseAuth!.signOut();
+          await _clearLocalUser();
+          _authStreamController.add(null);
           return user;
         }
       } on fb.FirebaseAuthException catch (e) {
@@ -165,8 +205,8 @@ class AuthService {
       email: email.trim(),
       isGuest: false,
     );
-    await _saveUserToLocal(user);
-    _authStreamController.add(user);
+    await _clearLocalUser();
+    _authStreamController.add(null);
     return user;
   }
 

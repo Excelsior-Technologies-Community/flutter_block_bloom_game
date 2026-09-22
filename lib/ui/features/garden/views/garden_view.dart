@@ -1148,7 +1148,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
     final highestScore = progress?.highestScore ?? 0;
     final gamesPlayed = progress?.gamesPlayed ?? 0;
     final bestCombo = progress?.bestCombo ?? 0;
-    final flowersCollected = progress?.flowers ?? flowers;
+    final flowersCollected = progress?.totalFlowersCollected ?? progress?.flowers ?? flowers;
     final linesCleared = progress?.linesCleared ?? 0;
     final avgScore = progress?.avgScore ?? 0;
 
