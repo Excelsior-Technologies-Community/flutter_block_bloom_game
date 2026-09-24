@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class UserProgress {
   const UserProgress({
     required this.currentLevel,
@@ -6,6 +8,7 @@ class UserProgress {
     required this.bestScore,
     required this.bestTimeSeconds,
     this.flowers = 0,
+    this.totalFlowers = 0,
     this.gems = 0,
     this.gardenLevel = 1,
     this.lastDailyPlayedDate = '',
@@ -13,14 +16,13 @@ class UserProgress {
     this.dailyFlowers = 0,
     this.dailyBlooms = 0,
     this.dailyMaxCombo = 0,
-    this.activeTheme = 'assets/decorate/6.png',
+    this.activeTheme = '',
     this.unlockedThemes = const ['classic'],
     this.gamesPlayed = 0,
     this.bestCombo = 0,
     this.linesCleared = 0,
     this.totalScore = 0,
-    int? totalFlowersCollected,
-  }) : totalFlowersCollected = totalFlowersCollected ?? flowers;
+  });
 
   final int currentLevel;
   final int highestScore;
@@ -28,7 +30,7 @@ class UserProgress {
   final Map<int, int> bestScore;
   final Map<int, int> bestTimeSeconds;
   final int flowers;
-  final int totalFlowersCollected;
+  final int totalFlowers;
   final int gems;
   final int gardenLevel;
   final String lastDailyPlayedDate;
@@ -56,7 +58,7 @@ class UserProgress {
     Map<int, int>? bestScore,
     Map<int, int>? bestTimeSeconds,
     int? flowers,
-    int? totalFlowersCollected,
+    int? totalFlowers,
     int? gems,
     int? gardenLevel,
     String? lastDailyPlayedDate,
@@ -78,7 +80,7 @@ class UserProgress {
       bestScore: bestScore ?? this.bestScore,
       bestTimeSeconds: bestTimeSeconds ?? this.bestTimeSeconds,
       flowers: flowers ?? this.flowers,
-      totalFlowersCollected: totalFlowersCollected ?? this.totalFlowersCollected,
+      totalFlowers: totalFlowers ?? this.totalFlowers,
       gems: gems ?? this.gems,
       gardenLevel: gardenLevel ?? this.gardenLevel,
       lastDailyPlayedDate: lastDailyPlayedDate ?? this.lastDailyPlayedDate,
@@ -103,7 +105,7 @@ class UserProgress {
       'bestScore': bestScore.map((k, v) => MapEntry(k.toString(), v)),
       'bestTimeSeconds': bestTimeSeconds.map((k, v) => MapEntry(k.toString(), v)),
       'flowers': flowers,
-      'totalFlowersCollected': totalFlowersCollected,
+      'totalFlowers': totalFlowers,
       'gems': gems,
       'gardenLevel': gardenLevel,
       'lastDailyPlayedDate': lastDailyPlayedDate,
@@ -142,8 +144,9 @@ class UserProgress {
         ? rawUnlockedThemes.map((e) => e.toString()).toList()
         : <String>['classic'];
 
-    final flowersVal = (json['flowers'] as num?)?.toInt() ?? 0;
-    final totalFlowersVal = (json['totalFlowersCollected'] as num?)?.toInt() ?? flowersVal;
+    final flowers = (json['flowers'] as num?)?.toInt() ?? 0;
+    final rawTotalFlowers = (json['totalFlowers'] as num?)?.toInt();
+    final totalFlowers = rawTotalFlowers != null ? max(rawTotalFlowers, flowers) : flowers;
 
     return UserProgress(
       currentLevel: (json['currentLevel'] as num?)?.toInt() ?? 1,
@@ -151,8 +154,8 @@ class UserProgress {
       unlockedLevels: (json['unlockedLevels'] as num?)?.toInt() ?? 1,
       bestScore: bestScore,
       bestTimeSeconds: bestTimeSeconds,
-      flowers: flowersVal,
-      totalFlowersCollected: totalFlowersVal > flowersVal ? totalFlowersVal : flowersVal,
+      flowers: flowers,
+      totalFlowers: totalFlowers,
       gems: (json['gems'] as num?)?.toInt() ?? 0,
       gardenLevel: (json['gardenLevel'] as num?)?.toInt() ?? 1,
       lastDailyPlayedDate: (json['lastDailyPlayedDate'] as String?) ?? '',
@@ -160,7 +163,7 @@ class UserProgress {
       dailyFlowers: (json['dailyFlowers'] as num?)?.toInt() ?? 0,
       dailyBlooms: (json['dailyBlooms'] as num?)?.toInt() ?? 0,
       dailyMaxCombo: (json['dailyMaxCombo'] as num?)?.toInt() ?? 0,
-      activeTheme: (json['activeTheme'] as String?) ?? 'assets/decorate/6.png',
+      activeTheme: (json['activeTheme'] as String?) ?? '',
       unlockedThemes: unlockedThemes,
       gamesPlayed: (json['gamesPlayed'] as num?)?.toInt() ?? 0,
       bestCombo: (json['bestCombo'] as num?)?.toInt() ?? 0,
@@ -169,4 +172,5 @@ class UserProgress {
     );
   }
 }
+
 

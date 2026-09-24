@@ -26,7 +26,6 @@ class GardenView extends ConsumerStatefulWidget {
 
 class _GardenViewState extends ConsumerState<GardenView> {
   int _selectedTabIndex = 0; // Default: 0 = OVERVIEW
-  String _activeThemeBg = 'assets/decorate/6.png';
 
   static const List<Map<String, dynamic>> gardenStages = [
     {
@@ -97,13 +96,14 @@ class _GardenViewState extends ConsumerState<GardenView> {
     final progress = homeState.progress;
     final flowers = progress?.flowers ?? 0;
     final currentGardenLvl = progress?.gardenLevel ?? 1;
-    final activeThemeAsset = (progress != null && progress.activeTheme.isNotEmpty)
+    final stageBgImage = 'assets/decorate/$currentGardenLvl.png';
+    final activeThemeAsset = (progress != null && progress.activeTheme.isNotEmpty && progress.activeTheme != 'assets/decorate/6.png')
         ? progress.activeTheme
-        : _activeThemeBg;
+        : stageBgImage;
 
     final currentStage = gardenStages.firstWhere(
       (g) => g['level'] == currentGardenLvl,
-      orElse: () => gardenStages[3], // Default: Garden House
+      orElse: () => gardenStages[0],
     );
 
     return Scaffold(
@@ -990,9 +990,6 @@ class _GardenViewState extends ConsumerState<GardenView> {
                               onTap: () async {
                                 HapticFeedback.mediumImpact();
                                 AudioService.instance.playClickSound();
-                                setState(() {
-                                  _activeThemeBg = themeAsset;
-                                });
                                 final repo = ref.read(progressRepositoryProvider);
                                 await repo.setActiveTheme(themeAsset);
                                 ref.read(homeViewModelProvider.notifier).loadProgress();
@@ -1031,9 +1028,6 @@ class _GardenViewState extends ConsumerState<GardenView> {
                                 if (flowers >= cost) {
                                   final success = await repo.unlockTheme(themeId, cost, themeAsset);
                                   if (success) {
-                                    setState(() {
-                                      _activeThemeBg = themeAsset;
-                                    });
                                     ref.read(homeViewModelProvider.notifier).loadProgress();
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1148,7 +1142,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
     final highestScore = progress?.highestScore ?? 0;
     final gamesPlayed = progress?.gamesPlayed ?? 0;
     final bestCombo = progress?.bestCombo ?? 0;
-    final flowersCollected = progress?.totalFlowersCollected ?? progress?.flowers ?? flowers;
+    final flowersCollected = progress?.totalFlowers ?? (progress?.flowers ?? flowers);
     final linesCleared = progress?.linesCleared ?? 0;
     final avgScore = progress?.avgScore ?? 0;
 

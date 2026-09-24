@@ -9,14 +9,12 @@ class ProgressRepository extends ChangeNotifier {
 
   final HiveService hiveService;
   String? _currentUserId;
-  UserProgress? _cachedProgress;
 
   String get currentUserId => _currentUserId ?? '';
 
   void setCurrentUser(String? userId) {
     if (_currentUserId != userId) {
       _currentUserId = userId;
-      _cachedProgress = null;
       if (userId != null && userId.isNotEmpty) {
         _ensureUserInitialized(userId).then((_) {
           syncWithFirebase(userId);
@@ -39,7 +37,6 @@ class ProgressRepository extends ChangeNotifier {
       'linesCleared',
       'totalScore',
       'dailyBestScore',
-      'totalFlowersCollected',
     ];
     for (final k in legacyKeys) {
       if (box.containsKey(k)) {
@@ -56,7 +53,6 @@ class ProgressRepository extends ChangeNotifier {
         bestScore: {},
         bestTimeSeconds: {},
         flowers: 0,
-        totalFlowersCollected: 0,
         gems: 0,
         gardenLevel: 1,
         gamesPlayed: 0,
@@ -81,20 +77,52 @@ class ProgressRepository extends ChangeNotifier {
       final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
       final docSnap = await docRef.get();
 
-      if (docSnap.exists && docSnap.data() != null && docSnap.data()!['stats'] != null) {
-        final rawStats = docSnap.data()!['stats'];
-        if (rawStats is Map) {
-          final cloudProgress = UserProgress.fromJson(Map<String, dynamic>.from(rawStats));
-          await _saveToLocal(cloudProgress);
+      if (docSnap.exists && docSnap.data() != null) {
+        final data = docSnap.data()!;
+        Map<String, dynamic> statsMap = {};
+        if (data['stats'] is Map) {
+          statsMap = Map<String, dynamic>.from(data['stats']);
+        }
+        for (final entry in data.entries) {
+          if (entry.key != 'stats' && entry.key != 'updatedAt') {
+            statsMap.putIfAbsent(entry.key, () => entry.value);
+          }
+        }
+
+        if (statsMap.isNotEmpty) {
+          final cloudProgress = UserProgress.fromJson(statsMap);
+          final localProgress = await getProgress();
+
+          final mergedProgress = cloudProgress.copyWith(
+            flowers: max(cloudProgress.flowers, localProgress.flowers),
+            totalFlowers: max(cloudProgress.totalFlowers, localProgress.totalFlowers),
+            highestScore: max(cloudProgress.highestScore, localProgress.highestScore),
+            gamesPlayed: max(cloudProgress.gamesPlayed, localProgress.gamesPlayed),
+            totalScore: max(cloudProgress.totalScore, localProgress.totalScore),
+            linesCleared: max(cloudProgress.linesCleared, localProgress.linesCleared),
+          );
+
+          await _saveToLocal(mergedProgress);
+
+          final jsonMap = mergedProgress.toJson();
+          final firestoreData = <String, dynamic>{
+            'stats': jsonMap,
+            ...jsonMap,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          await docRef.set(firestoreData, SetOptions(merge: true));
+
           notifyListeners();
           return;
         }
       }
 
-      // If no stats document exists in Firestore, push local stats to Firestore
+      // If no document exists in Firestore, push local stats to Firestore
       final localProgress = await getProgress();
+      final jsonMap = localProgress.toJson();
       await docRef.set({
-        'stats': localProgress.toJson(),
+        'stats': jsonMap,
+        ...jsonMap,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -103,10 +131,6 @@ class ProgressRepository extends ChangeNotifier {
   }
 
   Future<UserProgress> getProgress() async {
-    if (_cachedProgress != null) {
-      return _cachedProgress!;
-    }
-
     final box = hiveService.progressBox;
 
     int getInt(String field, int defaultValue) {
@@ -153,8 +177,7 @@ class ProgressRepository extends ChangeNotifier {
         : {};
 
     final flowers = getInt('flowers', 0);
-    final totalFlowersCollectedRaw = getInt('totalFlowersCollected', flowers);
-    final totalFlowersCollected = max(totalFlowersCollectedRaw, flowers);
+    final totalFlowers = max(getInt('totalFlowers', 0), flowers);
     final gems = getInt('gems', 0);
     final gardenLevel = getInt('gardenLevel', 1);
     final lastDailyPlayedDate = box.containsKey(_getKey('lastDailyPlayedDate'))
@@ -168,10 +191,10 @@ class ProgressRepository extends ChangeNotifier {
     final dailyMaxCombo = getInt('dailyMaxCombo', 0);
 
     final activeTheme = box.containsKey(_getKey('activeTheme'))
-        ? (box.get(_getKey('activeTheme'), defaultValue: 'assets/decorate/6.png') as String)
+        ? (box.get(_getKey('activeTheme'), defaultValue: '') as String)
         : ((_currentUserId == null || _currentUserId!.isEmpty)
-            ? (box.get('activeTheme', defaultValue: 'assets/decorate/6.png') as String)
-            : 'assets/decorate/6.png');
+            ? (box.get('activeTheme', defaultValue: '') as String)
+            : '');
 
     final dynamic rawUnlockedThemes = box.containsKey(_getKey('unlockedThemes'))
         ? box.get(_getKey('unlockedThemes'))
@@ -185,14 +208,14 @@ class ProgressRepository extends ChangeNotifier {
     final linesCleared = getInt('linesCleared', 0);
     final totalScore = getInt('totalScore', 0);
 
-    _cachedProgress = UserProgress(
+    return UserProgress(
       currentLevel: currentLevel,
       highestScore: highestScore,
       unlockedLevels: unlockedLevels,
       bestScore: bestScore,
       bestTimeSeconds: bestTimeSeconds,
       flowers: flowers,
-      totalFlowersCollected: totalFlowersCollected,
+      totalFlowers: totalFlowers,
       gems: gems,
       gardenLevel: gardenLevel,
       lastDailyPlayedDate: lastDailyPlayedDate,
@@ -207,12 +230,9 @@ class ProgressRepository extends ChangeNotifier {
       linesCleared: linesCleared,
       totalScore: totalScore,
     );
-
-    return _cachedProgress!;
   }
 
   Future<void> _saveToLocal(UserProgress progress) async {
-    _cachedProgress = progress;
     final box = hiveService.progressBox;
     await box.put(_getKey('currentLevel'), progress.currentLevel);
     await box.put(_getKey('highestScore'), progress.highestScore);
@@ -220,7 +240,7 @@ class ProgressRepository extends ChangeNotifier {
     await box.put(_getKey('bestScore'), progress.bestScore);
     await box.put(_getKey('bestTimeSeconds'), progress.bestTimeSeconds);
     await box.put(_getKey('flowers'), progress.flowers);
-    await box.put(_getKey('totalFlowersCollected'), progress.totalFlowersCollected);
+    await box.put(_getKey('totalFlowers'), progress.totalFlowers);
     await box.put(_getKey('gems'), progress.gems);
     await box.put(_getKey('gardenLevel'), progress.gardenLevel);
     await box.put(_getKey('lastDailyPlayedDate'), progress.lastDailyPlayedDate);
@@ -237,18 +257,26 @@ class ProgressRepository extends ChangeNotifier {
   }
 
   Future<void> saveProgress(UserProgress progress) async {
-    await _saveToLocal(progress);
+    final calculatedTotal = max(progress.totalFlowers, progress.flowers);
+    final progressToSave = progress.totalFlowers != calculatedTotal
+        ? progress.copyWith(totalFlowers: calculatedTotal)
+        : progress;
+
+    await _saveToLocal(progressToSave);
 
     // Sync with Firebase Firestore if a user is logged in
     if (_currentUserId != null && _currentUserId!.isNotEmpty) {
       try {
+        final jsonMap = progressToSave.toJson();
+        final firestoreData = <String, dynamic>{
+          'stats': jsonMap,
+          ...jsonMap,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
         FirebaseFirestore.instance
             .collection('users')
             .doc(_currentUserId)
-            .set({
-          'stats': progress.toJson(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+            .set(firestoreData, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Firestore save error: $e');
       }
@@ -285,12 +313,16 @@ class ProgressRepository extends ChangeNotifier {
     required int flowersEarned,
   }) async {
     final current = await getProgress();
+    final newFlowers = current.flowers + flowersEarned;
+    final newTotalFlowers = current.totalFlowers + flowersEarned;
+
     final updated = current.copyWith(
       highestScore: max(current.highestScore, score),
       bestCombo: max(current.bestCombo, maxCombo),
       linesCleared: current.linesCleared + linesClearedInGame,
       totalScore: current.totalScore + score,
-      totalFlowersCollected: max(current.totalFlowersCollected, current.flowers),
+      flowers: newFlowers,
+      totalFlowers: newTotalFlowers,
     );
     await saveProgress(updated);
   }
@@ -318,9 +350,11 @@ class ProgressRepository extends ChangeNotifier {
 
   Future<void> addFlowers(int amount) async {
     final current = await getProgress();
+    final newFlowers = current.flowers + amount;
+    final newTotalFlowers = current.totalFlowers + amount;
     final updated = current.copyWith(
-      flowers: current.flowers + amount,
-      totalFlowersCollected: current.totalFlowersCollected + amount,
+      flowers: newFlowers,
+      totalFlowers: newTotalFlowers,
     );
     await saveProgress(updated);
   }
@@ -328,9 +362,11 @@ class ProgressRepository extends ChangeNotifier {
   Future<bool> upgradeGarden(int flowerCost) async {
     final current = await getProgress();
     if (current.flowers >= flowerCost && current.gardenLevel < 6) {
+      final nextLvl = current.gardenLevel + 1;
       final updated = current.copyWith(
         flowers: current.flowers - flowerCost,
-        gardenLevel: current.gardenLevel + 1,
+        gardenLevel: nextLvl,
+        activeTheme: 'assets/decorate/$nextLvl.png',
       );
       await saveProgress(updated);
       return true;
@@ -355,23 +391,26 @@ class ProgressRepository extends ChangeNotifier {
     int flowers = 0,
     int blooms = 0,
     int maxCombo = 0,
+    bool isFinal = false,
   }) async {
     final current = await getProgress();
     final isSameDay = current.lastDailyPlayedDate == dateStr;
 
     final newDailyBest = (isSameDay && current.dailyBestScore > score) ? current.dailyBestScore : score;
-    final newFlowers = (isSameDay && current.dailyFlowers > flowers) ? current.dailyFlowers : flowers;
-    final newBlooms = (isSameDay && current.dailyBlooms > blooms) ? current.dailyBlooms : blooms;
-    final newMaxCombo = (isSameDay && current.dailyMaxCombo > maxCombo) ? current.dailyMaxCombo : maxCombo;
+    final newDailyFlowers = (isSameDay && current.dailyFlowers > flowers) ? current.dailyFlowers : flowers;
+    final newDailyBlooms = (isSameDay && current.dailyBlooms > blooms) ? current.dailyBlooms : blooms;
+    final newDailyMaxCombo = (isSameDay && current.dailyMaxCombo > maxCombo) ? current.dailyMaxCombo : maxCombo;
 
     final updated = current.copyWith(
       lastDailyPlayedDate: dateStr,
       dailyBestScore: newDailyBest,
-      dailyFlowers: newFlowers,
-      dailyBlooms: newBlooms,
-      dailyMaxCombo: newMaxCombo,
+      dailyFlowers: newDailyFlowers,
+      dailyBlooms: newDailyBlooms,
+      dailyMaxCombo: newDailyMaxCombo,
       highestScore: max(current.highestScore, score),
       bestCombo: max(current.bestCombo, maxCombo),
+      linesCleared: isFinal ? (current.linesCleared + blooms) : current.linesCleared,
+      totalScore: isFinal ? (current.totalScore + score) : current.totalScore,
     );
     await saveProgress(updated);
   }

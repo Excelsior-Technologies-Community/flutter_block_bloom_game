@@ -592,7 +592,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
             ),
           ),
         ],
-      ),
+      ),w
     );
   }
 

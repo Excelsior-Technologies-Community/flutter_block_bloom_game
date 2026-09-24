@@ -165,9 +165,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   final ProgressRepository progressRepository;
   final LevelGenerator levelGenerator;
 
-  bool _hasRecordedGameStarted = false;
-  bool _hasRecordedGameFinished = false;
-
   void loadLevel(int levelNumber) {
     state = state.copyWith(isLoading: true);
     try {
@@ -241,9 +238,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         break;
       }
     }
-
-    _hasRecordedGameStarted = false;
-    _hasRecordedGameFinished = false;
 
     final pieces = _generate3Pieces(board);
     final colors = _generate3Colors();
@@ -382,12 +376,11 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       return false;
     }
 
-    if (!_hasRecordedGameStarted) {
-      _hasRecordedGameStarted = true;
+    final n = state.board.length;
+
+    if (!state.hasMadeMove) {
       progressRepository.recordGameStarted();
     }
-
-    final n = state.board.length;
 
     // Handle 💣 Bloom Bomb piece placement!
     if (piece.isBomb) {
@@ -525,11 +518,11 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
             final fType = flowerTypes[random.nextInt(flowerTypes.length)];
             clearedBoard[r][c] = BoardCell(type: CellType.flower, flowerType: fType);
             bloomBonusPoints += 150;
+            flowersEarned++;
           } else if (cell.type == CellType.flower) {
             // Harvest mature flower! +250 bonus
             bloomBonusPoints += 250;
             flowersEarned++;
-            progressRepository.addFlowers(1);
 
             if (cell.flowerType == FlowerType.sunflower) {
               sunPool++;
@@ -597,10 +590,9 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
           maxCombo: currentCombo,
         );
 
-        final isGameOver = !isComplete && !playable.any((p) => p);
+        final bool rawGameOver = !isComplete && !playable.any((p) => p);
 
-        if (isGameOver && !_hasRecordedGameFinished) {
-          _hasRecordedGameFinished = true;
+        if (rawGameOver) {
           progressRepository.recordGameFinished(
             score: updatedScore,
             linesClearedInGame: newTotalClears,
@@ -608,6 +600,19 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
             flowersEarned: flowersEarned,
           );
         }
+
+        if (!isComplete && rawGameOver && state.canContinue) {
+          // Anti-Loss Rescue: Auto-generate playable pieces on first loss
+          final rescued = _generate3Pieces(clearedBoard);
+          final rescuedColors = _generate3Colors();
+          for (int i = 0; i < 3; i++) {
+            newPieces[i] = rescued[i];
+            newPieceColors[i] = rescuedColors[i];
+          }
+          playable = _computePlayablePieces(clearedBoard, newPieces);
+        }
+
+        final isGameOver = !isComplete && !playable.any((p) => p);
 
         if (state.isDailyMode) {
           final dateStr = progressRepository.getTodayDateString();
@@ -617,6 +622,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
             flowers: flowersEarned,
             blooms: newTotalClears,
             maxCombo: newMaxCombo,
+            isFinal: isGameOver,
           );
         }
 
@@ -648,6 +654,15 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
       final bool rawGameOver = !isComplete && !playable.any((p) => p);
 
+      if (rawGameOver) {
+        progressRepository.recordGameFinished(
+          score: newScore,
+          linesClearedInGame: newTotalClears,
+          maxCombo: newMaxCombo,
+          flowersEarned: state.sessionFlowersEarned,
+        );
+      }
+
       if (!isComplete && rawGameOver && state.canContinue) {
         // Anti-Loss Rescue: Auto-generate playable pieces on first loss
         nextTrayGenId++;
@@ -662,16 +677,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
       final isGameOver = !isComplete && !playable.any((p) => p);
 
-      if (isGameOver && !_hasRecordedGameFinished) {
-        _hasRecordedGameFinished = true;
-        progressRepository.recordGameFinished(
-          score: newScore,
-          linesClearedInGame: newTotalClears,
-          maxCombo: newMaxCombo,
-          flowersEarned: state.sessionFlowersEarned,
-        );
-      }
-
       if (state.isDailyMode && isGameOver) {
         final dateStr = progressRepository.getTodayDateString();
         progressRepository.saveDailyScore(
@@ -680,6 +685,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
           flowers: state.sessionFlowersEarned,
           blooms: newTotalClears,
           maxCombo: newMaxCombo,
+          isFinal: true,
         );
       }
 
@@ -711,6 +717,10 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   }
 
   bool _detonateBombPiece(int pieceIndex, int centerRow, int centerCol) {
+    if (!state.hasMadeMove) {
+      progressRepository.recordGameStarted();
+    }
+
     final n = state.board.length;
     final newBoard = List.generate(
       n,
@@ -734,8 +744,6 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       for (int c = max(0, centerCol - 1); c <= min(n - 1, centerCol + 1); c++) {
         final cell = newBoard[r][c];
         if (cell.type != CellType.empty) {
-          affected.add('$r,$c');
-
           if (cell.type == CellType.occupied) {
             occupiedCoords.add(Point(r, c));
             newBoard[r][c] = BoardCell.empty;
@@ -744,10 +752,9 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
             final fType = flowerTypes[random.nextInt(flowerTypes.length)];
             newBoard[r][c] = BoardCell(type: CellType.flower, flowerType: fType);
             bonusPoints += 100;
+            flowersEarned++;
           } else if (cell.type == CellType.flower) {
             flowersEarned++;
-            progressRepository.addFlowers(1);
-
             if (cell.flowerType == FlowerType.sunflower) {
               sunPool++;
               if (sunPool >= 3) {
@@ -845,15 +852,12 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   }
 
   Future<void> completeLevel() async {
-    if (!_hasRecordedGameFinished) {
-      _hasRecordedGameFinished = true;
-      await progressRepository.recordGameFinished(
-        score: state.score,
-        linesClearedInGame: state.totalClears,
-        maxCombo: state.maxComboCount,
-        flowersEarned: state.sessionFlowersEarned,
-      );
-    }
+    await progressRepository.recordGameFinished(
+      score: state.score,
+      linesClearedInGame: state.totalClears,
+      maxCombo: state.maxComboCount,
+      flowersEarned: state.sessionFlowersEarned,
+    );
     if (state.level != null && !state.isRandomMode && !state.isDailyMode) {
       await progressRepository.saveLevelCompletion(
         levelNumber: state.level!.levelNumber,
@@ -866,22 +870,20 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   Future<void> quitDailyGameIfMoved() async {
     if (state.isDailyMode && state.hasMadeMove) {
       final dateStr = progressRepository.getTodayDateString();
+      await progressRepository.recordGameFinished(
+        score: state.score,
+        linesClearedInGame: state.totalClears,
+        maxCombo: state.maxComboCount,
+        flowersEarned: state.sessionFlowersEarned,
+      );
       await progressRepository.saveDailyScore(
         state.score,
         dateStr,
         flowers: state.sessionFlowersEarned,
         blooms: state.totalClears,
         maxCombo: state.maxComboCount,
+        isFinal: true,
       );
-      if (!_hasRecordedGameFinished) {
-        _hasRecordedGameFinished = true;
-        await progressRepository.recordGameFinished(
-          score: state.score,
-          linesClearedInGame: state.totalClears,
-          maxCombo: state.maxComboCount,
-          flowersEarned: state.sessionFlowersEarned,
-        );
-      }
     }
   }
 }
