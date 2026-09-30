@@ -14,6 +14,8 @@ class GlossyGameButton extends StatefulWidget {
     this.fontSize = 20.0,
     this.height = 56.0,
     this.width,
+    this.borderGradient,
+    this.borderRadius,
   });
 
   final String text;
@@ -25,6 +27,8 @@ class GlossyGameButton extends StatefulWidget {
   final double fontSize;
   final double height;
   final double? width;
+  final Gradient? borderGradient;
+  final double? borderRadius;
 
   // Preset Factory Constructors matching exact specifications
   factory GlossyGameButton.green({
@@ -144,6 +148,60 @@ class GlossyGameButton extends StatefulWidget {
     );
   }
 
+  factory GlossyGameButton.trophy({
+    Key? key,
+    required VoidCallback? onPressed,
+    double height = 56.0,
+    double? width,
+    double fontSize = 20.0,
+  }) {
+    return GlossyGameButton(
+      key: key,
+      text: 'LEADERBOARD',
+      topColor: const Color(0xFFC7AD45),
+      bottomColor: const Color(0xFF4A330F),
+      textColor: const Color(0xFFFFFFFF),
+      fontSize: fontSize,
+      height: height,
+      width: width,
+      borderGradient: const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF7E7A27),
+          Color(0xFFF1E59A),
+        ],
+      ),
+      onPressed: onPressed,
+      icon: Image.asset(
+        'assets/trophy_icon.png',
+        width: 26,
+        height: 26,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => const Icon(
+          Icons.emoji_events_rounded,
+          color: Color(0xFFFFD700),
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  factory GlossyGameButton.leaderboard({
+    Key? key,
+    required VoidCallback? onPressed,
+    double height = 56.0,
+    double? width,
+    double fontSize = 20.0,
+  }) =>
+      GlossyGameButton.trophy(
+        key: key,
+        onPressed: onPressed,
+        height: height,
+        width: width,
+        fontSize: fontSize,
+      );
+
   factory GlossyGameButton.settings({
     Key? key,
     required VoidCallback? onPressed,
@@ -186,7 +244,7 @@ class _GlossyGameButtonState extends State<GlossyGameButton> {
   Widget build(BuildContext context) {
     final isEnabled = widget.onPressed != null;
     final isPressedNow = _isPressed && isEnabled;
-    final double radius = widget.height / 2;
+    final double radius = widget.borderRadius ?? (widget.height / 2);
 
     return GestureDetector(
       onTapDown: (_) {
@@ -208,90 +266,133 @@ class _GlossyGameButtonState extends State<GlossyGameButton> {
         scale: isPressedNow ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeInOut,
-        child: Container(
-          height: widget.height,
-          width: widget.width ?? double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [widget.topColor, widget.bottomColor],
-            ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.65),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.bottomColor.withValues(alpha: isPressedNow ? 0.2 : 0.4),
-                blurRadius: isPressedNow ? 4 : 10,
-                offset: Offset(0, isPressedNow ? 2 : 4),
+        child: CustomPaint(
+          foregroundPainter: widget.borderGradient != null
+              ? _GradientBorderPainter(
+                  gradient: widget.borderGradient!,
+                  strokeWidth: 1.5,
+                  radius: radius,
+                )
+              : null,
+          child: Container(
+            height: widget.height,
+            width: widget.width ?? double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [widget.topColor, widget.bottomColor],
               ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.4),
-                blurRadius: 1,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius - 1.5),
-            child: Stack(
-              children: [
-                // Top Glossy Sheen Overlay Arc
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: widget.height * 0.48,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.elliptical(200, 30),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.60),
-                          Colors.white.withValues(alpha: 0.12),
-                        ],
-                      ),
+              border: widget.borderGradient != null
+                  ? null
+                  : Border.all(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      width: 1.5,
                     ),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.bottomColor.withValues(alpha: isPressedNow ? 0.2 : 0.4),
+                  blurRadius: isPressedNow ? 4 : 10,
+                  offset: Offset(0, isPressedNow ? 2 : 4),
                 ),
-
-                // Button Content (Icon + Text)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.icon != null) ...[
-                          widget.icon!,
-                          const SizedBox(width: 10),
-                        ],
-                        Text(
-                          widget.text,
-                          style: GoogleFonts.chakraPetch(
-                            fontSize: widget.fontSize,
-                            fontWeight: FontWeight.w700,
-                            color: widget.textColor,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  blurRadius: 1,
+                  offset: const Offset(0, 1),
                 ),
               ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius - 1.5),
+              child: Stack(
+                children: [
+                  // Top Glossy Sheen Overlay Arc
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: widget.height * 0.48,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.elliptical(200, 30),
+                        ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withValues(alpha: 0.60),
+                            Colors.white.withValues(alpha: 0.12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Button Content (Icon + Text)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.icon != null) ...[
+                            widget.icon!,
+                            const SizedBox(width: 10),
+                          ],
+                          Text(
+                            widget.text,
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: widget.fontSize,
+                              fontWeight: FontWeight.w700,
+                              color: widget.textColor,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _GradientBorderPainter extends CustomPainter {
+  final Gradient gradient;
+  final double strokeWidth;
+  final double radius;
+
+  _GradientBorderPainter({
+    required this.gradient,
+    required this.strokeWidth,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(strokeWidth / 2),
+      Radius.circular(radius - strokeWidth / 2),
+    );
+    final paint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GradientBorderPainter oldDelegate) =>
+      oldDelegate.gradient != gradient ||
+      oldDelegate.strokeWidth != strokeWidth ||
+      oldDelegate.radius != radius;
 }
