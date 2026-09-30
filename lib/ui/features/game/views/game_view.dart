@@ -8,6 +8,8 @@ import 'package:block_bloom/domain/models/cell_state.dart';
 import 'package:block_bloom/domain/models/game_level.dart';
 import 'package:block_bloom/domain/use_cases/block_blast_rules.dart';
 import 'package:block_bloom/ui/core/theme/app_colors.dart';
+import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
+import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/core/widgets/tangible_button.dart';
 import 'package:block_bloom/ui/features/game/view_models/game_view_model.dart';
 import 'package:block_bloom/ui/providers.dart';
@@ -367,6 +369,16 @@ class _GameViewState extends ConsumerState<GameView> {
                                 Navigator.of(context).popUntil((route) => route.isFirst);
                               },
                             ),
+                    ),
+
+                  if (state.isComplete)
+                    Positioned.fill(
+                      child: LevelCompletedOverlay(
+                        levelNumber: widget.levelNumber,
+                        onContinueToMap: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
                     ),
                 ],
               ),
@@ -2292,6 +2304,142 @@ class _PersistentComboBannerState extends State<PersistentComboBanner> with Sing
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Level Completed Victory Overlay
+class LevelCompletedOverlay extends ConsumerWidget {
+  const LevelCompletedOverlay({
+    super.key,
+    required this.levelNumber,
+    required this.onContinueToMap,
+  });
+
+  final int levelNumber;
+  final VoidCallback onContinueToMap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(gameViewModelProvider);
+    final score = state.score;
+    final flowers = state.sessionFlowersEarned;
+
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xDD05001C),
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Arched Victory Header
+                  const FloralHeaderTitle(
+                    title: 'LEVEL COMPLETE!',
+                    fontSize: 32.0,
+                    flowerSize: 40.0,
+                    curveAmount: 14.0,
+                    verticalOffset: -20.0,
+                    letterSpacing: 1.5,
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // Score & Flowers Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF001126),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFFFC800),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            'LEVEL $levelNumber COMPLETED',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ).createShader(bounds),
+                          child: Text(
+                            '$score',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '+$flowers ',
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF6EE7B7),
+                              ),
+                            ),
+                            Image.asset(
+                              'assets/game_flower.png',
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                              errorBuilder: (c, e, s) => const Text('🌸', style: TextStyle(fontSize: 16)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // CONTINUE TO MAP Button
+                  GreenGameButton(
+                    text: 'CONTINUE TO MAP',
+                    width: 220.0,
+                    height: 50.0,
+                    fontSize: 15,
+                    onPressed: () {
+                      AudioService.instance.playClickSound();
+                      onContinueToMap();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

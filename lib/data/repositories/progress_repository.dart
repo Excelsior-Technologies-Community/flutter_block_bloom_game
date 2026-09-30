@@ -366,7 +366,6 @@ class ProgressRepository extends ChangeNotifier {
       final updated = current.copyWith(
         flowers: current.flowers - flowerCost,
         gardenLevel: nextLvl,
-        activeTheme: 'assets/decorate/$nextLvl.png',
       );
       await saveProgress(updated);
       return true;

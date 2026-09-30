@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/data/services/hive_service.dart';
+import 'package:block_bloom/ui/core/widgets/network_connectivity_banner.dart';
 import 'package:block_bloom/ui/features/splash/views/splash_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
@@ -35,7 +36,13 @@ class BlockBloomApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF10B981)),
         useMaterial3: true,
       ),
+      builder: (context, child) {
+        return NetworkConnectivityWrapper(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const SplashView(),
     );
   }
 }
+

@@ -30,6 +30,23 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
 
   @override
+  void initState() {
+    super.initState();
+    _loadRememberedCredentials();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final creds = await ref.read(authViewModelProvider.notifier).getRememberedCredentials();
+    if (creds != null && mounted) {
+      setState(() {
+        _emailController.text = creds['email'] ?? '';
+        _passwordController.text = creds['password'] ?? '';
+        _rememberMe = true;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
@@ -592,7 +609,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
             ),
           ),
         ],
-      ),w
+      ),
     );
   }
 

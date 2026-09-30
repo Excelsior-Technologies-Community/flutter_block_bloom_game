@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
-import 'package:block_bloom/ui/features/game/views/game_view.dart';
+import 'package:block_bloom/ui/features/level_select/views/level_select_view.dart';
 import 'package:block_bloom/ui/features/garden/views/garden_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
@@ -26,7 +26,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeViewModelProvider);
-    final progress = state.progress;
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
@@ -112,9 +111,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => GameView(
-                                        levelNumber: progress?.currentLevel ?? 1,
-                                      ),
+                                      builder: (context) => const LevelSelectView(),
                                     ),
                                   );
                                   ref.read(homeViewModelProvider.notifier).loadProgress();

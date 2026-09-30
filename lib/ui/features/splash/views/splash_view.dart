@@ -42,16 +42,25 @@ class _SplashViewState extends ConsumerState<SplashView>
     super.dispose();
   }
 
-  void _handlePlayNow() {
+  void _handlePlayNow() async {
     if (_isNavigating) return;
     setState(() {
       _isNavigating = true;
     });
     AudioService.instance.playClickSound();
 
-    final authState = ref.read(authViewModelProvider);
+    var authState = ref.read(authViewModelProvider);
+    if (!authState.isInitialized) {
+      await Future.doWhile(() async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        authState = ref.read(authViewModelProvider);
+        return !authState.isInitialized;
+      });
+    }
 
     final Widget targetScreen = authState.isAuthenticated ? const HomeView() : const AuthView();
+
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

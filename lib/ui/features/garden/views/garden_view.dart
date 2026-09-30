@@ -90,16 +90,29 @@ class _GardenViewState extends ConsumerState<GardenView> {
     Future.microtask(() => ref.read(homeViewModelProvider.notifier).loadProgress());
   }
 
+  static String getThemeFolder(String? activeTheme) {
+    if (activeTheme == null || activeTheme.isEmpty) return 'dtheme1';
+    final lower = activeTheme.toLowerCase();
+    if (lower == 'dtheme2' || lower == 'space' || lower.contains('dtheme2') || lower.contains('space') || lower.contains('themes/1.png')) {
+      return 'dtheme2';
+    }
+    if (lower == 'dtheme3' || lower == 'candy' || lower.contains('dtheme3') || lower.contains('candy') || lower.contains('themes/2.png')) {
+      return 'dtheme3';
+    }
+    if (lower == 'dtheme4' || lower == 'ocean' || lower.contains('dtheme4') || lower.contains('ocean') || lower.contains('themes/3.png')) {
+      return 'dtheme4';
+    }
+    return 'dtheme1';
+  }
+
   @override
   Widget build(BuildContext context) {
     final homeState = ref.watch(homeViewModelProvider);
     final progress = homeState.progress;
     final flowers = progress?.flowers ?? 0;
-    final currentGardenLvl = progress?.gardenLevel ?? 1;
-    final stageBgImage = 'assets/decorate/$currentGardenLvl.png';
-    final activeThemeAsset = (progress != null && progress.activeTheme.isNotEmpty && progress.activeTheme != 'assets/decorate/6.png')
-        ? progress.activeTheme
-        : stageBgImage;
+    final currentGardenLvl = (progress?.gardenLevel ?? 1).clamp(1, 6);
+    final activeThemeFolder = getThemeFolder(progress?.activeTheme);
+    final activeThemeAsset = 'assets/decorate/$activeThemeFolder/$currentGardenLvl.png';
 
     final currentStage = gardenStages.firstWhere(
       (g) => g['level'] == currentGardenLvl,
@@ -164,7 +177,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                       description: currentStage['description'] as String,
                     ),
                     const Spacer(),
-                    _buildOverviewContent(context, flowers, activeThemeAsset),
+                    _buildOverviewContent(context, flowers, currentGardenLvl, activeThemeAsset),
                   ] else ...[
                     Expanded(
                       child: AnimatedSwitcher(
@@ -273,7 +286,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
   Widget _buildTabContent(int flowers, int currentGardenLvl, UserProgress? progress, String activeThemeAsset) {
     switch (_selectedTabIndex) {
       case 0:
-        return _buildOverviewContent(context, flowers, activeThemeAsset);
+        return _buildOverviewContent(context, flowers, currentGardenLvl, activeThemeAsset);
       case 1:
         return _buildDecorateContent(flowers, currentGardenLvl);
       case 2:
@@ -281,18 +294,27 @@ class _GardenViewState extends ConsumerState<GardenView> {
       case 3:
         return _buildStatsContent(flowers, currentGardenLvl, progress);
       default:
-        return _buildOverviewContent(context, flowers, activeThemeAsset);
+        return _buildOverviewContent(context, flowers, currentGardenLvl, activeThemeAsset);
     }
   }
 
   // --- TAB 0: OVERVIEW CONTENT ---
-  Widget _buildOverviewContent(BuildContext context, int flowers, String activeThemeAsset) {
+  Widget _buildOverviewContent(BuildContext context, int flowers, int currentGardenLvl, String activeThemeAsset) {
+    final isMaxLevel = currentGardenLvl >= 6;
+    final nextStage = isMaxLevel
+        ? null
+        : gardenStages.firstWhere((g) => g['level'] == currentGardenLvl + 1, orElse: () => gardenStages.last);
+    final nextStageName = nextStage?['name'] as String? ?? 'Complete Garden';
+    final nextStageCost = (nextStage?['cost'] as int?) ?? 1000;
+    final progressFactor = isMaxLevel ? 1.0 : (flowers / (nextStageCost > 0 ? nextStageCost : 1)).clamp(0.0, 1.0);
+    final progressText = isMaxLevel ? '$flowers Flowers' : '$flowers/$nextStageCost';
+    final headerTitle = isMaxLevel ? 'GARDEN MAX LEVEL REACHED' : 'NEXT LEVEL ${currentGardenLvl + 1} - ${nextStageName.toUpperCase()}';
+
     return Column(
       key: const ValueKey('OverviewTab'),
       mainAxisSize: MainAxisSize.min,
       children: [
-
-        // Next Level Progress Card (Screenshot 4)
+        // Next Level Progress Card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -314,7 +336,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header: NEXT LEVEL 5 - FOUNTAIN
+              // Dynamic Header: NEXT LEVEL X - STAGE NAME
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
                   colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
@@ -322,7 +344,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                   end: Alignment.bottomCenter,
                 ).createShader(bounds),
                 child: Text(
-                  'NEXT LEVEL 5 - FOUNTAIN',
+                  headerTitle,
                   style: GoogleFonts.chakraPetch(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -337,7 +359,6 @@ class _GardenViewState extends ConsumerState<GardenView> {
               // Progress Bar Row: Flower Icon + Progress Bar + Info (i) Icon
               Row(
                 children: [
-                  // Flower Icon
                   Image.asset(
                     'assets/game_flower.png',
                     width: 28,
@@ -351,7 +372,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                   // Gradient Progress Bar
                   Expanded(
                     child: Stack(
-                      alignment: Alignment.center,
+                      alignment: Alignment.centerLeft,
                       children: [
                         Container(
                           height: 18,
@@ -365,7 +386,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                           ),
                         ),
                         FractionallySizedBox(
-                          widthFactor: (400 / 600).clamp(0.0, 1.0),
+                          widthFactor: progressFactor,
                           alignment: Alignment.centerLeft,
                           child: Container(
                             height: 18,
@@ -379,13 +400,17 @@ class _GardenViewState extends ConsumerState<GardenView> {
                             ),
                           ),
                         ),
-                        Text(
-                          '400/600',
-                          style: GoogleFonts.chakraPetch(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
+                        Positioned.fill(
+                          child: Center(
+                            child: Text(
+                              progressText,
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -616,7 +641,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Stack(
-                                    alignment: Alignment.center,
+                                    alignment: Alignment.centerLeft,
                                     children: [
                                       Container(
                                         height: 13,
@@ -642,12 +667,16 @@ class _GardenViewState extends ConsumerState<GardenView> {
                                           ),
                                         ),
                                       ),
-                                      Text(
-                                        '$flowers/$cost',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white,
+                                      Positioned.fill(
+                                        child: Center(
+                                          child: Text(
+                                            '$flowers/$cost',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -741,42 +770,51 @@ class _GardenViewState extends ConsumerState<GardenView> {
 
   // --- TAB 2: THEMES CONTENT ---
   Widget _buildThemesContent(int flowers, int currentGardenLvl, UserProgress? progress, String activeThemeAsset) {
-    final unlockedThemes = progress?.unlockedThemes ?? ['classic'];
-    final activeTheme = (progress != null && progress.activeTheme.isNotEmpty)
-        ? progress.activeTheme
-        : activeThemeAsset;
+    final unlockedThemes = progress?.unlockedThemes ?? ['classic', 'dtheme1'];
+    final currentThemeFolder = getThemeFolder(progress?.activeTheme);
+    final safeLvl = currentGardenLvl.clamp(1, 6);
 
     final List<Map<String, dynamic>> themesData = [
       {
-        'id': 'classic',
+        'id': 'dtheme1',
+        'legacyId': 'classic',
         'name': 'Classic Garden',
-        'asset': 'assets/decorate/6.png',
+        'asset': 'assets/decorate/dtheme1/$safeLvl.png',
         'alignment': const Alignment(-0.95, -0.35),
         'subtitle': 'Lvl $currentGardenLvl/Lvl 6',
         'cost': 0,
       },
       {
-        'id': 'space',
+        'id': 'dtheme2',
+        'legacyId': 'space',
         'name': 'Space Garden',
-        'asset': 'assets/themes/1.png',
+        'asset': 'assets/decorate/dtheme2/$safeLvl.png',
         'alignment': const Alignment(-0.95, -0.35),
-        'subtitle': 'Unlocks after completion of classic garden',
+        'subtitle': unlockedThemes.contains('dtheme2') || unlockedThemes.contains('space')
+            ? 'Lvl $currentGardenLvl/Lvl 6'
+            : 'Unlocks after completion of classic garden',
         'cost': 1000,
       },
       {
-        'id': 'candy',
+        'id': 'dtheme3',
+        'legacyId': 'candy',
         'name': 'Candy Garden',
-        'asset': 'assets/themes/2.png',
+        'asset': 'assets/decorate/dtheme3/$safeLvl.png',
         'alignment': const Alignment(-0.95, -0.35),
-        'subtitle': 'Available after unlocking Space Garden.',
+        'subtitle': unlockedThemes.contains('dtheme3') || unlockedThemes.contains('candy')
+            ? 'Lvl $currentGardenLvl/Lvl 6'
+            : 'Available after unlocking Space Garden.',
         'cost': 2000,
       },
       {
-        'id': 'ocean',
+        'id': 'dtheme4',
+        'legacyId': 'ocean',
         'name': 'Ocean Garden',
-        'asset': 'assets/themes/3.png',
+        'asset': 'assets/decorate/dtheme4/$safeLvl.png',
         'alignment': const Alignment(-0.95, -0.35),
-        'subtitle': 'Available after unlocking Candy Garden.',
+        'subtitle': unlockedThemes.contains('dtheme4') || unlockedThemes.contains('ocean')
+            ? 'Lvl $currentGardenLvl/Lvl 6'
+            : 'Available after unlocking Candy Garden.',
         'cost': 3000,
       },
     ];
@@ -808,14 +846,15 @@ class _GardenViewState extends ConsumerState<GardenView> {
             itemBuilder: (context, index) {
               final theme = themesData[index];
               final themeId = theme['id'] as String;
+              final legacyId = theme['legacyId'] as String;
               final themeAsset = theme['asset'] as String;
               final themeName = theme['name'] as String;
               final subtitle = theme['subtitle'] as String;
               final cost = theme['cost'] as int;
               final alignment = (theme['alignment'] as Alignment?) ?? const Alignment(-0.95, -0.35);
 
-              final isUnlocked = unlockedThemes.contains(themeId) || themeId == 'classic';
-              final isActive = activeTheme == themeAsset;
+              final isUnlocked = unlockedThemes.contains(themeId) || unlockedThemes.contains(legacyId) || themeId == 'dtheme1';
+              final isActive = currentThemeFolder == themeId;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -895,7 +934,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                           const SizedBox(height: 6),
 
                           // Subtitle / Requirement / Progress (12px clean text)
-                          if (themeId == 'classic') ...[
+                          if (isUnlocked) ...[
                             // Progress pill bar: Lvl 4/Lvl 6
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -991,7 +1030,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                                 HapticFeedback.mediumImpact();
                                 AudioService.instance.playClickSound();
                                 final repo = ref.read(progressRepositoryProvider);
-                                await repo.setActiveTheme(themeAsset);
+                                await repo.setActiveTheme(themeId);
                                 ref.read(homeViewModelProvider.notifier).loadProgress();
                               },
                               child: Container(
@@ -1026,7 +1065,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
                                 HapticFeedback.heavyImpact();
                                 final repo = ref.read(progressRepositoryProvider);
                                 if (flowers >= cost) {
-                                  final success = await repo.unlockTheme(themeId, cost, themeAsset);
+                                  final success = await repo.unlockTheme(themeId, cost, themeId);
                                   if (success) {
                                     ref.read(homeViewModelProvider.notifier).loadProgress();
                                     if (context.mounted) {
