@@ -6,7 +6,7 @@ import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
 import 'package:block_bloom/ui/features/level_select/views/level_select_view.dart';
 import 'package:block_bloom/ui/features/garden/views/garden_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
-import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_game_over_view.dart';
+import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
@@ -154,7 +154,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const DailyGardenGameOverView(),
+                                builder: (context) => const LeaderboardView(),
                               ),
                             );
                             ref.read(homeViewModelProvider.notifier).loadProgress();
