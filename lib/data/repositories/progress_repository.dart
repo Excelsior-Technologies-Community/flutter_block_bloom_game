@@ -100,6 +100,12 @@ class ProgressRepository extends ChangeNotifier {
             gamesPlayed: max(cloudProgress.gamesPlayed, localProgress.gamesPlayed),
             totalScore: max(cloudProgress.totalScore, localProgress.totalScore),
             linesCleared: max(cloudProgress.linesCleared, localProgress.linesCleared),
+            currentLevel: max(cloudProgress.currentLevel, localProgress.currentLevel),
+            unlockedLevels: max(cloudProgress.unlockedLevels, localProgress.unlockedLevels),
+            gardenLevel: max(cloudProgress.gardenLevel, localProgress.gardenLevel),
+            gems: max(cloudProgress.gems, localProgress.gems),
+            bestScore: _mergeIntMaps(cloudProgress.bestScore, localProgress.bestScore),
+            bestTimeSeconds: _mergeBestTimes(cloudProgress.bestTimeSeconds, localProgress.bestTimeSeconds),
           );
 
           await _saveToLocal(mergedProgress);
@@ -128,6 +134,26 @@ class ProgressRepository extends ChangeNotifier {
     } catch (e) {
       debugPrint('Firestore sync note: $e');
     }
+  }
+
+  Map<int, int> _mergeIntMaps(Map<int, int> map1, Map<int, int> map2) {
+    final result = Map<int, int>.from(map1);
+    map2.forEach((key, val) {
+      if (!result.containsKey(key) || val > result[key]!) {
+        result[key] = val;
+      }
+    });
+    return result;
+  }
+
+  Map<int, int> _mergeBestTimes(Map<int, int> map1, Map<int, int> map2) {
+    final result = Map<int, int>.from(map1);
+    map2.forEach((key, val) {
+      if (!result.containsKey(key) || val < result[key]!) {
+        result[key] = val;
+      }
+    });
+    return result;
   }
 
   Future<UserProgress> getProgress() async {
@@ -418,6 +444,7 @@ class ProgressRepository extends ChangeNotifier {
     required int levelNumber,
     required int score,
     required int elapsedSeconds,
+    int flowersEarned = 0,
   }) async {
     final current = await getProgress();
     final newUnlocked = levelNumber >= current.unlockedLevels 
@@ -446,6 +473,8 @@ class ProgressRepository extends ChangeNotifier {
       unlockedLevels: newUnlocked,
       bestScore: newBestScore,
       bestTimeSeconds: newBestTime,
+      flowers: current.flowers + flowersEarned,
+      totalFlowers: current.totalFlowers + flowersEarned,
     );
 
     await saveProgress(updated);
