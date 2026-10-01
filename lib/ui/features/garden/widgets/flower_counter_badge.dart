@@ -54,7 +54,7 @@ class FlowerCounterBadge extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                _formatCount(count > 0 ? count : 400),
+                _formatCount(count),
                 style: GoogleFonts.chakraPetch(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,

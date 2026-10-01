@@ -17,6 +17,22 @@ import 'package:block_bloom/domain/models/user_progress.dart';
 /// - Rank 1, 2, 3 with Gold, Silver, Bronze badges
 /// - Ranks 4-10 standard rows
 /// - Highlighted "YOU" row (Rectangle 60): 5-stop Gold horizontal gradient fill with black bold text
+class _RawUserRecord {
+  final String id;
+  final String name;
+  final int highestScore;
+  final int totalScore;
+  final bool isUser;
+
+  const _RawUserRecord({
+    required this.id,
+    required this.name,
+    required this.highestScore,
+    required this.totalScore,
+    required this.isUser,
+  });
+}
+
 class LeaderboardView extends ConsumerStatefulWidget {
   const LeaderboardView({super.key});
 
@@ -26,66 +42,7 @@ class LeaderboardView extends ConsumerStatefulWidget {
 
 class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   int _selectedTab = 0; // 0 = WEEKLY, 1 = GLOBAL
-  List<_LeaderboardEntry>? _realFirestoreEntries;
-  int _actualUserRank = 150;
-
-  // Default Fallback Weekly Entries matching screenshot mock data
-  final List<_LeaderboardEntry> _defaultWeeklyEntries = const [
-    _LeaderboardEntry(
-      name: 'JK TIMBA',
-      score: 5000,
-      rank: 1,
-      crownAsset: 'assets/leaderboard_icons/gold_crown.png',
-    ),
-    _LeaderboardEntry(
-      name: 'DEVAYAT MAMA',
-      score: 5000,
-      rank: 2,
-      crownAsset: 'assets/leaderboard_icons/silver_crown.png',
-    ),
-    _LeaderboardEntry(
-      name: 'JAYMIN DABHODA',
-      score: 5000,
-      rank: 3,
-      crownAsset: 'assets/leaderboard_icons/platinum_crown.png',
-    ),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 4),
-    _LeaderboardEntry(name: 'GOPAL BHARWAD', score: 5000, rank: 5),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 6),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 7),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 8),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 9),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 5000, rank: 10),
-  ];
-
-  // Default Fallback Global Entries
-  final List<_LeaderboardEntry> _defaultGlobalEntries = const [
-    _LeaderboardEntry(
-      name: 'BLOOM KING 👑',
-      score: 98500,
-      rank: 1,
-      crownAsset: 'assets/leaderboard_icons/gold_crown.png',
-    ),
-    _LeaderboardEntry(
-      name: 'DEVAYAT MAMA',
-      score: 86200,
-      rank: 2,
-      crownAsset: 'assets/leaderboard_icons/silver_crown.png',
-    ),
-    _LeaderboardEntry(
-      name: 'FLOWER MASTER 🌸',
-      score: 74800,
-      rank: 3,
-      crownAsset: 'assets/leaderboard_icons/platinum_crown.png',
-    ),
-    _LeaderboardEntry(name: 'JK TIMBA', score: 65400, rank: 4),
-    _LeaderboardEntry(name: 'JAYMIN DABHODA', score: 58900, rank: 5),
-    _LeaderboardEntry(name: 'GOPAL BHARWAD', score: 51300, rank: 6),
-    _LeaderboardEntry(name: 'GARDEN QUEEN 🌿', score: 44700, rank: 7),
-    _LeaderboardEntry(name: 'GAMAN SANTHAL', score: 39200, rank: 8),
-    _LeaderboardEntry(name: 'BLOCK STAR ⭐', score: 33600, rank: 9),
-    _LeaderboardEntry(name: 'PETAL PRO 🌼', score: 19200, rank: 10),
-  ];
+  List<_RawUserRecord>? _rawFirestoreRecords;
 
   late Future<UserProgress> _progressFuture;
 
@@ -99,103 +56,218 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   /// Fetches real user documents from Cloud Firestore
   Future<void> _fetchRealUsersFromFirestore() async {
     try {
+      final currentUser = ref.read(authViewModelProvider).user;
+      final currentUserId = currentUser?.uid;
+      final currentUserName = (currentUser?.displayName != null && currentUser!.displayName!.trim().isNotEmpty)
+          ? currentUser.displayName!.trim()
+          : (currentUser?.email != null && currentUser!.email!.contains('@')
+              ? currentUser.email!.split('@').first
+              : 'PLAYER');
+
+      // Sync current user's profile & progress to Firestore document
+      if (currentUserId != null && currentUserId.isNotEmpty) {
+        final progress = await ref.read(progressRepositoryProvider).getProgress();
+        await ref.read(progressRepositoryProvider).saveProgress(
+          progress,
+          displayName: currentUserName,
+        );
+      }
+
       final querySnap = await FirebaseFirestore.instance
           .collection('users')
-          .orderBy('highestScore', descending: true)
-          .limit(100)
           .get();
 
-      if (querySnap.docs.isNotEmpty) {
-        final realEntries = <_LeaderboardEntry>[];
-        int rank = 1;
-        int? userRankFound;
+      final recordsMap = <String, _RawUserRecord>{};
 
-        for (final doc in querySnap.docs) {
-          final data = doc.data();
-          final name = (data['displayName'] as String?) ??
-              (data['name'] as String?) ??
-              'Gardener ${doc.id.substring(0, math.min(4, doc.id.length))}';
-          final score = (data['highestScore'] as num?)?.toInt() ??
-              (data['totalScore'] as num?)?.toInt() ??
-              0;
+      for (final doc in querySnap.docs) {
+        final data = doc.data();
+        final id = doc.id;
+        final isUser = currentUserId != null && (id == currentUserId || data['uid'] == currentUserId);
 
-          final crownAsset = rank == 1
-              ? 'assets/leaderboard_icons/gold_crown.png'
-              : (rank == 2
-                  ? 'assets/leaderboard_icons/silver_crown.png'
-                  : (rank == 3
-                      ? 'assets/leaderboard_icons/platinum_crown.png'
-                      : null));
-
-          if (rank <= 10) {
-            realEntries.add(_LeaderboardEntry(
-              name: name.toUpperCase(),
-              score: score,
-              rank: rank,
-              crownAsset: crownAsset,
-            ));
-          }
-
-          final currentUserId = ref.read(authViewModelProvider).user?.uid;
-          if (currentUserId != null && (doc.id == currentUserId || data['uid'] == currentUserId)) {
-            userRankFound = rank;
-          }
-
-          rank++;
+        Map<String, dynamic> stats = {};
+        if (data['stats'] is Map) {
+          stats = Map<String, dynamic>.from(data['stats']);
         }
 
-        if (mounted) {
-          setState(() {
-            _realFirestoreEntries = realEntries;
-            if (userRankFound != null) {
-              _actualUserRank = userRankFound;
-            }
-          });
+        String? rawName = (data['displayName'] as String?) ??
+            (data['name'] as String?) ??
+            (stats['displayName'] as String?) ??
+            (stats['name'] as String?) ??
+            (data['email'] is String ? (data['email'] as String).split('@').first : null) ??
+            (stats['email'] is String ? (stats['email'] as String).split('@').first : null);
+
+        if (rawName == null || rawName.trim().isEmpty) {
+          if (isUser) {
+            rawName = currentUserName;
+          } else if (id.length >= 4) {
+            rawName = 'PLAYER_${id.substring(0, 4).toUpperCase()}';
+          } else {
+            rawName = 'PLAYER_${recordsMap.length + 1}';
+          }
         }
-        return;
+
+        final cleanName = rawName.trim().toUpperCase();
+
+        final highestScore = (data['highestScore'] as num?)?.toInt() ??
+            (stats['highestScore'] as num?)?.toInt() ??
+            (data['totalScore'] as num?)?.toInt() ??
+            (stats['totalScore'] as num?)?.toInt() ??
+            (data['score'] as num?)?.toInt() ??
+            (stats['score'] as num?)?.toInt() ??
+            0;
+
+        final totalScore = (data['totalScore'] as num?)?.toInt() ??
+            (stats['totalScore'] as num?)?.toInt() ??
+            highestScore;
+
+        final userDocId = isUser ? currentUserId : id;
+
+        if (recordsMap.containsKey(userDocId)) {
+          final existing = recordsMap[userDocId]!;
+          recordsMap[userDocId] = _RawUserRecord(
+            id: existing.id,
+            name: cleanName,
+            highestScore: math.max(existing.highestScore, highestScore),
+            totalScore: math.max(existing.totalScore, totalScore),
+            isUser: isUser || existing.isUser,
+          );
+        } else {
+          recordsMap[userDocId] = _RawUserRecord(
+            id: userDocId,
+            name: cleanName,
+            highestScore: highestScore,
+            totalScore: totalScore,
+            isUser: isUser,
+          );
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _rawFirestoreRecords = recordsMap.values.toList();
+        });
       }
     } catch (e) {
       debugPrint('Firestore leaderboard fetch note: $e');
     }
   }
 
-  /// Merges real Firestore entries with default backfills if fewer than 10 real users exist
-  List<_LeaderboardEntry> _getDisplayList(List<_LeaderboardEntry> fallbackList) {
-    if (_realFirestoreEntries != null && _realFirestoreEntries!.isNotEmpty) {
-      final merged = List<_LeaderboardEntry>.from(_realFirestoreEntries!);
-      if (merged.length < 10) {
-        // Backfill remaining ranks with fallback entries
-        for (int i = merged.length; i < 10; i++) {
-          final fallbackItem = fallbackList[i];
-          merged.add(_LeaderboardEntry(
-            name: fallbackItem.name,
-            score: fallbackItem.score,
-            rank: i + 1,
-            crownAsset: fallbackItem.crownAsset,
-          ));
-        }
-      }
-      return merged;
+  /// Generates the display leaderboard data including the logged-in user's exact rank & record
+  _LeaderboardDisplayData _getDisplayData(
+    UserProgress? progress,
+    String userName,
+    String? currentUserId,
+  ) {
+    final localHighest = progress?.highestScore ?? 0;
+    final localTotal = progress?.totalScore ?? 0;
+    final displayName = (userName.isNotEmpty ? userName : 'PLAYER').toUpperCase();
+
+    final rawList = _rawFirestoreRecords != null
+        ? List<_RawUserRecord>.from(_rawFirestoreRecords!)
+        : <_RawUserRecord>[];
+
+    // Ensure logged-in user is included & updated in the raw list
+    int existingUserIdx = -1;
+    if (currentUserId != null && currentUserId.isNotEmpty) {
+      existingUserIdx = rawList.indexWhere((e) => e.id == currentUserId || e.isUser);
     }
-    return fallbackList;
+    if (existingUserIdx == -1) {
+      existingUserIdx = rawList.indexWhere((e) => e.name == displayName);
+    }
+
+    if (existingUserIdx != -1) {
+      final existing = rawList[existingUserIdx];
+      rawList[existingUserIdx] = _RawUserRecord(
+        id: existing.id.isNotEmpty ? existing.id : (currentUserId ?? ''),
+        name: displayName,
+        highestScore: math.max(existing.highestScore, localHighest),
+        totalScore: math.max(existing.totalScore, localTotal),
+        isUser: true,
+      );
+    } else {
+      rawList.add(_RawUserRecord(
+        id: currentUserId ?? '',
+        name: displayName,
+        highestScore: localHighest,
+        totalScore: localTotal,
+        isUser: true,
+      ));
+    }
+
+    // Build evaluated entries based on active tab (0 = WEEKLY highestScore, 1 = GLOBAL totalScore)
+    final evaluatedList = rawList.map((rec) {
+      final score = _selectedTab == 0 ? rec.highestScore : rec.totalScore;
+      return _LeaderboardEntry(
+        name: rec.name,
+        score: score,
+        rank: 0,
+        id: rec.id,
+        isUser: rec.isUser,
+      );
+    }).toList();
+
+    // Sort descending by score
+    evaluatedList.sort((a, b) => b.score.compareTo(a.score));
+
+    final processedList = <_LeaderboardEntry>[];
+    int userRank = evaluatedList.length;
+    int userScore = _selectedTab == 0 ? localHighest : localTotal;
+
+    for (int i = 0; i < evaluatedList.length; i++) {
+      final rankNum = i + 1;
+      final crown = rankNum == 1
+          ? 'assets/leaderboard_icons/gold_crown.png'
+          : (rankNum == 2
+              ? 'assets/leaderboard_icons/silver_crown.png'
+              : (rankNum == 3
+                  ? 'assets/leaderboard_icons/platinum_crown.png'
+                  : null));
+
+      final item = _LeaderboardEntry(
+        name: evaluatedList[i].name,
+        score: evaluatedList[i].score,
+        rank: rankNum,
+        crownAsset: crown,
+        id: evaluatedList[i].id,
+        isUser: evaluatedList[i].isUser,
+      );
+
+      processedList.add(item);
+      if (item.isUser) {
+        userRank = rankNum;
+        userScore = item.score;
+      }
+    }
+
+    final top10List = processedList.take(10).toList();
+    final isUserInTopList = top10List.any((e) => e.isUser);
+
+    return _LeaderboardDisplayData(
+      top10List: top10List,
+      userRank: userRank,
+      userScore: userScore,
+      userName: displayName,
+      isUserInTopList: isUserInTopList,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final authState = ref.watch(authViewModelProvider);
-    final userName = authState.user?.displayName ?? 'YOU';
+    final user = authState.user;
+    final userName = (user?.displayName != null && user!.displayName!.trim().isNotEmpty)
+        ? user.displayName!
+        : (user?.email != null && user!.email!.contains('@')
+            ? user.email!.split('@').first
+            : 'PLAYER');
 
     return FutureBuilder<UserProgress>(
       future: _progressFuture,
       builder: (context, snapshot) {
         final progress = snapshot.data;
-        final userScore = progress?.highestScore ?? 0;
-        final displayUserScore = userScore > 0 ? userScore : 5000;
-        final userRank = _selectedTab == 0 ? _actualUserRank : (_actualUserRank + 98);
-
-        final rawList = _selectedTab == 0 ? _defaultWeeklyEntries : _defaultGlobalEntries;
-        final currentList = _getDisplayList(rawList);
+        final currentUserId = authState.user?.uid;
+        final displayData = _getDisplayData(progress, userName, currentUserId);
 
         return Scaffold(
           backgroundColor: const Color(0xFF001026),
@@ -400,22 +472,23 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
                                         shrinkWrap: true,
                                         physics: const NeverScrollableScrollPhysics(),
                                         padding: EdgeInsets.zero,
-                                        itemCount: currentList.length,
+                                        itemCount: displayData.top10List.length,
                                         separatorBuilder: (context, index) => const SizedBox(height: 5),
                                         itemBuilder: (context, index) {
-                                          final item = currentList[index];
+                                          final item = displayData.top10List[index];
                                           return _buildLeaderboardRow(item);
                                         },
                                       ),
 
-                                      const SizedBox(height: 8),
-
-                                      // Highlighted Bottom "YOU" Row (Rectangle 60 Specs)
-                                      _buildHighlightUserRow(
-                                        rank: userRank,
-                                        name: userName.isNotEmpty ? userName : 'YOU',
-                                        score: displayUserScore,
-                                      ),
+                                      // Highlighted Bottom "YOU" Row (Rectangle 60 Specs) - Only if user is outside top displayed list
+                                      if (!displayData.isUserInTopList) ...[
+                                        const SizedBox(height: 8),
+                                        _buildHighlightUserRow(
+                                          rank: displayData.userRank,
+                                          name: displayData.userName,
+                                          score: displayData.userScore,
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -555,15 +628,16 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
 
   /// Builds standard leaderboard rows (Ranks 1 to 10) - Height 38px
   Widget _buildLeaderboardRow(_LeaderboardEntry entry) {
+    final isUser = entry.isUser;
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF001834),
+        color: isUser ? const Color(0xFF002855) : const Color(0xFF001834),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: const Color(0xFFFFC800).withValues(alpha: 0.8),
-          width: 1.0,
+          color: isUser ? const Color(0xFFFFC800) : const Color(0xFFFFC800).withValues(alpha: 0.8),
+          width: isUser ? 1.5 : 1.0,
         ),
       ),
       child: Row(
@@ -594,7 +668,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
                     style: GoogleFonts.chakraPetch(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: isUser ? const Color(0xFFFFC800) : Colors.white,
                     ),
                   ),
           ),
@@ -607,8 +681,8 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
               entry.name,
               style: GoogleFonts.chakraPetch(
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+                fontWeight: isUser ? FontWeight.w900 : FontWeight.w700,
+                color: isUser ? const Color(0xFFFFC800) : Colors.white,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -620,8 +694,8 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
             _formatScore(entry.score),
             style: GoogleFonts.chakraPetch(
               fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+              fontWeight: isUser ? FontWeight.w900 : FontWeight.w800,
+              color: isUser ? const Color(0xFFFFC800) : Colors.white,
             ),
           ),
         ],
@@ -729,12 +803,32 @@ class _LeaderboardEntry {
   final int score;
   final int rank;
   final String? crownAsset;
+  final String id;
+  final bool isUser;
 
   const _LeaderboardEntry({
     required this.name,
     required this.score,
     required this.rank,
     this.crownAsset,
+    this.id = '',
+    this.isUser = false,
+  });
+}
+
+class _LeaderboardDisplayData {
+  final List<_LeaderboardEntry> top10List;
+  final int userRank;
+  final int userScore;
+  final String userName;
+  final bool isUserInTopList;
+
+  const _LeaderboardDisplayData({
+    required this.top10List,
+    required this.userRank,
+    required this.userScore,
+    required this.userName,
+    required this.isUserInTopList,
   });
 }
 
