@@ -42,7 +42,6 @@ class LeaderboardView extends ConsumerStatefulWidget {
 
 class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   int _selectedTab = 0; // 0 = WEEKLY, 1 = GLOBAL
-  List<_RawUserRecord>? _rawFirestoreRecords;
 
   late Future<UserProgress> _progressFuture;
 
@@ -50,11 +49,11 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   void initState() {
     super.initState();
     _progressFuture = ref.read(progressRepositoryProvider).getProgress();
-    _fetchRealUsersFromFirestore();
+    _syncCurrentUserToFirestore();
   }
 
-  /// Fetches real user documents from Cloud Firestore
-  Future<void> _fetchRealUsersFromFirestore() async {
+  /// Syncs current user's latest progress & display name to Cloud Firestore doc
+  Future<void> _syncCurrentUserToFirestore() async {
     try {
       final currentUser = ref.read(authViewModelProvider).user;
       final currentUserId = currentUser?.uid;
@@ -62,9 +61,8 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           ? currentUser.displayName!.trim()
           : (currentUser?.email != null && currentUser!.email!.contains('@')
               ? currentUser.email!.split('@').first
-              : 'PLAYER');
+              : '');
 
-      // Sync current user's profile & progress to Firestore document
       if (currentUserId != null && currentUserId.isNotEmpty) {
         final progress = await ref.read(progressRepositoryProvider).getProgress();
         await ref.read(progressRepositoryProvider).saveProgress(
@@ -72,129 +70,127 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           displayName: currentUserName,
         );
       }
-
-      final querySnap = await FirebaseFirestore.instance
-          .collection('users')
-          .get();
-
-      final recordsMap = <String, _RawUserRecord>{};
-
-      for (final doc in querySnap.docs) {
-        final data = doc.data();
-        final id = doc.id;
-        final isUser = currentUserId != null && (id == currentUserId || data['uid'] == currentUserId);
-
-        Map<String, dynamic> stats = {};
-        if (data['stats'] is Map) {
-          stats = Map<String, dynamic>.from(data['stats']);
-        }
-
-        String? rawName = (data['displayName'] as String?) ??
-            (data['name'] as String?) ??
-            (stats['displayName'] as String?) ??
-            (stats['name'] as String?) ??
-            (data['email'] is String ? (data['email'] as String).split('@').first : null) ??
-            (stats['email'] is String ? (stats['email'] as String).split('@').first : null);
-
-        if (rawName == null || rawName.trim().isEmpty) {
-          if (isUser) {
-            rawName = currentUserName;
-          } else if (id.length >= 4) {
-            rawName = 'PLAYER_${id.substring(0, 4).toUpperCase()}';
-          } else {
-            rawName = 'PLAYER_${recordsMap.length + 1}';
-          }
-        }
-
-        final cleanName = rawName.trim().toUpperCase();
-
-        final highestScore = (data['highestScore'] as num?)?.toInt() ??
-            (stats['highestScore'] as num?)?.toInt() ??
-            (data['totalScore'] as num?)?.toInt() ??
-            (stats['totalScore'] as num?)?.toInt() ??
-            (data['score'] as num?)?.toInt() ??
-            (stats['score'] as num?)?.toInt() ??
-            0;
-
-        final totalScore = (data['totalScore'] as num?)?.toInt() ??
-            (stats['totalScore'] as num?)?.toInt() ??
-            highestScore;
-
-        final userDocId = isUser ? currentUserId : id;
-
-        if (recordsMap.containsKey(userDocId)) {
-          final existing = recordsMap[userDocId]!;
-          recordsMap[userDocId] = _RawUserRecord(
-            id: existing.id,
-            name: cleanName,
-            highestScore: math.max(existing.highestScore, highestScore),
-            totalScore: math.max(existing.totalScore, totalScore),
-            isUser: isUser || existing.isUser,
-          );
-        } else {
-          recordsMap[userDocId] = _RawUserRecord(
-            id: userDocId,
-            name: cleanName,
-            highestScore: highestScore,
-            totalScore: totalScore,
-            isUser: isUser,
-          );
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _rawFirestoreRecords = recordsMap.values.toList();
-        });
-      }
     } catch (e) {
-      debugPrint('Firestore leaderboard fetch note: $e');
+      debugPrint('Leaderboard current user sync note: $e');
     }
   }
 
-  /// Generates the display leaderboard data including the logged-in user's exact rank & record
-  _LeaderboardDisplayData _getDisplayData(
+  /// Extracts clean display name matching exact Settings readableName logic
+  String _extractDisplayName(Map<String, dynamic> data, Map<String, dynamic> stats, String docId, bool isUser, String currentUserName) {
+    String? rawName = (data['displayName'] as String?) ??
+        (data['name'] as String?) ??
+        (data['userName'] as String?) ??
+        (data['username'] as String?) ??
+        (stats['displayName'] as String?) ??
+        (stats['name'] as String?) ??
+        (stats['userName'] as String?) ??
+        (stats['username'] as String?);
+
+    if (rawName != null && rawName.trim().isNotEmpty) {
+      return rawName.trim().toUpperCase();
+    }
+
+    String? rawEmail = (data['email'] as String?) ?? (stats['email'] as String?);
+    if (rawEmail != null && rawEmail.contains('@')) {
+      return rawEmail.split('@').first.trim().toUpperCase();
+    }
+
+    final isGuest = (data['isGuest'] as bool?) ?? (stats['isGuest'] as bool?) ?? false;
+    if (isGuest) {
+      return 'GUEST PLAYER';
+    }
+
+    if (isUser && currentUserName.trim().isNotEmpty) {
+      return currentUserName.trim().toUpperCase();
+    }
+
+    return 'GARDENER';
+  }
+
+  /// Processes raw Firestore docs into display data for active tab (0 = WEEKLY, 1 = GLOBAL)
+  _LeaderboardDisplayData _processSnapshot(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
     UserProgress? progress,
-    String userName,
+    String currentUserName,
     String? currentUserId,
   ) {
     final localHighest = progress?.highestScore ?? 0;
     final localTotal = progress?.totalScore ?? 0;
-    final displayName = (userName.isNotEmpty ? userName : 'PLAYER').toUpperCase();
+    final userCleanName = (currentUserName.isNotEmpty ? currentUserName : 'YOU').toUpperCase();
 
-    final rawList = _rawFirestoreRecords != null
-        ? List<_RawUserRecord>.from(_rawFirestoreRecords!)
-        : <_RawUserRecord>[];
+    final recordsMap = <String, _RawUserRecord>{};
 
-    // Ensure logged-in user is included & updated in the raw list
-    int existingUserIdx = -1;
+    for (final doc in docs) {
+      final data = doc.data();
+      final id = doc.id;
+      final isUser = currentUserId != null && currentUserId.isNotEmpty && (id == currentUserId || data['uid'] == currentUserId);
+
+      Map<String, dynamic> stats = {};
+      if (data['stats'] is Map) {
+        stats = Map<String, dynamic>.from(data['stats']);
+      }
+
+      final displayName = _extractDisplayName(data, stats, id, isUser, userCleanName);
+
+      final highestScore = (data['highestScore'] as num?)?.toInt() ??
+          (stats['highestScore'] as num?)?.toInt() ??
+          (data['totalScore'] as num?)?.toInt() ??
+          (stats['totalScore'] as num?)?.toInt() ??
+          (data['score'] as num?)?.toInt() ??
+          (stats['score'] as num?)?.toInt() ??
+          0;
+
+      final totalScore = (data['totalScore'] as num?)?.toInt() ??
+          (stats['totalScore'] as num?)?.toInt() ??
+          highestScore;
+
+      final userDocId = isUser ? currentUserId! : id;
+
+      if (recordsMap.containsKey(userDocId)) {
+        final existing = recordsMap[userDocId]!;
+        recordsMap[userDocId] = _RawUserRecord(
+          id: existing.id,
+          name: isUser ? userCleanName : (displayName.isNotEmpty ? displayName : existing.name),
+          highestScore: math.max(existing.highestScore, highestScore),
+          totalScore: math.max(existing.totalScore, totalScore),
+          isUser: isUser || existing.isUser,
+        );
+      } else {
+        recordsMap[userDocId] = _RawUserRecord(
+          id: userDocId,
+          name: isUser ? userCleanName : displayName,
+          highestScore: highestScore,
+          totalScore: totalScore,
+          isUser: isUser,
+        );
+      }
+    }
+
+    // Always ensure current logged-in user exists in records
     if (currentUserId != null && currentUserId.isNotEmpty) {
-      existingUserIdx = rawList.indexWhere((e) => e.id == currentUserId || e.isUser);
-    }
-    if (existingUserIdx == -1) {
-      existingUserIdx = rawList.indexWhere((e) => e.name == displayName);
-    }
-
-    if (existingUserIdx != -1) {
-      final existing = rawList[existingUserIdx];
-      rawList[existingUserIdx] = _RawUserRecord(
-        id: existing.id.isNotEmpty ? existing.id : (currentUserId ?? ''),
-        name: displayName,
-        highestScore: math.max(existing.highestScore, localHighest),
-        totalScore: math.max(existing.totalScore, localTotal),
-        isUser: true,
-      );
-    } else {
-      rawList.add(_RawUserRecord(
-        id: currentUserId ?? '',
-        name: displayName,
-        highestScore: localHighest,
-        totalScore: localTotal,
-        isUser: true,
-      ));
+      if (recordsMap.containsKey(currentUserId)) {
+        final existing = recordsMap[currentUserId]!;
+        recordsMap[currentUserId] = _RawUserRecord(
+          id: currentUserId,
+          name: userCleanName,
+          highestScore: math.max(existing.highestScore, localHighest),
+          totalScore: math.max(existing.totalScore, localTotal),
+          isUser: true,
+        );
+      } else {
+        recordsMap[currentUserId] = _RawUserRecord(
+          id: currentUserId,
+          name: userCleanName,
+          highestScore: localHighest,
+          totalScore: localTotal,
+          isUser: true,
+        );
+      }
     }
 
-    // Build evaluated entries based on active tab (0 = WEEKLY highestScore, 1 = GLOBAL totalScore)
+    final rawList = recordsMap.values.toList();
+
+    // Evaluate entries based on active tab (0 = WEEKLY highestScore, 1 = GLOBAL totalScore)
     final evaluatedList = rawList.map((rec) {
       final score = _selectedTab == 0 ? rec.highestScore : rec.totalScore;
       return _LeaderboardEntry(
@@ -246,7 +242,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
       top10List: top10List,
       userRank: userRank,
       userScore: userScore,
-      userName: displayName,
+      userName: userCleanName,
       isUserInTopList: isUserInTopList,
     );
   }
@@ -260,253 +256,260 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
         ? user.displayName!
         : (user?.email != null && user!.email!.contains('@')
             ? user.email!.split('@').first
-            : 'PLAYER');
+            : '');
 
     return FutureBuilder<UserProgress>(
       future: _progressFuture,
-      builder: (context, snapshot) {
-        final progress = snapshot.data;
+      builder: (context, progressSnapshot) {
+        final progress = progressSnapshot.data;
         final currentUserId = authState.user?.uid;
-        final displayData = _getDisplayData(progress, userName, currentUserId);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF001026),
-          resizeToAvoidBottomInset: false,
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Fullscreen Background Image
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/splash_img.png',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  alignment: Alignment.center,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFF001026),
-                  ),
-                ),
-              ),
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance.collection('users').snapshots(),
+          builder: (context, firestoreSnapshot) {
+            final docs = firestoreSnapshot.data?.docs ?? [];
+            final displayData = _processSnapshot(docs, progress, userName, currentUserId);
 
-              // 2. Ambient Dark Gradient Overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.40),
-                        Colors.black.withValues(alpha: 0.15),
-                        Colors.black.withValues(alpha: 0.50),
-                      ],
+            return Scaffold(
+              backgroundColor: const Color(0xFF001026),
+              resizeToAvoidBottomInset: false,
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 1. Fullscreen Background Image
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/splash_img.png',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      alignment: Alignment.center,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: const Color(0xFF001026),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // 3. Main Screen Content Structure inside Positioned.fill
-              Positioned.fill(
-                child: SafeArea(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // 1. Back Button Row (Top Left)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                AudioService.instance.playClickSound();
-                                Navigator.of(context).pop();
-                              },
-                              child: Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF001834),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: const Color(0xFFFFC800),
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x66000000),
-                                      blurRadius: 6,
-                                      offset: Offset(0, 3),
+                  // 2. Ambient Dark Gradient Overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.40),
+                            Colors.black.withValues(alpha: 0.15),
+                            Colors.black.withValues(alpha: 0.50),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. Main Screen Content Structure inside Positioned.fill
+                  Positioned.fill(
+                    child: SafeArea(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // 1. Back Button Row (Top Left)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      AudioService.instance.playClickSound();
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF001834),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFFFFC800),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x66000000),
+                                            blurRadius: 6,
+                                            offset: Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_back_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
                                     ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_rounded,
-                                  color: Colors.white,
-                                  size: 20,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
 
-                        // SizedBox Height
-                        const SizedBox(height: 25),
+                              // SizedBox Height
+                              const SizedBox(height: 25),
 
-                        // 2. Floral Header Title "LEADERBOARD"
-                        FloralHeaderTitle(
-                          title: 'LEADERBOARD',
-                          fontSize: math.min(size.width * 0.09, 32.0),
-                          flowerSize: math.min(size.width * 0.11, 42.0),
-                          curveAmount: 16.0,
-                          verticalOffset: -20.0,
-                          letterSpacing: 1.5,
-                        ),
-
-                        // SizedBox Height Space
-                        const SizedBox(height: 22),
-
-                        // 3. Tabs Selector: WEEKLY & GLOBAL
-                        _buildTabSelector(size),
-
-                        // SizedBox Height Space
-                        const SizedBox(height: 22),
-
-                        // 4. Big Card Container with back_design.png Background Image & 3 Crown Badges inside
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 25),
-                          child: Container(
-                            width: math.min(size.width - 32, 344),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF001834),
-                              borderRadius: BorderRadius.circular(12),
-                              image: const DecorationImage(
-                                image: AssetImage('assets/leaderboard_icons/back_design.png'),
-                                fit: BoxFit.fill,
-                                colorFilter: ColorFilter.mode(
-                                  Color(0xFF001834),
-                                  BlendMode.modulate,
-                                ),
+                              // 2. Floral Header Title "LEADERBOARD"
+                              FloralHeaderTitle(
+                                title: 'LEADERBOARD',
+                                fontSize: math.min(size.width * 0.09, 32.0),
+                                flowerSize: math.min(size.width * 0.11, 42.0),
+                                curveAmount: 16.0,
+                                verticalOffset: -20.0,
+                                letterSpacing: 1.5,
                               ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: CustomPaint(
-                                foregroundPainter: _FiveStopGoldBorderPainter(
-                                  strokeWidth: 1.5,
-                                  radius: 12.0,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Table Header Row: RANK | PLAYER | SCORE
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        child: Row(
+
+                              // SizedBox Height Space
+                              const SizedBox(height: 22),
+
+                              // 3. Tabs Selector: WEEKLY & GLOBAL
+                              _buildTabSelector(size),
+
+                              // SizedBox Height Space
+                              const SizedBox(height: 22),
+
+                              // 4. Big Card Container with back_design.png Background Image & 3 Crown Badges inside
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 25),
+                                child: Container(
+                                  width: math.min(size.width - 32, 344),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF001834),
+                                    borderRadius: BorderRadius.circular(12),
+                                    image: const DecorationImage(
+                                      image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                                      fit: BoxFit.fill,
+                                      colorFilter: ColorFilter.mode(
+                                        Color(0xFF001834),
+                                        BlendMode.modulate,
+                                      ),
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: CustomPaint(
+                                      foregroundPainter: _FiveStopGoldBorderPainter(
+                                        strokeWidth: 1.5,
+                                        radius: 12.0,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            SizedBox(
-                                              width: 36,
-                                              child: Text(
-                                                'RANK',
-                                                style: GoogleFonts.chakraPetch(
-                                                  fontSize: 13.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1.0,
+                                            // Table Header Row: RANK | PLAYER | SCORE
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              child: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 36,
+                                                    child: Text(
+                                                      'RANK',
+                                                      style: GoogleFonts.chakraPetch(
+                                                        fontSize: 13.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Colors.white,
+                                                        letterSpacing: 1.0,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'PLAYER',
+                                                      style: GoogleFonts.chakraPetch(
+                                                        fontSize: 13.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Colors.white,
+                                                        letterSpacing: 1.0,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'SCORE',
+                                                    style: GoogleFonts.chakraPetch(
+                                                      fontSize: 13.5,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Colors.white,
+                                                      letterSpacing: 1.0,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            // Gold Gradient Divider Line after RANK, PLAYER, SCORE
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 4, bottom: 8),
+                                              height: 1,
+                                              decoration: const BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Color(0xFFFFC800),
+                                                    Color(0xFF814D00),
+                                                    Color(0xFF6B4000),
+                                                    Color(0xFF814D00),
+                                                    Color(0xFFFFC800),
+                                                  ],
+                                                  stops: [0.0, 0.46, 0.72, 0.85, 1.0],
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                'PLAYER',
-                                                style: GoogleFonts.chakraPetch(
-                                                  fontSize: 13.5,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: Colors.white,
-                                                  letterSpacing: 1.0,
-                                                ),
-                                              ),
+
+                                            // Ranks 1 to 10 Rows (Gold, Silver, Platinum Crown icons for Top 3)
+                                            ListView.separated(
+                                              shrinkWrap: true,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              padding: EdgeInsets.zero,
+                                              itemCount: displayData.top10List.length,
+                                              separatorBuilder: (context, index) => const SizedBox(height: 5),
+                                              itemBuilder: (context, index) {
+                                                final item = displayData.top10List[index];
+                                                return _buildLeaderboardRow(item);
+                                              },
                                             ),
-                                            Text(
-                                              'SCORE',
-                                              style: GoogleFonts.chakraPetch(
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: Colors.white,
-                                                letterSpacing: 1.0,
+
+                                            // Highlighted Bottom "YOU" Row (Rectangle 60 Specs) - Only if user is outside top displayed list
+                                            if (!displayData.isUserInTopList) ...[
+                                              const SizedBox(height: 8),
+                                              _buildHighlightUserRow(
+                                                rank: displayData.userRank,
+                                                name: displayData.userName,
+                                                score: displayData.userScore,
                                               ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                       ),
-
-                                      // Gold Gradient Divider Line after RANK, PLAYER, SCORE
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 4, bottom: 8),
-                                        height: 1,
-                                        decoration: const BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Color(0xFFFFC800),
-                                              Color(0xFF814D00),
-                                              Color(0xFF6B4000),
-                                              Color(0xFF814D00),
-                                              Color(0xFFFFC800),
-                                            ],
-                                            stops: [0.0, 0.46, 0.72, 0.85, 1.0],
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Ranks 1 to 10 Rows (Gold, Silver, Platinum Crown icons for Top 3)
-                                      ListView.separated(
-                                        shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        padding: EdgeInsets.zero,
-                                        itemCount: displayData.top10List.length,
-                                        separatorBuilder: (context, index) => const SizedBox(height: 5),
-                                        itemBuilder: (context, index) {
-                                          final item = displayData.top10List[index];
-                                          return _buildLeaderboardRow(item);
-                                        },
-                                      ),
-
-                                      // Highlighted Bottom "YOU" Row (Rectangle 60 Specs) - Only if user is outside top displayed list
-                                      if (!displayData.isUserInTopList) ...[
-                                        const SizedBox(height: 8),
-                                        _buildHighlightUserRow(
-                                          rank: displayData.userRank,
-                                          name: displayData.userName,
-                                          score: displayData.userScore,
-                                        ),
-                                      ],
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+
+                              const SizedBox(height: 16),
+                            ],
                           ),
                         ),
-
-                        const SizedBox(height: 16),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ),
-          ],
-        ),
-      );
+            );
+          },
+        );
       },
     );
   }

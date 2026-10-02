@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:block_bloom/domain/models/app_user.dart';
 import 'package:block_bloom/data/repositories/progress_repository.dart';
 import 'package:block_bloom/data/services/hive_service.dart';
 import 'package:block_bloom/domain/use_cases/level_generator.dart';
@@ -30,13 +31,29 @@ final progressRepositoryProvider = ChangeNotifierProvider<ProgressRepository>((r
   final hiveService = ref.watch(hiveServiceProvider);
   final repo = ProgressRepository(hiveService: hiveService);
 
+  void syncUser(AppUser? user) {
+    if (user != null && user.uid.isNotEmpty) {
+      repo.setCurrentUser(user.uid);
+      final userName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+          ? user.displayName!.trim()
+          : (user.email != null && user.email!.contains('@')
+              ? user.email!.split('@').first
+              : '');
+      repo.getProgress().then((progress) {
+        repo.saveProgress(progress, displayName: userName);
+      });
+    } else {
+      repo.setCurrentUser(null);
+    }
+  }
+
   ref.listen<AuthViewModelState>(authViewModelProvider, (previous, next) {
-    repo.setCurrentUser(next.user?.uid);
+    syncUser(next.user);
   });
 
   final currentUser = ref.read(authViewModelProvider).user;
   if (currentUser != null && currentUser.uid.isNotEmpty) {
-    repo.setCurrentUser(currentUser.uid);
+    syncUser(currentUser);
   }
 
   return repo;

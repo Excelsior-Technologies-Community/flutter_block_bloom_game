@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -132,13 +133,24 @@ class AuthService {
         );
         final fbUser = credential.user;
         if (fbUser != null) {
+          final nameClean = (fbUser.displayName != null && fbUser.displayName!.trim().isNotEmpty)
+              ? fbUser.displayName!.trim()
+              : (fbUser.email != null && fbUser.email!.contains('@') ? fbUser.email!.split('@').first : 'PLAYER');
           final user = AppUser(
             uid: fbUser.uid,
-            displayName: fbUser.displayName ?? email.split('@').first,
+            displayName: nameClean,
             email: fbUser.email,
             photoUrl: fbUser.photoURL,
             isGuest: false,
           );
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
+              'uid': fbUser.uid,
+              'displayName': nameClean,
+              'email': fbUser.email,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
           await _saveUserToLocal(user);
           _authStreamController.add(user);
           return user;
@@ -179,13 +191,26 @@ class AuthService {
           if (name.trim().isNotEmpty) {
             await fbUser.updateDisplayName(name.trim());
           }
+          final displayNameClean = name.trim().isNotEmpty ? name.trim() : email.split('@').first;
           final user = AppUser(
             uid: fbUser.uid,
-            displayName: name.trim().isNotEmpty ? name.trim() : email.split('@').first,
+            displayName: displayNameClean,
             email: fbUser.email,
             photoUrl: fbUser.photoURL,
             isGuest: false,
           );
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
+              'uid': fbUser.uid,
+              'displayName': displayNameClean,
+              'email': fbUser.email,
+              'highestScore': 0,
+              'totalScore': 0,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (e) {
+            // Log Firestore sign up note
+          }
           await _firebaseAuth!.signOut();
           await _clearLocalUser();
           _authStreamController.add(null);
@@ -231,13 +256,22 @@ class AuthService {
         final userCredential = await _firebaseAuth!.signInWithCredential(credential);
         final fbUser = userCredential.user;
         if (fbUser != null) {
+          final nameClean = fbUser.displayName ?? googleUser.displayName ?? (googleUser.email.contains('@') ? googleUser.email.split('@').first : 'GARDENER');
           final user = AppUser(
             uid: fbUser.uid,
-            displayName: fbUser.displayName ?? googleUser.displayName,
+            displayName: nameClean,
             email: fbUser.email ?? googleUser.email,
             photoUrl: fbUser.photoURL ?? googleUser.photoUrl,
             isGuest: false,
           );
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
+              'uid': fbUser.uid,
+              'displayName': nameClean,
+              'email': fbUser.email ?? googleUser.email,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
           await _saveUserToLocal(user);
           _authStreamController.add(user);
           return user;
@@ -283,6 +317,13 @@ class AuthService {
             displayName: 'Guest Gardener 🌱',
             isGuest: true,
           );
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
+              'uid': fbUser.uid,
+              'displayName': 'Guest Gardener 🌱',
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
           await _saveUserToLocal(user);
           _authStreamController.add(user);
           return user;

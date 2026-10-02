@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:block_bloom/data/services/hive_service.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
@@ -293,12 +294,24 @@ class ProgressRepository extends ChangeNotifier {
     // Sync with Firebase Firestore if a user is logged in
     if (_currentUserId != null && _currentUserId!.isNotEmpty) {
       try {
+        String? resolvedName = displayName;
+        if (resolvedName == null || resolvedName.trim().isEmpty) {
+          final fbUser = FirebaseAuth.instance.currentUser;
+          if (fbUser != null) {
+            resolvedName = (fbUser.displayName != null && fbUser.displayName!.trim().isNotEmpty)
+                ? fbUser.displayName!.trim()
+                : (fbUser.email != null && fbUser.email!.contains('@')
+                    ? fbUser.email!.split('@').first
+                    : null);
+          }
+        }
+
         final jsonMap = progressToSave.toJson();
         final firestoreData = <String, dynamic>{
           'stats': jsonMap,
           ...jsonMap,
           'uid': _currentUserId,
-          if (displayName != null && displayName.isNotEmpty) 'displayName': displayName,
+          if (resolvedName != null && resolvedName.trim().isNotEmpty) 'displayName': resolvedName.trim(),
           'updatedAt': FieldValue.serverTimestamp(),
         };
         FirebaseFirestore.instance
