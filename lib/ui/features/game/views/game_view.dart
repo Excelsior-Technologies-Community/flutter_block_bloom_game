@@ -375,7 +375,16 @@ class _GameViewState extends ConsumerState<GameView> {
                     Positioned.fill(
                       child: LevelCompletedOverlay(
                         levelNumber: widget.levelNumber,
-                        onContinueToMap: () {
+                        onNextLevel: () {
+                          if (widget.isRandom) {
+                            ref
+                                .read(gameViewModelProvider.notifier)
+                                .loadRandomLevel(state.randomDifficulty ?? 'Easy');
+                          } else {
+                            Navigator.of(context).pop('next_level');
+                          }
+                        },
+                        onBackToHome: () {
                           Navigator.of(context).pop();
                         },
                       ),
@@ -1642,102 +1651,11 @@ class _GameViewState extends ConsumerState<GameView> {
   Future<void> _onLevelComplete(GameViewModelState state) async {
     AudioService.instance.playClearSound();
     await ref.read(gameViewModelProvider.notifier).completeLevel();
-    if (!mounted) return;
-    _showCompleteDialog(state);
   }
 
   Future<void> _onGameOver(GameViewModelState state) async {
     if (!mounted) return;
     AudioService.instance.playGameOverSound();
-  }
-
-  void _showCompleteDialog(GameViewModelState state) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Dialog(
-        backgroundColor: const Color(0xFF001834),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFFFFC800), width: 1.5),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFFDE68A),
-                    width: 1.5,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.emoji_events_rounded,
-                  color: Color(0xFFD97706),
-                  size: 56,
-                ),
-              ),
-              const SizedBox(height: 20),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  'LEVEL COMPLETE!',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: 220,
-                child: Column(
-                  children: [
-                    TangibleButton(
-                      text: state.isRandomMode ? 'Play Again' : 'Next Level',
-                      height: 50,
-                      onPressed: () {
-                        Navigator.pop(context);
-                        if (state.isRandomMode) {
-                          ref
-                              .read(gameViewModelProvider.notifier)
-                              .loadRandomLevel(state.randomDifficulty ?? 'Easy');
-                        } else {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => GameView(
-                                levelNumber: widget.levelNumber + 1,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    TangibleButton(
-                      text: 'Home',
-                      isSecondary: true,
-                      height: 50,
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -2314,107 +2232,296 @@ class LevelCompletedOverlay extends ConsumerWidget {
   const LevelCompletedOverlay({
     super.key,
     required this.levelNumber,
-    required this.onContinueToMap,
+    required this.onNextLevel,
+    required this.onBackToHome,
   });
 
   final int levelNumber;
-  final VoidCallback onContinueToMap;
+  final VoidCallback onNextLevel;
+  final VoidCallback onBackToHome;
+
+  String _formatScore(int score) {
+    return score.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(gameViewModelProvider);
     final score = state.score;
     final flowers = state.sessionFlowersEarned;
+    final bloomCount = state.totalClears;
+    final maxCombo = state.maxComboCount > 0
+        ? state.maxComboCount
+        : (state.comboCount > 0 ? state.comboCount : 1);
 
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xDD05001C),
+      color: const Color(0xEE07031A),
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 380),
+              constraints: const BoxConstraints(maxWidth: 350),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Arched Victory Header
+                  // 2-Line Curved Arched Level Complete Header Title matching other pages
                   const FloralHeaderTitle(
-                    title: 'LEVEL COMPLETE!',
-                    fontSize: 32.0,
-                    flowerSize: 40.0,
-                    curveAmount: 14.0,
-                    verticalOffset: -20.0,
+                    topTitle: 'LEVEL',
+                    title: 'COMPLETE',
+                    fontSize: 45.0,
+                    topFontSize: 45.0,
+                    flowerSize: 46.0,
+                    curveAmount: 18.0,
+                    topCurveAmount: 14.0,
+                    topTitleSpacing: -5.0,
                     letterSpacing: 1.5,
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
-                  // Score & Flowers Card
+                  // Score & Stats Card
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF001126),
-                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF071E36), Color(0xFF041223)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: const Color(0xFFFFC800),
                         width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFC800).withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
+                        // YOUR SCORE text matching Figma spec image
                         ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                            colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ).createShader(bounds),
                           child: Text(
-                            'LEVEL $levelNumber COMPLETED',
+                            'YOUR SCORE',
+                            textAlign: TextAlign.center,
                             style: GoogleFonts.chakraPetch(
                               fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ).createShader(bounds),
-                          child: Text(
-                            '$score',
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w500,
+                              height: 1.0,
+                              letterSpacing: 0.0,
                               color: Colors.white,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 4),
+
+                        Text(
+                          _formatScore(score),
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFFFF066),
+                            letterSpacing: 0.5,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0xAA814D00),
+                                offset: Offset(0, 2),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                        const Divider(
+                          color: Color(0xFF1E3A5F),
+                          height: 1,
+                          thickness: 1.0,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 3-Column Stats Row
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Text(
-                              '+$flowers ',
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF6EE7B7),
+                            // Column 1: FLOWERS
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/game_flower.png',
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Text(
+                                      '🌸',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => const LinearGradient(
+                                      colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'FLOWERS',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.0,
+                                          letterSpacing: 0.0,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '+$flowers',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFFFFF066),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Image.asset(
-                              'assets/game_flower.png',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.contain,
-                              errorBuilder: (c, e, s) => const Text('🌸', style: TextStyle(fontSize: 16)),
+
+                            // Divider 1
+                            Container(
+                              height: 46,
+                              width: 1,
+                              color: const Color(0xFF1E3A5F),
+                            ),
+
+                            // Column 2: BLOOM
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/game_leaf.png',
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Text(
+                                      '🌱',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => const LinearGradient(
+                                      colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'BLOOM',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.0,
+                                          letterSpacing: 0.0,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$bloomCount',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFFFFF066),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Divider 2
+                            Container(
+                              height: 46,
+                              width: 1,
+                              color: const Color(0xFF1E3A5F),
+                            ),
+
+                            // Column 3: MAX COMBO
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'assets/stats/star.png',
+                                    width: 28,
+                                    height: 28,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Text(
+                                      '⭐',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => const LinearGradient(
+                                      colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ).createShader(bounds),
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'MAX COMBO',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.0,
+                                          letterSpacing: 0.0,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'X$maxCombo',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                      color: const Color(0xFFFFF066),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -2422,18 +2529,48 @@ class LevelCompletedOverlay extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // CONTINUE TO MAP Button
+                  // NEXT LEVEL Glossy Green Button matching reference radius (14.0)
                   GreenGameButton(
-                    text: 'CONTINUE TO MAP',
+                    text: 'NEXT LEVEL',
+                    icon: const Icon(
+                      Icons.skip_next_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                     width: 220.0,
                     height: 50.0,
-                    fontSize: 15,
+                    borderRadius: 14.0,
+                    fontSize: 16,
                     onPressed: () {
                       AudioService.instance.playClickSound();
-                      onContinueToMap();
+                      onNextLevel();
                     },
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // BACK TO HOME Text Link Button
+                  GestureDetector(
+                    onTap: () {
+                      AudioService.instance.playClickSound();
+                      onBackToHome();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      child: Text(
+                        'BACK TO HOME',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF2096E7),
+                          decoration: TextDecoration.underline,
+                          decorationColor: const Color(0xFF2096E7),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -2441,6 +2578,126 @@ class LevelCompletedOverlay extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Custom arched Level Complete header title where both LEVEL and COMPLETE are prominent,
+/// properly vertically spaced, and flanked by flower icons matching the reference image.
+class LevelCompleteHeaderTitle extends StatelessWidget {
+  const LevelCompleteHeaderTitle({super.key});
+
+  Widget _buildArchedWord(String text, {required double fontSize, double curveAmount = 8.0}) {
+    final characters = text.split('');
+    final totalChars = characters.length;
+    const double refHalfSpan = 4.5;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(totalChars, (i) {
+        final centerIndex = (totalChars - 1) / 2.0;
+        final xFromCenter = i - centerIndex;
+        final t = totalChars > 1 ? (xFromCenter / refHalfSpan) : 0.0;
+        final dy = (1.0 - (t * t)) * -curveAmount;
+        final angle = t * 0.12;
+
+        if (characters[i] == ' ') {
+          return SizedBox(width: fontSize * 0.35);
+        }
+
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: Transform.rotate(
+            angle: angle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFFFFF7A1), Color(0xFFFFD700), Color(0xFFFF9E00)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ).createShader(bounds),
+                child: Text(
+                  characters[i],
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    shadows: const [
+                      Shadow(
+                        color: Color(0xFF6B3E00),
+                        offset: Offset(1.5, 2.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Top line: Arched LEVEL (large, bold gold font, clearly positioned above)
+        _buildArchedWord('LEVEL', fontSize: 32.0, curveAmount: 10.0),
+
+        const SizedBox(height: 8),
+
+        // Bottom line: 🌸 Arched COMPLETE 🌸
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left Flower
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Transform.rotate(
+                angle: -0.15,
+                child: Image.asset(
+                  'assets/flower.png',
+                  width: 38,
+                  height: 38,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text('🌸', style: TextStyle(fontSize: 26)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Arched COMPLETE
+            _buildArchedWord('COMPLETE', fontSize: 36.0, curveAmount: 12.0),
+
+            const SizedBox(width: 8),
+
+            // Right Flower
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Transform.scale(
+                scaleX: -1,
+                child: Transform.rotate(
+                  angle: -0.15,
+                  child: Image.asset(
+                    'assets/flower.png',
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Text('🌸', style: TextStyle(fontSize: 26)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/features/game/views/game_view.dart';
 import 'package:block_bloom/ui/features/garden/widgets/flower_counter_badge.dart';
 import 'package:block_bloom/ui/providers.dart';
@@ -37,7 +38,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   int _previousUnlockedLevel = 1;
   int _currentUnlockedLevel = 1;
 
-  static const int totalLevels = 60;
+  static const int totalLevels = 100;
   static const double stepHeight = 115.0;
   static const double nodeWidth = 72.0;
   static const double nodeHeight = 62.0;
@@ -122,6 +123,271 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  void _onNodeTap(int levelNum, int unlockedLevels) {
+    if (levelNum > unlockedLevels) {
+      AudioService.instance.playClickSound();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Complete Level ${levelNum - 1} to unlock Level $levelNum!',
+            style: GoogleFonts.chakraPetch(color: Colors.white),
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    AudioService.instance.playClickSound();
+    _showLevelPreviewDialog(levelNum, isCompleted: levelNum < unlockedLevels);
+  }
+
+  void _showLevelPreviewDialog(int levelNum, {required bool isCompleted}) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 340),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF092038), Color(0xFF041223)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFFFFC800),
+                width: 2.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFC800).withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Row: Level Title + Close 'X' Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 32),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFD700)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ).createShader(bounds),
+                      child: Text(
+                        'LEVEL $levelNum',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        AudioService.instance.playClickSound();
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E3A5F).withValues(alpha: 0.8),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFFFC800), width: 1.2),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Status Badge (COMPLETED vs CURRENT LEVEL)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? const Color(0xFF1A3C0E).withValues(alpha: 0.8)
+                        : const Color(0xFF381A00).withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isCompleted ? const Color(0xFF6EE7B7) : const Color(0xFFFFC800),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isCompleted ? Icons.star_rounded : Icons.auto_awesome_rounded,
+                        color: isCompleted ? const Color(0xFF6EE7B7) : const Color(0xFFFFC800),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isCompleted ? 'COMPLETED' : 'CURRENT LEVEL',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isCompleted ? const Color(0xFF6EE7B7) : const Color(0xFFFFC800),
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Objective Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF030D19),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF1E3A5F),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/game_flower.png',
+                            width: 30,
+                            height: 30,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Text('🌸', style: TextStyle(fontSize: 22)),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            isCompleted ? 'Replay Goal' : 'Target Goal',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF8EA2C0),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isCompleted
+                            ? 'Replay Level $levelNum to earn more flowers and beat your high score!'
+                            : 'Clear lines, trigger combos & bloom flowers to complete Level $levelNum!',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Green Candy Crush Style Play Button
+                GreenGameButton(
+                  text: isCompleted ? 'PLAY AGAIN' : 'PLAY NOW',
+                  icon: Icon(
+                    isCompleted ? Icons.replay_rounded : Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  width: 220.0,
+                  height: 52.0,
+                  borderRadius: 16.0,
+                  fontSize: 16,
+                  onPressed: () {
+                    AudioService.instance.playClickSound();
+                    Navigator.of(ctx).pop();
+                    _startLevel(levelNum);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _startLevel(int levelNum) async {
+    final homeState = ref.read(homeViewModelProvider);
+    final unlockedLevels = homeState.progress?.unlockedLevels ?? 1;
+
+    if (levelNum <= unlockedLevels) {
+      HapticFeedback.heavyImpact();
+      AudioService.instance.playClickSound();
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameView(levelNumber: levelNum),
+        ),
+      );
+
+      // Reload progress when returning from GameView
+      await ref.read(homeViewModelProvider.notifier).loadProgress();
+      _checkAndAnimateProgress();
+
+      if (result == 'next_level') {
+        final nextLevelNum = levelNum + 1;
+        // Wait for map level redirection avatar animation (1.4s) to complete
+        await Future.delayed(const Duration(milliseconds: 1400));
+        if (mounted) {
+          final updatedUnlocked = ref.read(homeViewModelProvider).progress?.unlockedLevels ?? 1;
+          if (nextLevelNum <= updatedUnlocked && nextLevelNum <= totalLevels) {
+            _startLevel(nextLevelNum);
+          }
+        }
+      }
+    } else {
+      AudioService.instance.playClickSound();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Complete Level ${levelNum - 1} to unlock Level $levelNum!',
+              style: GoogleFonts.chakraPetch(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Offset _getNodePosition(int levelIndex, double screenWidth, double mapHeight) {
@@ -375,35 +641,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     }
 
     Widget nodeButton = GestureDetector(
-      onTap: () async {
-        if (isUnlocked) {
-          HapticFeedback.heavyImpact();
-          AudioService.instance.playClickSound();
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GameView(levelNumber: levelNum),
-            ),
-          );
-          // Reload progress when returning from GameView
-          await ref.read(homeViewModelProvider.notifier).loadProgress();
-          _checkAndAnimateProgress();
-        } else {
-          AudioService.instance.playClickSound();
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Complete Level ${levelNum - 1} to unlock Level $levelNum!',
-                  style: GoogleFonts.chakraPetch(color: Colors.white),
-                ),
-                backgroundColor: const Color(0xFF1E293B),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-      },
+      onTap: () => _onNodeTap(levelNum, unlockedLevels),
       child: Stack(
         alignment: Alignment.center,
         children: [
