@@ -31,6 +31,7 @@ class _NetworkConnectivityWrapperState
 
   late AnimationController _pulseAnimController;
   late AnimationController _radarAnimController;
+  late AnimationController _loadingRotateController;
 
   StreamSubscription<NetworkStatus>? _subscription;
 
@@ -69,6 +70,11 @@ class _NetworkConnectivityWrapperState
       duration: const Duration(milliseconds: 3000),
     )..repeat();
 
+    _loadingRotateController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initNetworkListener();
     });
@@ -81,6 +87,7 @@ class _NetworkConnectivityWrapperState
     _dialogAnimController.dispose();
     _pulseAnimController.dispose();
     _radarAnimController.dispose();
+    _loadingRotateController.dispose();
     super.dispose();
   }
 
@@ -168,28 +175,196 @@ class _NetworkConnectivityWrapperState
         // Main Application View
         widget.child,
 
-        // Premium Gamified Blurred Backdrop Overlay
+        // Network Connectivity Overlay
         if (_isOffline || _isRestoredSuccess)
           Positioned.fill(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.72),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: _buildGamifiedDialogCard(context),
-                  ),
-                ),
-              ),
+              child: _buildNewNetworkOverlay(context),
             ),
           ),
       ],
     );
   }
+
+  /// NEW NETWORK CONNECTIVITY OVERLAY MATCHING FIGMA & IMAGE SPECIFICATIONS
+  Widget _buildNewNetworkOverlay(BuildContext context) {
+    final bool isOfflineMode = _isOffline;
+
+    return Stack(
+      children: [
+        // Fullscreen Night Garden Background Image
+        Positioned.fill(
+          child: Image.asset(
+            'assets/splash_img.png',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: const Color(0xFF070B19),
+            ),
+          ),
+        ),
+
+        // Dark Semi-Transparent Vignette Overlay
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.55),
+          ),
+        ),
+
+        // Center Content Container
+        SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Network 3D Pedestal Icon (assets/network.png)
+                  Image.asset(
+                    'assets/network.png',
+                    width: 240,
+                    height: 240,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.wifi_off_rounded,
+                      size: 100,
+                      color: Color(0xFF459EC7),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Title: "No Internet Connection"
+                  Text(
+                    isOfflineMode ? 'No Internet Connection' : 'Connection Restored!',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Subtitle: "Please check your network settings and try again"
+                  Text(
+                    isOfflineMode
+                        ? 'Please check your network settings\nand try again'
+                        : 'Internet connection restored.\nResuming game...',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      height: 1.35,
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // RETRY Button matching Figma Frame 140 Specs
+                  _buildFigmaRetryButton(
+                    text: isOfflineMode
+                        ? (_isManualChecking ? 'CHECKING...' : 'RETRY')
+                        : 'RESTORED',
+                    onPressed: isOfflineMode
+                        ? (_isManualChecking ? () {} : _manualRetryCheck)
+                        : () {},
+                    isLoading: _isManualChecking || !isOfflineMode,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// RETRY BUTTON WIDGET MATCHING FIGMA FRAME 140 DIMENSIONS & STYLES EXACTLY
+  /// Layout: Horizontal, Width: Hug (min 103px), Height: Hug (44px)
+  /// Radius: 10px, Border: 1px Linear Gradient (#275D7E to #9ACBF1)
+  /// Fill: Linear Gradient (#459EC7 to #0E1E3C)
+  /// Padding: Top 13px, Right 9px, Bottom 13px, Left 9px, Gap: 10px
+  Widget _buildFigmaRetryButton({
+    required String text,
+    required VoidCallback onPressed,
+    bool isLoading = false,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 103),
+        height: 44,
+        padding: const EdgeInsets.all(1.0), // 1px linear gradient border thickness
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF275D7E), Color(0xFF9ACBF1)],
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF459EC7), Color(0xFF0E1E3C)],
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Rotating loading.png reference animation icon
+              RotationTransition(
+                turns: _loadingRotateController,
+                child: Image.asset(
+                  'assets/loading.png',
+                  width: 18,
+                  height: 18,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.refresh_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 10), // 10px gap as per Figma spec
+
+              Text(
+                text,
+                style: GoogleFonts.chakraPetch(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.8,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/* 
+================================================================================
+EXISTING DIALOG CODE COMMENTED OUT AS REQUESTED BY THE USER:
+================================================================================
 
   Widget _buildGamifiedDialogCard(BuildContext context) {
     final bool isOfflineMode = _isOffline;
@@ -241,14 +416,12 @@ class _NetworkConnectivityWrapperState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Animated Radar & Pulse Badge Icon
           SizedBox(
             width: 100,
             height: 100,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Radar Rotating Waves (Offline)
                 if (isOfflineMode)
                   AnimatedBuilder(
                     animation: _radarAnimController,
@@ -263,8 +436,6 @@ class _NetworkConnectivityWrapperState
                       );
                     },
                   ),
-
-                // Central Metallic Badge
                 AnimatedBuilder(
                   animation: _pulseAnimController,
                   builder: (context, child) {
@@ -314,7 +485,6 @@ class _NetworkConnectivityWrapperState
 
           const SizedBox(height: 16),
 
-          // Multi-layer Gradient Shader Title
           ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
               colors: isOfflineMode
@@ -338,7 +508,6 @@ class _NetworkConnectivityWrapperState
 
           const SizedBox(height: 10),
 
-          // Subtitle Explanation
           Text(
             subtitleText,
             textAlign: TextAlign.center,
@@ -352,7 +521,6 @@ class _NetworkConnectivityWrapperState
 
           const SizedBox(height: 22),
 
-          // Action Section (Glossy Retry Button or Resuming Pill)
           if (isOfflineMode) ...[
             GreenGameButton(
               text: _isManualChecking ? 'CHECKING...' : 'RETRY CONNECTION',
@@ -376,7 +544,6 @@ class _NetworkConnectivityWrapperState
               onPressed: _isManualChecking ? () {} : _manualRetryCheck,
             ),
           ] else ...[
-            // Connected Success Pill Badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
@@ -418,9 +585,7 @@ class _NetworkConnectivityWrapperState
       ),
     );
   }
-}
 
-/// Custom painter for animated radar pulse rings behind the offline badge
 class _RadarRingsPainter extends CustomPainter {
   final double progress;
   final double pulseValue;
@@ -454,3 +619,5 @@ class _RadarRingsPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RadarRingsPainter oldDelegate) => true;
 }
+================================================================================
+*/

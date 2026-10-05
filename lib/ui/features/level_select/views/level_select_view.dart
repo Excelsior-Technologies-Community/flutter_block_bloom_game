@@ -369,7 +369,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
         if (mounted) {
           final updatedUnlocked = ref.read(homeViewModelProvider).progress?.unlockedLevels ?? 1;
           if (nextLevelNum <= updatedUnlocked && nextLevelNum <= totalLevels) {
-            _startLevel(nextLevelNum);
+            _showLevelPreviewDialog(nextLevelNum, isCompleted: nextLevelNum < updatedUnlocked);
           }
         }
       }
