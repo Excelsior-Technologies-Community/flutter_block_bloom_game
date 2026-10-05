@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
+import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/features/home/views/home_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
@@ -17,6 +18,7 @@ class AuthView extends ConsumerStatefulWidget {
 
 class _AuthViewState extends ConsumerState<AuthView> {
   bool _isSignUp = false;
+  bool _isForgotPassword = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _rememberMe = true;
@@ -26,8 +28,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
-
+  final _forgotEmailController = TextEditingController();
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _forgotEmailController.dispose();
     super.dispose();
   }
 
@@ -129,120 +131,8 @@ class _AuthViewState extends ConsumerState<AuthView> {
     if (success) _onSuccessNavigate();
   }
 
-  void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController();
-    HapticFeedback.lightImpact();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: const Color(0xFF001834),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFFFC800), width: 1.5),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ).createShader(bounds),
-                  child: Text(
-                    'RESET PASSWORD',
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Enter your email address below to receive a password reset link.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    height: 1.3,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  controller: resetEmailController,
-                  hintText: 'Enter your email',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'CANCEL',
-                          style: GoogleFonts.chakraPetch(
-                            color: Colors.white60,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFC800),
-                          foregroundColor: const Color(0xFF001834),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: () async {
-                          final email = resetEmailController.text.trim();
-                          if (email.isEmpty || !email.contains('@')) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a valid email address.')),
-                            );
-                            return;
-                          }
-                          final messenger = ScaffoldMessenger.of(context);
-                          Navigator.pop(context);
-                          final authVm = ref.read(authViewModelProvider.notifier);
-                          final sent = await authVm.sendPasswordReset(email);
-                          if (sent) {
-                            messenger.showSnackBar(
-                              const SnackBar(content: Text('Password reset email sent! Check your inbox.')),
-                            );
-                          }
-                        },
-                        child: Text(
-                          'SEND',
-                          style: GoogleFonts.chakraPetch(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authViewModelProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFF05001C),
       body: Stack(
@@ -279,249 +169,403 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
           // Main Foreground Form Content
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
+            child: _isForgotPassword ? _buildForgotPasswordView() : _buildAuthForm(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- FORGOT PASSWORD VIEW MATCHING FIGMA SPECS ---
+  Widget _buildForgotPasswordView() {
+    final authState = ref.watch(authViewModelProvider);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 370),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Header Title: 🌸 FORGOT PASSWORD 🌸
+              FloralHeaderTitle(
+                title: 'FORGOT PASSWORD',
+                fontSize: 26.0,
+                flowerSize: 36.0,
+                curveAmount: 12.0,
+                verticalOffset: -16.0,
+                letterSpacing: 1.2,
+              ),
+
+              const SizedBox(height: 36),
+
+              // Email Input Field matching Figma Rectangle 49 Specs exactly:
+              // Width: 353px, Height: 45px, Radius: 12px, Border: 1px #FFFFFF, Fill: #003675 20%
+              Container(
+                width: 353,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003675).withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.0,
+                  ),
+                ),
+                child: TextField(
+                  controller: _forgotEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  cursorColor: Colors.white,
+                  decoration: InputDecoration(
+                    hintText: 'Enter email',
+                    hintStyle: GoogleFonts.chakraPetch(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Action Button: ENTER (Glossy Green Game Button)
+              GreenGameButton(
+                text: authState.isLoading ? 'SENDING...' : 'ENTER',
+                width: 240,
+                height: 50,
+                fontSize: 20,
+                borderRadius: 12,
+                onPressed: authState.isLoading
+                    ? null
+                    : () async {
+                        final email = _forgotEmailController.text.trim();
+                        if (email.isEmpty || !email.contains('@')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter a valid email address.'),
+                              backgroundColor: Color(0xFFFF3B30),
+                            ),
+                          );
+                          return;
+                        }
+                        FocusScope.of(context).unfocus();
+                        final authVm = ref.read(authViewModelProvider.notifier);
+                        final sent = await authVm.sendPasswordReset(email);
+                        if (sent && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password reset email sent! Check your inbox.'),
+                              backgroundColor: Color(0xFF10B981),
+                            ),
+                          );
+                          setState(() {
+                            _isForgotPassword = false;
+                            _forgotEmailController.clear();
+                          });
+                        }
+                      },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Back Link: Underlined "Back" text with larger bold font
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  AudioService.instance.playClickSound();
+                  setState(() {
+                    _isForgotPassword = false;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Back',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- MAIN AUTH FORM (LOGIN / SIGN UP) ---
+  Widget _buildAuthForm() {
+    final authState = ref.watch(authViewModelProvider);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 370),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Header Title
+              FloralHeaderTitle(
+                title: _isSignUp ? 'CREATE ACCOUNT' : 'WELCOME BACK',
+                fontSize: 28.0,
+                flowerSize: 38.0,
+                curveAmount: 14.0,
+                verticalOffset: -20.0,
+                letterSpacing: 1.5,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Main Glassmorphic Auth Card Container (#001834)
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 370),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF001834).withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: const Color(0xFFFFC800),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFFFFC800).withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Header Title
-                      FloralHeaderTitle(
-                        title: _isSignUp ? 'CREATE ACCOUNT' : 'WELCOME BACK',
-                        fontSize: 28.0,
-                        flowerSize: 38.0,
-                        curveAmount: 14.0,
-                        verticalOffset: -20.0,
-                        letterSpacing: 1.5,
+                      // 1. Tab Switcher Bar: LOG IN | SIGN UP
+                      _buildTabSwitcher(),
+
+                      const SizedBox(height: 20),
+
+                      // Error Message Display
+                      if (authState.error != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF420914),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFFF3B30),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: Color(0xFFFF6B6B), size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  authState.error!,
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFFFF8080),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // 2. Full Name Input (Sign Up mode only)
+                      if (_isSignUp) ...[
+                        _buildInputField(
+                          controller: _nameController,
+                          hintText: 'Full Name',
+                          icon: Icons.person_outline_rounded,
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Please enter your name';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      // 3. Email Input
+                      _buildInputField(
+                        controller: _emailController,
+                        hintText: 'Email Address',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!val.contains('@') || !val.contains('.')) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
 
-                      // Main Glassmorphic Auth Card Container (#001834)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF001834).withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
+                      // 4. Password Input
+                      _buildInputField(
+                        controller: _passwordController,
+                        hintText: 'Password',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
                             color: const Color(0xFFFFC800),
-                            width: 1.5,
+                            size: 20,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Please enter password';
+                          }
+                          if (val.length < 6) {
+                            return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      // 5. Confirm Password Input (Sign Up mode only)
+                      if (_isSignUp) ...[
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          controller: _confirmPasswordController,
+                          hintText: 'Confirm Password',
+                          icon: Icons.lock_clock_outlined,
+                          obscureText: _obscureConfirmPassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                              color: const Color(0xFFFFC800),
+                              size: 20,
                             ),
-                            BoxShadow(
-                              color: const Color(0xFFFFC800).withValues(alpha: 0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
+                            onPressed: () {
+                              setState(() {
+                                _obscureConfirmPassword = !_obscureConfirmPassword;
+                              });
+                            },
+                          ),
+                          validator: (val) {
+                            if (val != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+
+                      // Remember Me Checkbox & Forgot Password Link
+                      if (!_isSignUp) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _rememberMe = !_rememberMe;
+                                });
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      activeColor: const Color(0xFFFFC800),
+                                      checkColor: const Color(0xFF001834),
+                                      side: const BorderSide(color: Color(0xFFFFC800), width: 1.2),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _rememberMe = val ?? false;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Remember Me',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFFFC800),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                AudioService.instance.playClickSound();
+                                setState(() {
+                                  _isForgotPassword = true;
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Forgot Password?',
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFFFC800),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // 1. Tab Switcher Bar: LOG IN | SIGN UP
-                              _buildTabSwitcher(),
-
-                              const SizedBox(height: 20),
-
-                              // Error Message Display
-                              if (authState.error != null) ...[
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF420914),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFFF3B30),
-                                      width: 1.2,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.error_outline_rounded, color: Color(0xFFFF6B6B), size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          authState.error!,
-                                          style: GoogleFonts.chakraPetch(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: const Color(0xFFFF8080),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-
-                              // 2. Full Name Input (Sign Up mode only)
-                              if (_isSignUp) ...[
-                                _buildInputField(
-                                  controller: _nameController,
-                                  hintText: 'Full Name',
-                                  icon: Icons.person_outline_rounded,
-                                  validator: (val) {
-                                    if (val == null || val.trim().isEmpty) {
-                                      return 'Please enter your name';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 14),
-                              ],
-
-                              // 3. Email Input
-                              _buildInputField(
-                                controller: _emailController,
-                                hintText: 'Email Address',
-                                icon: Icons.email_outlined,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty) {
-                                    return 'Please enter your email';
-                                  }
-                                  if (!val.contains('@') || !val.contains('.')) {
-                                    return 'Please enter a valid email';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              // 4. Password Input
-                              _buildInputField(
-                                controller: _passwordController,
-                                hintText: 'Password',
-                                icon: Icons.lock_outline_rounded,
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                    color: const Color(0xFFFFC800),
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty) {
-                                    return 'Please enter password';
-                                  }
-                                  if (val.length < 6) {
-                                    return 'Password must be at least 6 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              // 5. Confirm Password Input (Sign Up mode only)
-                              if (_isSignUp) ...[
-                                const SizedBox(height: 14),
-                                _buildInputField(
-                                  controller: _confirmPasswordController,
-                                  hintText: 'Confirm Password',
-                                  icon: Icons.lock_clock_outlined,
-                                  obscureText: _obscureConfirmPassword,
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirmPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                      color: const Color(0xFFFFC800),
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                                      });
-                                    },
-                                  ),
-                                  validator: (val) {
-                                    if (val != _passwordController.text) {
-                                      return 'Passwords do not match';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ],
-
-                              // Remember Me Checkbox & Forgot Password Link
-                              if (!_isSignUp) ...[
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _rememberMe = !_rememberMe;
-                                        });
-                                      },
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: Checkbox(
-                                              value: _rememberMe,
-                                              activeColor: const Color(0xFFFFC800),
-                                              checkColor: const Color(0xFF001834),
-                                              side: const BorderSide(color: Color(0xFFFFC800), width: 1.2),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              onChanged: (val) {
-                                                setState(() {
-                                                  _rememberMe = val ?? false;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Remember Me',
-                                            style: GoogleFonts.chakraPetch(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: const Color(0xFFFFC800),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    TextButton(
-                                      onPressed: _showForgotPasswordDialog,
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Forgot Password?',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFFFFC800),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                      ],
 
                               const SizedBox(height: 20),
 
@@ -606,11 +650,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
+            );
   }
 
   // Segmented Tab Switcher Bar: LOG IN | SIGN UP
