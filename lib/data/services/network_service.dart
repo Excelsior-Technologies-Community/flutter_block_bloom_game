@@ -40,8 +40,8 @@ class NetworkService {
       _notifyIfChanged(status);
     });
 
-    // 3. Periodic heartbeat check (every 3 seconds) for instant detection
-    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    // 3. Fast periodic heartbeat check (every 2 seconds) for instant detection
+    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final status = await _verifyActualInternet();
       _notifyIfChanged(status);
     });
@@ -55,11 +55,18 @@ class NetworkService {
         return NetworkStatus.offline;
       }
 
-      // Perform DNS lookup check to verify real internet reachability
-      final lookupResult = await InternetAddress.lookup('one.one.one.one')
-          .timeout(const Duration(seconds: 2));
+      // Perform fast DNS lookup check to verify real internet reachability
+      try {
+        final lookupResult = await InternetAddress.lookup('one.one.one.one')
+            .timeout(const Duration(seconds: 2));
 
-      if (lookupResult.isNotEmpty && lookupResult[0].rawAddress.isNotEmpty) {
+        if (lookupResult.isNotEmpty && lookupResult[0].rawAddress.isNotEmpty) {
+          return NetworkStatus.online;
+        }
+      } catch (_) {
+        // Fallback: socket connect to public DNS IP to bypass slow local DNS resolution
+        final socket = await Socket.connect('1.1.1.1', 53, timeout: const Duration(seconds: 1));
+        socket.destroy();
         return NetworkStatus.online;
       }
       return NetworkStatus.offline;
