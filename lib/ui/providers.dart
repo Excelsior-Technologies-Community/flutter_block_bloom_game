@@ -31,19 +31,16 @@ final progressRepositoryProvider = ChangeNotifierProvider<ProgressRepository>((r
   final hiveService = ref.watch(hiveServiceProvider);
   final repo = ProgressRepository(hiveService: hiveService);
 
-  void syncUser(AppUser? user) {
+  void syncUser(AppUser? user) async {
     if (user != null && user.uid.isNotEmpty) {
-      repo.setCurrentUser(user.uid);
       final userName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
           ? user.displayName!.trim()
           : (user.email != null && user.email!.contains('@')
               ? user.email!.split('@').first
               : '');
-      repo.getProgress().then((progress) {
-        repo.saveProgress(progress, displayName: userName);
-      });
+      await repo.setCurrentUser(user.uid, displayName: userName);
     } else {
-      repo.setCurrentUser(null);
+      await repo.setCurrentUser(null);
     }
   }
 

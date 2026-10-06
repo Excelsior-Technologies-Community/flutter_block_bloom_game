@@ -214,18 +214,18 @@ class _NetworkConnectivityWrapperState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Rotating assets/loading.png icon
+              // Rotating assets/game_flower.png icon
               RotationTransition(
                 turns: _loadingRotateController,
                 child: Image.asset(
-                  'assets/loading.png',
-                  width: 54,
-                  height: 54,
+                  'assets/game_flower.png',
+                  width: 60,
+                  height: 60,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.refresh_rounded,
+                    Icons.local_florist_rounded,
                     color: Colors.white,
-                    size: 54,
+                    size: 60,
                   ),
                 ),
               ),
@@ -383,27 +383,27 @@ class _NetworkConnectivityWrapperState
                 RotationTransition(
                   turns: _loadingRotateController,
                   child: Image.asset(
-                    'assets/loading.png',
-                    width: 18,
-                    height: 18,
+                    'assets/game_flower.png',
+                    width: 20,
+                    height: 20,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.refresh_rounded,
+                      Icons.local_florist_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 20,
                     ),
                   ),
                 )
               else
                 Image.asset(
-                  'assets/loading.png',
-                  width: 18,
-                  height: 18,
+                  'assets/game_flower.png',
+                  width: 20,
+                  height: 20,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.refresh_rounded,
+                    Icons.local_florist_rounded,
                     color: Colors.white,
-                    size: 18,
+                    size: 20,
                   ),
                 ),
 

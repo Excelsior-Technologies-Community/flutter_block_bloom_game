@@ -13,68 +13,103 @@ class ProgressRepository extends ChangeNotifier {
 
   String get currentUserId => _currentUserId ?? '';
 
-  void setCurrentUser(String? userId) {
+  Future<void> setCurrentUser(String? userId, {String? displayName}) async {
     if (_currentUserId != userId) {
       _currentUserId = userId;
-      if (userId != null && userId.isNotEmpty) {
-        _ensureUserInitialized(userId).then((_) {
-          syncWithFirebase(userId);
-        });
-      }
+    }
+    if (userId != null && userId.isNotEmpty) {
+      await syncAndMergeProgress(userId, displayName: displayName);
+    } else {
       notifyListeners();
     }
   }
 
-  Future<void> _ensureUserInitialized(String userId) async {
-    final box = hiveService.progressBox;
-
-    // Remove legacy unprefixed keys from early testing if present
-    final legacyKeys = [
-      'highestScore',
-      'flowers',
-      'gems',
-      'gamesPlayed',
-      'bestCombo',
-      'linesCleared',
-      'totalScore',
-      'dailyBestScore',
-    ];
-    for (final k in legacyKeys) {
-      if (box.containsKey(k)) {
-        await box.delete(k);
-      }
-    }
-
-    final userKey = 'highestScore_$userId';
-    if (!box.containsKey(userKey)) {
-      const cleanProgress = UserProgress(
-        currentLevel: 1,
-        highestScore: 0,
-        unlockedLevels: 1,
-        bestScore: {},
-        bestTimeSeconds: {},
-        flowers: 0,
-        gems: 0,
-        gardenLevel: 1,
-        gamesPlayed: 0,
-        bestCombo: 0,
-        linesCleared: 0,
-        totalScore: 0,
-      );
-      await _saveToLocal(cleanProgress);
-    }
-  }
-
-  String _getKey(String field) {
-    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
-      return '${field}_$_currentUserId';
+  String _getKey(String field, {String? targetUserId}) {
+    final uid = targetUserId ?? _currentUserId;
+    if (uid != null && uid.isNotEmpty) {
+      return '${field}_$uid';
     }
     return field;
   }
 
-  Future<void> syncWithFirebase(String userId) async {
+  UserProgress mergeUserProgress(UserProgress a, UserProgress b) {
+    final flowersMerged = max(a.flowers, b.flowers);
+    final totalFlowersMerged = max(max(a.totalFlowers, b.totalFlowers), flowersMerged);
+
+    return UserProgress(
+      currentLevel: max(a.currentLevel, b.currentLevel),
+      highestScore: max(a.highestScore, b.highestScore),
+      unlockedLevels: max(a.unlockedLevels, b.unlockedLevels),
+      bestScore: _mergeIntMaps(a.bestScore, b.bestScore),
+      bestTimeSeconds: _mergeBestTimes(a.bestTimeSeconds, b.bestTimeSeconds),
+      flowers: flowersMerged,
+      totalFlowers: totalFlowersMerged,
+      gems: max(a.gems, b.gems),
+      gardenLevel: max(a.gardenLevel, b.gardenLevel),
+      lastDailyPlayedDate: a.lastDailyPlayedDate.compareTo(b.lastDailyPlayedDate) >= 0
+          ? a.lastDailyPlayedDate
+          : b.lastDailyPlayedDate,
+      dailyBestScore: max(a.dailyBestScore, b.dailyBestScore),
+      dailyFlowers: max(a.dailyFlowers, b.dailyFlowers),
+      dailyBlooms: max(a.dailyBlooms, b.dailyBlooms),
+      dailyMaxCombo: max(a.dailyMaxCombo, b.dailyMaxCombo),
+      activeTheme: a.activeTheme.isNotEmpty ? a.activeTheme : b.activeTheme,
+      unlockedThemes: {...a.unlockedThemes, ...b.unlockedThemes}.toList(),
+      gamesPlayed: max(a.gamesPlayed, b.gamesPlayed),
+      bestCombo: max(a.bestCombo, b.bestCombo),
+      linesCleared: max(a.linesCleared, b.linesCleared),
+      totalScore: max(a.totalScore, b.totalScore),
+    );
+  }
+
+  Future<void> _clearGuestKeys() async {
+    final box = hiveService.progressBox;
+    final guestKeys = [
+      'currentLevel',
+      'highestScore',
+      'unlockedLevels',
+      'bestScore',
+      'bestTimeSeconds',
+      'flowers',
+      'totalFlowers',
+      'gems',
+      'gardenLevel',
+      'lastDailyPlayedDate',
+      'dailyBestScore',
+      'dailyFlowers',
+      'dailyBlooms',
+      'dailyMaxCombo',
+      'activeTheme',
+      'unlockedThemes',
+      'gamesPlayed',
+      'bestCombo',
+      'linesCleared',
+      'totalScore',
+    ];
+    for (final k in guestKeys) {
+      if (box.containsKey(k)) {
+        await box.delete(k);
+      }
+    }
+  }
+
+  Future<void> syncAndMergeProgress(String userId, {String? displayName}) async {
     if (userId.isEmpty) return;
+
     try {
+      // 1. Fetch guest progress (if user played as guest before signin)
+      final guestProgress = await _getProgressForId(null);
+      final bool hasGuestProgress = guestProgress.highestScore > 0 ||
+          guestProgress.flowers > 0 ||
+          guestProgress.gamesPlayed > 0 ||
+          guestProgress.currentLevel > 1 ||
+          guestProgress.linesCleared > 0;
+
+      // 2. Fetch local user progress for this userId
+      final localUserProgress = await _getProgressForId(userId);
+
+      // 3. Fetch cloud progress from Firestore
+      UserProgress? cloudProgress;
       final docRef = FirebaseFirestore.instance.collection('users').doc(userId);
       final docSnap = await docRef.get();
 
@@ -89,51 +124,54 @@ class ProgressRepository extends ChangeNotifier {
             statsMap.putIfAbsent(entry.key, () => entry.value);
           }
         }
-
         if (statsMap.isNotEmpty) {
-          final cloudProgress = UserProgress.fromJson(statsMap);
-          final localProgress = await getProgress();
-
-          final mergedProgress = cloudProgress.copyWith(
-            flowers: max(cloudProgress.flowers, localProgress.flowers),
-            totalFlowers: max(cloudProgress.totalFlowers, localProgress.totalFlowers),
-            highestScore: max(cloudProgress.highestScore, localProgress.highestScore),
-            gamesPlayed: max(cloudProgress.gamesPlayed, localProgress.gamesPlayed),
-            totalScore: max(cloudProgress.totalScore, localProgress.totalScore),
-            linesCleared: max(cloudProgress.linesCleared, localProgress.linesCleared),
-            currentLevel: max(cloudProgress.currentLevel, localProgress.currentLevel),
-            unlockedLevels: max(cloudProgress.unlockedLevels, localProgress.unlockedLevels),
-            gardenLevel: max(cloudProgress.gardenLevel, localProgress.gardenLevel),
-            gems: max(cloudProgress.gems, localProgress.gems),
-            bestScore: _mergeIntMaps(cloudProgress.bestScore, localProgress.bestScore),
-            bestTimeSeconds: _mergeBestTimes(cloudProgress.bestTimeSeconds, localProgress.bestTimeSeconds),
-          );
-
-          await _saveToLocal(mergedProgress);
-
-          final jsonMap = mergedProgress.toJson();
-          final firestoreData = <String, dynamic>{
-            'stats': jsonMap,
-            ...jsonMap,
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-          await docRef.set(firestoreData, SetOptions(merge: true));
-
-          notifyListeners();
-          return;
+          cloudProgress = UserProgress.fromJson(statsMap);
         }
       }
 
-      // If no document exists in Firestore, push local stats to Firestore
-      final localProgress = await getProgress();
-      final jsonMap = localProgress.toJson();
-      await docRef.set({
+      // 4. Merge all sources safely
+      UserProgress merged = localUserProgress;
+      if (cloudProgress != null) {
+        merged = mergeUserProgress(merged, cloudProgress);
+      }
+      if (hasGuestProgress) {
+        merged = mergeUserProgress(merged, guestProgress);
+      }
+
+      // 5. Save merged progress to local Hive for this userId
+      await _saveToLocalForId(userId, merged);
+
+      // 6. Clear guest keys after successful migration
+      if (hasGuestProgress) {
+        await _clearGuestKeys();
+      }
+
+      // 7. Push merged progress to Firestore
+      String? resolvedName = displayName;
+      if (resolvedName == null || resolvedName.trim().isEmpty) {
+        final fbUser = FirebaseAuth.instance.currentUser;
+        if (fbUser != null) {
+          resolvedName = (fbUser.displayName != null && fbUser.displayName!.trim().isNotEmpty)
+              ? fbUser.displayName!.trim()
+              : (fbUser.email != null && fbUser.email!.contains('@')
+                  ? fbUser.email!.split('@').first
+                  : null);
+        }
+      }
+
+      final jsonMap = merged.toJson();
+      final firestoreData = <String, dynamic>{
         'stats': jsonMap,
         ...jsonMap,
+        'uid': userId,
+        if (resolvedName != null && resolvedName.trim().isNotEmpty) 'displayName': resolvedName.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+      await docRef.set(firestoreData, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Firestore sync note: $e');
+      debugPrint('ProgressRepository sync error: $e');
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -158,14 +196,18 @@ class ProgressRepository extends ChangeNotifier {
   }
 
   Future<UserProgress> getProgress() async {
+    return _getProgressForId(_currentUserId);
+  }
+
+  Future<UserProgress> _getProgressForId(String? targetUserId) async {
     final box = hiveService.progressBox;
 
     int getInt(String field, int defaultValue) {
-      final userKey = _getKey(field);
+      final userKey = _getKey(field, targetUserId: targetUserId);
       dynamic raw;
       if (box.containsKey(userKey)) {
         raw = box.get(userKey);
-      } else if (_currentUserId == null || _currentUserId!.isEmpty) {
+      } else if (targetUserId == null || targetUserId.isEmpty) {
         if (box.containsKey(field)) {
           raw = box.get(field);
         }
@@ -179,9 +221,10 @@ class ProgressRepository extends ChangeNotifier {
     final highestScore = getInt('highestScore', 0);
     final unlockedLevels = getInt('unlockedLevels', 1);
 
-    final dynamic rawBestScore = box.containsKey(_getKey('bestScore'))
-        ? box.get(_getKey('bestScore'))
-        : ((_currentUserId == null || _currentUserId!.isEmpty) ? box.get('bestScore') : null);
+    final bestScoreKey = _getKey('bestScore', targetUserId: targetUserId);
+    final dynamic rawBestScore = box.containsKey(bestScoreKey)
+        ? box.get(bestScoreKey)
+        : ((targetUserId == null || targetUserId.isEmpty) ? box.get('bestScore') : null);
     final Map<int, int> bestScore = (rawBestScore is Map)
         ? rawBestScore.map(
             (k, v) => MapEntry(
@@ -191,9 +234,10 @@ class ProgressRepository extends ChangeNotifier {
           )
         : {};
 
-    final dynamic rawBestTime = box.containsKey(_getKey('bestTimeSeconds'))
-        ? box.get(_getKey('bestTimeSeconds'))
-        : ((_currentUserId == null || _currentUserId!.isEmpty) ? box.get('bestTimeSeconds') : null);
+    final bestTimeKey = _getKey('bestTimeSeconds', targetUserId: targetUserId);
+    final dynamic rawBestTime = box.containsKey(bestTimeKey)
+        ? box.get(bestTimeKey)
+        : ((targetUserId == null || targetUserId.isEmpty) ? box.get('bestTimeSeconds') : null);
     final Map<int, int> bestTimeSeconds = (rawBestTime is Map)
         ? rawBestTime.map(
             (k, v) => MapEntry(
@@ -207,25 +251,30 @@ class ProgressRepository extends ChangeNotifier {
     final totalFlowers = max(getInt('totalFlowers', 0), flowers);
     final gems = getInt('gems', 0);
     final gardenLevel = getInt('gardenLevel', 1);
-    final lastDailyPlayedDate = box.containsKey(_getKey('lastDailyPlayedDate'))
-        ? (box.get(_getKey('lastDailyPlayedDate'), defaultValue: '') as String)
-        : ((_currentUserId == null || _currentUserId!.isEmpty)
+
+    final dailyDateKey = _getKey('lastDailyPlayedDate', targetUserId: targetUserId);
+    final lastDailyPlayedDate = box.containsKey(dailyDateKey)
+        ? (box.get(dailyDateKey, defaultValue: '') as String)
+        : ((targetUserId == null || targetUserId.isEmpty)
             ? (box.get('lastDailyPlayedDate', defaultValue: '') as String)
             : '');
+
     final dailyBestScore = getInt('dailyBestScore', 0);
     final dailyFlowers = getInt('dailyFlowers', 0);
     final dailyBlooms = getInt('dailyBlooms', 0);
     final dailyMaxCombo = getInt('dailyMaxCombo', 0);
 
-    final activeTheme = box.containsKey(_getKey('activeTheme'))
-        ? (box.get(_getKey('activeTheme'), defaultValue: '') as String)
-        : ((_currentUserId == null || _currentUserId!.isEmpty)
+    final activeThemeKey = _getKey('activeTheme', targetUserId: targetUserId);
+    final activeTheme = box.containsKey(activeThemeKey)
+        ? (box.get(activeThemeKey, defaultValue: '') as String)
+        : ((targetUserId == null || targetUserId.isEmpty)
             ? (box.get('activeTheme', defaultValue: '') as String)
             : '');
 
-    final dynamic rawUnlockedThemes = box.containsKey(_getKey('unlockedThemes'))
-        ? box.get(_getKey('unlockedThemes'))
-        : ((_currentUserId == null || _currentUserId!.isEmpty) ? box.get('unlockedThemes') : null);
+    final unlockedThemesKey = _getKey('unlockedThemes', targetUserId: targetUserId);
+    final dynamic rawUnlockedThemes = box.containsKey(unlockedThemesKey)
+        ? box.get(unlockedThemesKey)
+        : ((targetUserId == null || targetUserId.isEmpty) ? box.get('unlockedThemes') : null);
     final unlockedThemes = (rawUnlockedThemes is List)
         ? rawUnlockedThemes.map((e) => e.toString()).toList()
         : <String>['classic'];
@@ -260,27 +309,31 @@ class ProgressRepository extends ChangeNotifier {
   }
 
   Future<void> _saveToLocal(UserProgress progress) async {
+    await _saveToLocalForId(_currentUserId, progress);
+  }
+
+  Future<void> _saveToLocalForId(String? targetUserId, UserProgress progress) async {
     final box = hiveService.progressBox;
-    await box.put(_getKey('currentLevel'), progress.currentLevel);
-    await box.put(_getKey('highestScore'), progress.highestScore);
-    await box.put(_getKey('unlockedLevels'), progress.unlockedLevels);
-    await box.put(_getKey('bestScore'), progress.bestScore);
-    await box.put(_getKey('bestTimeSeconds'), progress.bestTimeSeconds);
-    await box.put(_getKey('flowers'), progress.flowers);
-    await box.put(_getKey('totalFlowers'), progress.totalFlowers);
-    await box.put(_getKey('gems'), progress.gems);
-    await box.put(_getKey('gardenLevel'), progress.gardenLevel);
-    await box.put(_getKey('lastDailyPlayedDate'), progress.lastDailyPlayedDate);
-    await box.put(_getKey('dailyBestScore'), progress.dailyBestScore);
-    await box.put(_getKey('dailyFlowers'), progress.dailyFlowers);
-    await box.put(_getKey('dailyBlooms'), progress.dailyBlooms);
-    await box.put(_getKey('dailyMaxCombo'), progress.dailyMaxCombo);
-    await box.put(_getKey('activeTheme'), progress.activeTheme);
-    await box.put(_getKey('unlockedThemes'), progress.unlockedThemes);
-    await box.put(_getKey('gamesPlayed'), progress.gamesPlayed);
-    await box.put(_getKey('bestCombo'), progress.bestCombo);
-    await box.put(_getKey('linesCleared'), progress.linesCleared);
-    await box.put(_getKey('totalScore'), progress.totalScore);
+    await box.put(_getKey('currentLevel', targetUserId: targetUserId), progress.currentLevel);
+    await box.put(_getKey('highestScore', targetUserId: targetUserId), progress.highestScore);
+    await box.put(_getKey('unlockedLevels', targetUserId: targetUserId), progress.unlockedLevels);
+    await box.put(_getKey('bestScore', targetUserId: targetUserId), progress.bestScore);
+    await box.put(_getKey('bestTimeSeconds', targetUserId: targetUserId), progress.bestTimeSeconds);
+    await box.put(_getKey('flowers', targetUserId: targetUserId), progress.flowers);
+    await box.put(_getKey('totalFlowers', targetUserId: targetUserId), progress.totalFlowers);
+    await box.put(_getKey('gems', targetUserId: targetUserId), progress.gems);
+    await box.put(_getKey('gardenLevel', targetUserId: targetUserId), progress.gardenLevel);
+    await box.put(_getKey('lastDailyPlayedDate', targetUserId: targetUserId), progress.lastDailyPlayedDate);
+    await box.put(_getKey('dailyBestScore', targetUserId: targetUserId), progress.dailyBestScore);
+    await box.put(_getKey('dailyFlowers', targetUserId: targetUserId), progress.dailyFlowers);
+    await box.put(_getKey('dailyBlooms', targetUserId: targetUserId), progress.dailyBlooms);
+    await box.put(_getKey('dailyMaxCombo', targetUserId: targetUserId), progress.dailyMaxCombo);
+    await box.put(_getKey('activeTheme', targetUserId: targetUserId), progress.activeTheme);
+    await box.put(_getKey('unlockedThemes', targetUserId: targetUserId), progress.unlockedThemes);
+    await box.put(_getKey('gamesPlayed', targetUserId: targetUserId), progress.gamesPlayed);
+    await box.put(_getKey('bestCombo', targetUserId: targetUserId), progress.bestCombo);
+    await box.put(_getKey('linesCleared', targetUserId: targetUserId), progress.linesCleared);
+    await box.put(_getKey('totalScore', targetUserId: targetUserId), progress.totalScore);
   }
 
   Future<void> saveProgress(UserProgress progress, {String? displayName}) async {

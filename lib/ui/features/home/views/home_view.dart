@@ -8,6 +8,7 @@ import 'package:block_bloom/ui/features/garden/views/garden_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
 import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
+import 'package:block_bloom/ui/features/profile/views/profile_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -169,6 +170,19 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const SettingsView(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        GlossyGameButton.profile(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileView(),
                               ),
                             );
                           },

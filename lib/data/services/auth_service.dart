@@ -204,8 +204,6 @@ class AuthService {
               'uid': fbUser.uid,
               'displayName': displayNameClean,
               'email': fbUser.email,
-              'highestScore': 0,
-              'totalScore': 0,
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           } catch (e) {

@@ -144,7 +144,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           (stats['totalScore'] as num?)?.toInt() ??
           highestScore;
 
-      final userDocId = isUser ? currentUserId! : id;
+      final userDocId = isUser ? currentUserId : id;
 
       if (recordsMap.containsKey(userDocId)) {
         final existing = recordsMap[userDocId]!;

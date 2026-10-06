@@ -10,7 +10,6 @@ import 'package:block_bloom/domain/use_cases/block_blast_rules.dart';
 import 'package:block_bloom/ui/core/theme/app_colors.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
 import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
-import 'package:block_bloom/ui/core/widgets/tangible_button.dart';
 import 'package:block_bloom/ui/features/game/view_models/game_view_model.dart';
 import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/data/services/audio_service.dart';

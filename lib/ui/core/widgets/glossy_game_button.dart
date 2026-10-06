@@ -233,6 +233,48 @@ class GlossyGameButton extends StatefulWidget {
     );
   }
 
+  factory GlossyGameButton.profile({
+    Key? key,
+    required VoidCallback? onPressed,
+    double height = 56.0,
+    double? width,
+    double fontSize = 20.0,
+    double? borderRadius,
+  }) {
+    return GlossyGameButton(
+      key: key,
+      text: 'PROFILE',
+      topColor: const Color(0xFFA7B1F2),
+      bottomColor: const Color(0xFF353EBF),
+      textColor: const Color(0xFFFFFFFF),
+      fontSize: fontSize,
+      height: height,
+      width: width,
+      borderRadius: borderRadius,
+      borderGradient: const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFFA19BEB),
+          Color(0xFFD5D6FF),
+        ],
+      ),
+      onPressed: onPressed,
+      icon: Image.asset(
+        'assets/profile.png',
+        width: 24,
+        height: 24,
+        fit: BoxFit.contain,
+        color: Colors.white,
+        errorBuilder: (context, error, stackTrace) => const Icon(
+          Icons.account_circle,
+          color: Colors.white,
+          size: 26,
+        ),
+      ),
+    );
+  }
+
   @override
   State<GlossyGameButton> createState() => _GlossyGameButtonState();
 }
