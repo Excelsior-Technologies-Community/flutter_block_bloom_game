@@ -4,6 +4,7 @@ class AppUser {
   final String? email;
   final String? photoUrl;
   final bool isGuest;
+  final String authProvider;
 
   const AppUser({
     required this.uid,
@@ -11,6 +12,7 @@ class AppUser {
     this.email,
     this.photoUrl,
     this.isGuest = false,
+    this.authProvider = 'password',
   });
 
   String get readableName {
@@ -33,6 +35,7 @@ class AppUser {
       'email': email,
       'photoUrl': photoUrl,
       'isGuest': isGuest,
+      'authProvider': authProvider,
     };
   }
 
@@ -43,6 +46,25 @@ class AppUser {
       email: json['email'],
       photoUrl: json['photoUrl'],
       isGuest: json['isGuest'] ?? false,
+      authProvider: json['authProvider'] ?? 'password',
+    );
+  }
+
+  AppUser copyWith({
+    String? uid,
+    String? displayName,
+    String? email,
+    String? photoUrl,
+    bool? isGuest,
+    String? authProvider,
+  }) {
+    return AppUser(
+      uid: uid ?? this.uid,
+      displayName: displayName ?? this.displayName,
+      email: email ?? this.email,
+      photoUrl: photoUrl ?? this.photoUrl,
+      isGuest: isGuest ?? this.isGuest,
+      authProvider: authProvider ?? this.authProvider,
     );
   }
 }

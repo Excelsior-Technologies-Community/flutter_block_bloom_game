@@ -41,7 +41,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
     if (creds != null && mounted) {
       setState(() {
         _emailController.text = creds['email'] ?? '';
-        _passwordController.text = creds['password'] ?? '';
+        _passwordController.text = '';
         _rememberMe = true;
       });
     }

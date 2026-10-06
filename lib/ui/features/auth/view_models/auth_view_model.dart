@@ -159,6 +159,22 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
     state = state.copyWith(clearUser: true, isLoading: false);
   }
 
+  Future<bool> updateUserProfile({String? displayName, String? newPassword}) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final updatedUser = await _authService.updateUserProfile(
+        displayName: displayName,
+        newPassword: newPassword,
+      );
+      state = state.copyWith(user: updatedUser ?? state.user, isLoading: false);
+      return true;
+    } catch (e) {
+      final message = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, error: message);
+      return false;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(clearError: true);
   }

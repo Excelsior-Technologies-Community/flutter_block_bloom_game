@@ -53,6 +53,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     _obscurePassword = true;
     _obscureConfirmPassword = true;
 
+    final currentUser = ref.read(authViewModelProvider).user;
+    final isGoogleUser = currentUser?.authProvider == 'google';
+
+    if (!mounted) return;
     HapticFeedback.lightImpact();
 
     showDialog(
@@ -74,7 +78,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. Name Input Field (Wider, no card wrapper)
+                      // 1. Name Input Field
                       _buildDialogTextField(
                         controller: _nameController,
                         hintText: 'Enter Name',
@@ -85,7 +89,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       // 2. Change Password Input Field
                       _buildDialogTextField(
                         controller: _passwordController,
-                        hintText: 'Change Password',
+                        hintText: isGoogleUser ? 'Set Password (Optional)' : 'Change Password',
                         obscureText: _obscurePassword,
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -128,7 +132,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // CANCEL Button (Increased dimensions: width: 155px, height: 40px)
+                          // CANCEL Button
                           SizedBox(
                             width: 155,
                             height: 40,
@@ -157,7 +161,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                           const SizedBox(width: 16),
 
-                          // EDIT Button (Increased dimensions: width: 155px, height: 40px, gradient #94C745 -> #1E4A0F)
+                          // EDIT Button
                           Container(
                             width: 155,
                             height: 40,
@@ -193,16 +197,37 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   borderRadius: BorderRadius.circular(9.0),
                                 ),
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 final newName = _nameController.text.trim();
-                                if (newName.isNotEmpty) {
-                                  setState(() {});
-                                  final repo = ref.read(progressRepositoryProvider);
-                                  repo.getProgress().then((p) {
-                                    repo.saveProgress(p, displayName: newName);
-                                  });
+                                final newPass = _passwordController.text.trim();
+                                final confirmPass = _confirmPasswordController.text.trim();
+
+                                if (newPass.isNotEmpty || confirmPass.isNotEmpty) {
+                                  if (newPass != confirmPass) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Passwords do not match'),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                    return;
+                                  }
                                 }
-                                Navigator.pop(context);
+
+                                final success = await ref.read(authViewModelProvider.notifier).updateUserProfile(
+                                  displayName: newName.isNotEmpty ? newName : null,
+                                  newPassword: newPass.isNotEmpty ? newPass : null,
+                                );
+
+                                if (newName.isNotEmpty) {
+                                  final repo = ref.read(progressRepositoryProvider);
+                                  final p = await repo.getProgress();
+                                  await repo.saveProgress(p, displayName: newName);
+                                }
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                }
                               },
                               child: Text(
                                 'EDIT',

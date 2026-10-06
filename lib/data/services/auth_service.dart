@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
@@ -142,6 +143,7 @@ class AuthService {
             email: fbUser.email,
             photoUrl: fbUser.photoURL,
             isGuest: false,
+            authProvider: 'password',
           );
           try {
             await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
@@ -151,6 +153,11 @@ class AuthService {
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           } catch (_) {}
+          await saveRememberedCredentials(
+            email: email.trim(),
+            password: password.trim(),
+            rememberMe: true,
+          );
           await _saveUserToLocal(user);
           _authStreamController.add(user);
           return user;
@@ -162,12 +169,18 @@ class AuthService {
       }
     }
 
-    // Fallback mode (if Firebase config isn't registered natively yet on local dev machine)
+    // Fallback mode
     final user = AppUser(
       uid: 'user_${DateTime.now().millisecondsSinceEpoch}',
       displayName: email.split('@').first,
       email: email.trim(),
       isGuest: false,
+      authProvider: 'password',
+    );
+    await saveRememberedCredentials(
+      email: email.trim(),
+      password: password.trim(),
+      rememberMe: true,
     );
     await _saveUserToLocal(user);
     _authStreamController.add(user);
@@ -198,6 +211,7 @@ class AuthService {
             email: fbUser.email,
             photoUrl: fbUser.photoURL,
             isGuest: false,
+            authProvider: 'password',
           );
           try {
             await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
@@ -209,6 +223,11 @@ class AuthService {
           } catch (e) {
             // Log Firestore sign up note
           }
+          await saveRememberedCredentials(
+            email: email.trim(),
+            password: password.trim(),
+            rememberMe: true,
+          );
           await _firebaseAuth!.signOut();
           await _clearLocalUser();
           _authStreamController.add(null);
@@ -227,6 +246,12 @@ class AuthService {
       displayName: name.trim().isNotEmpty ? name.trim() : email.split('@').first,
       email: email.trim(),
       isGuest: false,
+      authProvider: 'password',
+    );
+    await saveRememberedCredentials(
+      email: email.trim(),
+      password: password.trim(),
+      rememberMe: true,
     );
     await _clearLocalUser();
     _authStreamController.add(null);
@@ -261,6 +286,7 @@ class AuthService {
             email: fbUser.email ?? googleUser.email,
             photoUrl: fbUser.photoURL ?? googleUser.photoUrl,
             isGuest: false,
+            authProvider: 'google',
           );
           try {
             await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
@@ -278,12 +304,12 @@ class AuthService {
         throw Exception(e.message ?? 'Google Sign-In failed.');
       } catch (e) {
         if (e.toString().contains('canceled')) rethrow;
-        // Fallback simulate Google sign in if Google API service missing locally
         final user = AppUser(
           uid: 'google_${DateTime.now().millisecondsSinceEpoch}',
           displayName: 'Google Gardener 🌸',
           email: 'gardener@gmail.com',
           isGuest: false,
+          authProvider: 'google',
         );
         await _saveUserToLocal(user);
         _authStreamController.add(user);
@@ -291,12 +317,12 @@ class AuthService {
       }
     }
 
-    // Fallback simulated Google sign in
     final user = AppUser(
       uid: 'google_${DateTime.now().millisecondsSinceEpoch}',
       displayName: 'Google Gardener 🌸',
       email: 'gardener@gmail.com',
       isGuest: false,
+      authProvider: 'google',
     );
     await _saveUserToLocal(user);
     _authStreamController.add(user);
@@ -314,6 +340,7 @@ class AuthService {
             uid: fbUser.uid,
             displayName: 'Guest Gardener 🌱',
             isGuest: true,
+            authProvider: 'guest',
           );
           try {
             await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).set({
@@ -333,10 +360,72 @@ class AuthService {
       uid: 'guest_${DateTime.now().millisecondsSinceEpoch}',
       displayName: 'Guest Gardener 🌱',
       isGuest: true,
+      authProvider: 'guest',
     );
     await _saveUserToLocal(user);
     _authStreamController.add(user);
     return user;
+  }
+
+  Future<AppUser?> updateUserProfile({
+    String? displayName,
+    String? newPassword,
+  }) async {
+    AppUser? currentUser = await getStoredUser();
+    final fbUser = _firebaseAuth?.currentUser;
+
+    if (newPassword != null && newPassword.trim().isNotEmpty) {
+      final cleanPass = newPassword.trim();
+      if (fbUser != null) {
+        await fbUser.updatePassword(cleanPass);
+      }
+      final creds = await getRememberedCredentials();
+      final email = creds?['email'] ?? fbUser?.email ?? currentUser?.email ?? '';
+      if (email.isNotEmpty) {
+        await saveRememberedCredentials(
+          email: email,
+          password: cleanPass,
+          rememberMe: true,
+        );
+      }
+    }
+
+    if (displayName != null && displayName.trim().isNotEmpty) {
+      final cleanName = displayName.trim();
+      if (fbUser != null) {
+        await fbUser.updateDisplayName(cleanName);
+      }
+      if (currentUser != null) {
+        currentUser = currentUser.copyWith(displayName: cleanName);
+      } else if (fbUser != null) {
+        currentUser = AppUser(
+          uid: fbUser.uid,
+          displayName: cleanName,
+          email: fbUser.email,
+          photoUrl: fbUser.photoURL,
+          isGuest: fbUser.isAnonymous,
+        );
+      }
+
+      if (currentUser != null && _isFirebaseInitialized) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+            'displayName': cleanName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      }
+    }
+
+    if (currentUser != null) {
+      await _saveUserToLocal(currentUser);
+      _authStreamController.add(currentUser);
+    }
+    return currentUser;
+  }
+
+  Future<void> updateAccountPassword(String newPassword) async {
+    await updateUserProfile(newPassword: newPassword);
   }
 
   // --- PASSWORD RESET EMAIL ---
