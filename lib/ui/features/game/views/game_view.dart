@@ -159,10 +159,10 @@ class _GameViewState extends ConsumerState<GameView> {
 
     final gridLocal = renderBox.globalToLocal(globalPosition);
 
-    final gridContentX = gridLocal.dx - 6.0;
-    final gridContentY = (gridLocal.dy - touchOffsetY) - 6.0;
+    final gridContentX = gridLocal.dx - 2.5;
+    final gridContentY = (gridLocal.dy - touchOffsetY) - 2.5;
 
-    final gridWidth = renderBox.size.width - 12.0;
+    final gridWidth = renderBox.size.width - 5.0;
     final gridSize = level.gridSize;
 
     // Grid spacing between cells is 3.0
@@ -356,8 +356,11 @@ class _GameViewState extends ConsumerState<GameView> {
                     Positioned.fill(
                       child: widget.isDaily
                           ? DailyGardenGameOverView(
-                              onHome: () {
+                              onDailyGarden: () {
                                 Navigator.of(context).pop();
+                              },
+                              onHome: () {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
                               },
                             )
                           : GameOverView(
@@ -454,7 +457,7 @@ class _GameViewState extends ConsumerState<GameView> {
     final level = state.level;
     if (renderBox == null || level == null) return const SizedBox.shrink();
 
-    final gridWidth = renderBox.size.width - 12.0;
+    final gridWidth = renderBox.size.width - 5.0;
     final gridCellSize = (gridWidth - (level.gridSize - 1) * 3.0) / level.gridSize;
     final cellStride = gridCellSize + 3.0;
 
@@ -712,94 +715,69 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
-  // Bottom Right Dual Stats Badge: Flowers Harvested (🌸) & Active Leaves (🌱)
+  // Bottom Right Flower Badge using flower_view_design.png & leaf.png (only flower record)
   Widget _buildBottomFlowerBadge(GameViewModelState state) {
-    int activeBloomCount = 0;
-    for (final row in state.board) {
-      for (final cell in row) {
-        if (cell.type == CellType.bloom) activeBloomCount++;
-      }
-    }
     final flowerCount = state.sessionFlowersEarned;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFF001834),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFFFC800),
-              width: 1.5,
+        Image.asset(
+          'assets/flower_view_design.png',
+          width: 96,
+          height: 48,
+          fit: BoxFit.fill,
+        ),
+        Positioned(
+          left: 14,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: Text(
+              _formatScore(flowerCount),
+              style: GoogleFonts.chakraPetch(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFFFFE699),
+              ),
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black54,
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/game_flower.png',
-                width: 20,
-                height: 20,
+        ),
+        Positioned(
+          right: 16,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/game_flower.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              errorBuilder: (ctx, err, st) => Image.asset(
+                'assets/flower.png',
+                width: 24,
+                height: 24,
                 fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => const Text('🌸', style: TextStyle(fontSize: 14)),
+                errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 16)),
               ),
-              const SizedBox(width: 4),
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ).createShader(bounds),
-                child: Text(
-                  '$flowerCount',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 1,
-                height: 16,
-                color: const Color(0xFF103975),
-              ),
-              const SizedBox(width: 10),
-              Image.asset(
-                'assets/game_leaf.png',
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => const Text('🌱', style: TextStyle(fontSize: 14)),
-              ),
-              const SizedBox(width: 4),
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFF6EE7B7), Color(0xFF10B981)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ).createShader(bounds),
-                child: Text(
-                  '$activeBloomCount',
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: -10,
+          bottom: -6,
+          child: Image.asset(
+            'assets/leaf.png',
+            width: 28,
+            height: 28,
+            fit: BoxFit.contain,
+            errorBuilder: (ctx, err, st) => Image.asset(
+              'assets/garden_leaf.png',
+              width: 28,
+              height: 28,
+              fit: BoxFit.contain,
+              errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
+            ),
           ),
         ),
       ],
@@ -1003,7 +981,7 @@ class _GameViewState extends ConsumerState<GameView> {
             if (isLosingWarning) _buildLosingWarningBanner(),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
                 child: Center(
                   child: AspectRatio(
                     aspectRatio: 1.0,
@@ -1046,14 +1024,17 @@ class _GameViewState extends ConsumerState<GameView> {
                           clipBehavior: Clip.none,
                           alignment: Alignment.center,
                           children: [
+                            // Outer Texture Border Layer (Asset Rectangle 11.png with #003675 color filter)
                             Container(
-                              key: _gridKey,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF090027),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFF007AFF),
-                                  width: 2.0,
+                                borderRadius: BorderRadius.circular(14),
+                                image: const DecorationImage(
+                                  image: AssetImage('assets/Rectangle 11.png'),
+                                  fit: BoxFit.fill,
+                                  colorFilter: ColorFilter.mode(
+                                    Color(0xFF003675),
+                                    BlendMode.srcATop,
+                                  ),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -1068,141 +1049,153 @@ class _GameViewState extends ConsumerState<GameView> {
                                   ),
                                 ],
                               ),
-                              padding: const EdgeInsets.all(6),
-                              child: GridView.builder(
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: level.gridSize,
-                                  crossAxisSpacing: 3,
-                                  mainAxisSpacing: 3,
-                                ),
-                                itemCount: level.gridSize * level.gridSize,
-                                itemBuilder: (context, index) {
-                                  final r = index ~/ level.gridSize;
-                                  final c = index % level.gridSize;
-                                  final cell = state.board[r][c];
-                                  final isPreviewCell = previewCells.contains('$r,$c');
-                                  final isLineGlowing = glowingRows.contains(r) || glowingCols.contains(c);
-                                  final isBombAffected = state.bombClearedCells.contains('$r,$c');
+                              padding: const EdgeInsets.all(7.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(11),
+                                child: Container(
+                                  // Inner Simple Solid Blue Container (#003675)
+                                  key: _gridKey,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF003675),
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  padding: const EdgeInsets.all(2.5),
+                                  child: GridView.builder(
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: level.gridSize,
+                                          crossAxisSpacing: 3,
+                                          mainAxisSpacing: 3,
+                                        ),
+                                        itemCount: level.gridSize * level.gridSize,
+                                        itemBuilder: (context, index) {
+                                          final r = index ~/ level.gridSize;
+                                          final c = index % level.gridSize;
+                                          final cell = state.board[r][c];
+                                          final isPreviewCell = previewCells.contains('$r,$c');
+                                          final isLineGlowing = glowingRows.contains(r) || glowingCols.contains(c);
+                                          final isBombAffected = state.bombClearedCells.contains('$r,$c');
 
-                                  bool isBombHovered = false;
-                                  if (activePiece != null && activePiece.isBomb && _hoveredStartRow != null && _hoveredStartCol != null) {
-                                    if ((r - _hoveredStartRow!).abs() <= 1 && (c - _hoveredStartCol!).abs() <= 1) {
-                                      isBombHovered = true;
-                                    }
-                                  }
-
-                                  Widget cellWidget = _buildCellContent(
-                                    cell: cell,
-                                    r: r,
-                                    c: c,
-                                    isPreviewCell: isPreviewCell,
-                                    isValidPlacement: isValidPlacement,
-                                    activeColorIndex: activeColorIndex,
-                                    isLineGlowing: isLineGlowing,
-                                    isBombHovered: isBombHovered,
-                                    isBombAffected: isBombAffected,
-                                    state: state,
-                                  );
-
-                                  return MouseRegion(
-                                    onEnter: (_) {
-                                      if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
-                                        final piece = state.availablePieces[_selectedPieceIndex!];
-                                        if (piece != null) {
-                                          int targetR = r - (piece.rows - 1) ~/ 2;
-                                          int targetC = c - (piece.cols - 1) ~/ 2;
-                                          int? bestR;
-                                          int? bestC;
-                                          double minDistanceSq = double.infinity;
-
-                                          for (int dr = -1; dr <= 1; dr++) {
-                                            for (int dc = -1; dc <= 1; dc++) {
-                                              final candR = targetR + dr;
-                                              final candC = targetC + dc;
-                                              final isInBounds = candR >= 0 &&
-                                                  (candR + piece.rows) <= level.gridSize &&
-                                                  candC >= 0 &&
-                                                  (candC + piece.cols) <= level.gridSize;
-
-                                              if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
-                                                final distSq = (dr * dr + dc * dc).toDouble();
-                                                if (distSq < minDistanceSq) {
-                                                  minDistanceSq = distSq;
-                                                  bestR = candR;
-                                                  bestC = candC;
-                                                }
-                                              }
+                                          bool isBombHovered = false;
+                                          if (activePiece != null && activePiece.isBomb && _hoveredStartRow != null && _hoveredStartCol != null) {
+                                            if ((r - _hoveredStartRow!).abs() <= 1 && (c - _hoveredStartCol!).abs() <= 1) {
+                                              isBombHovered = true;
                                             }
                                           }
 
-                                          if (bestR != null && bestC != null) {
-                                            setState(() {
-                                              _hoveredStartRow = bestR;
-                                              _hoveredStartCol = bestC;
-                                            });
-                                          } else {
-                                            setState(() {
-                                              _hoveredStartRow = null;
-                                              _hoveredStartCol = null;
-                                            });
-                                          }
-                                        }
-                                      }
-                                    },
-                                    onExit: (_) {},
-                                    child: InkWell(
-                                      onTap: () {
-                                        final notifier = ref.read(gameViewModelProvider.notifier);
-                                        if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
-                                          final piece = state.availablePieces[_selectedPieceIndex!];
-                                          if (piece != null) {
-                                            int targetR = r - (piece.rows - 1) ~/ 2;
-                                            int targetC = c - (piece.cols - 1) ~/ 2;
-                                            int? bestR;
-                                            int? bestC;
-                                            double minDistanceSq = double.infinity;
+                                          Widget cellWidget = _buildCellContent(
+                                            cell: cell,
+                                            r: r,
+                                            c: c,
+                                            isPreviewCell: isPreviewCell,
+                                            isValidPlacement: isValidPlacement,
+                                            activeColorIndex: activeColorIndex,
+                                            isLineGlowing: isLineGlowing,
+                                            isBombHovered: isBombHovered,
+                                            isBombAffected: isBombAffected,
+                                            state: state,
+                                          );
 
-                                            for (int dr = -1; dr <= 1; dr++) {
-                                              for (int dc = -1; dc <= 1; dc++) {
-                                                final candR = targetR + dr;
-                                                final candC = targetC + dc;
-                                                final isInBounds = candR >= 0 &&
-                                                    (candR + piece.rows) <= level.gridSize &&
-                                                    candC >= 0 &&
-                                                    (candC + piece.cols) <= level.gridSize;
+                                          return MouseRegion(
+                                            onEnter: (_) {
+                                              if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
+                                                final piece = state.availablePieces[_selectedPieceIndex!];
+                                                if (piece != null) {
+                                                  int targetR = r - (piece.rows - 1) ~/ 2;
+                                                  int targetC = c - (piece.cols - 1) ~/ 2;
+                                                  int? bestR;
+                                                  int? bestC;
+                                                  double minDistanceSq = double.infinity;
 
-                                                if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
-                                                  final distSq = (dr * dr + dc * dc).toDouble();
-                                                  if (distSq < minDistanceSq) {
-                                                    minDistanceSq = distSq;
-                                                    bestR = candR;
-                                                    bestC = candC;
+                                                  for (int dr = -1; dr <= 1; dr++) {
+                                                    for (int dc = -1; dc <= 1; dc++) {
+                                                      final candR = targetR + dr;
+                                                      final candC = targetC + dc;
+                                                      final isInBounds = candR >= 0 &&
+                                                          (candR + piece.rows) <= level.gridSize &&
+                                                          candC >= 0 &&
+                                                          (candC + piece.cols) <= level.gridSize;
+
+                                                      if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
+                                                        final distSq = (dr * dr + dc * dc).toDouble();
+                                                        if (distSq < minDistanceSq) {
+                                                          minDistanceSq = distSq;
+                                                          bestR = candR;
+                                                          bestC = candC;
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+
+                                                  if (bestR != null && bestC != null) {
+                                                    setState(() {
+                                                      _hoveredStartRow = bestR;
+                                                      _hoveredStartCol = bestC;
+                                                    });
+                                                  } else {
+                                                    setState(() {
+                                                      _hoveredStartRow = null;
+                                                      _hoveredStartCol = null;
+                                                    });
                                                   }
                                                 }
                                               }
-                                            }
+                                            },
+                                            onExit: (_) {},
+                                            child: InkWell(
+                                              onTap: () {
+                                                final notifier = ref.read(gameViewModelProvider.notifier);
+                                                if (_selectedPieceIndex != null && _selectedPieceIndex! < state.availablePieces.length) {
+                                                  final piece = state.availablePieces[_selectedPieceIndex!];
+                                                  if (piece != null) {
+                                                    int targetR = r - (piece.rows - 1) ~/ 2;
+                                                    int targetC = c - (piece.cols - 1) ~/ 2;
+                                                    int? bestR;
+                                                    int? bestC;
+                                                    double minDistanceSq = double.infinity;
 
-                                            if (bestR != null && bestC != null) {
-                                              final placed = notifier.placePiece(_selectedPieceIndex!, bestR, bestC);
-                                              if (placed) {
-                                                setState(() {
-                                                  _selectedPieceIndex = null;
-                                                  _hoveredPieceIndex = null;
-                                                  _hoveredStartRow = null;
-                                                  _hoveredStartCol = null;
-                                                });
-                                              }
-                                            }
-                                          }
-                                        }
-                                      },
-                                      child: cellWidget,
+                                                    for (int dr = -1; dr <= 1; dr++) {
+                                                      for (int dc = -1; dc <= 1; dc++) {
+                                                        final candR = targetR + dr;
+                                                        final candC = targetC + dc;
+                                                        final isInBounds = candR >= 0 &&
+                                                            (candR + piece.rows) <= level.gridSize &&
+                                                            candC >= 0 &&
+                                                            (candC + piece.cols) <= level.gridSize;
+
+                                                        if (isInBounds && BlockBlastRules.canPlacePiece(state.board, piece, candR, candC)) {
+                                                          final distSq = (dr * dr + dc * dc).toDouble();
+                                                          if (distSq < minDistanceSq) {
+                                                            minDistanceSq = distSq;
+                                                            bestR = candR;
+                                                            bestC = candC;
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+
+                                                    if (bestR != null && bestC != null) {
+                                                      final placed = notifier.placePiece(_selectedPieceIndex!, bestR, bestC);
+                                                      if (placed) {
+                                                        setState(() {
+                                                          _selectedPieceIndex = null;
+                                                          _hoveredPieceIndex = null;
+                                                          _hoveredStartRow = null;
+                                                          _hoveredStartCol = null;
+                                                        });
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              child: cellWidget,
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
+                                  ),
+                                ),
 
                             // Combo Card Banner at bottom edge of board grid (pops up & wipes out after a few seconds)
                             Positioned(
@@ -1484,13 +1477,13 @@ class _GameViewState extends ConsumerState<GameView> {
               ? Colors.redAccent.withValues(alpha: 0.3)
               : isLineGlowing
                   ? const Color(0xFF1E3A8A)
-                  : const Color(0xFF050C1E),
+                  : const Color(0xFF000B1E),
           borderRadius: BorderRadius.circular(4),
           border: isBombHovered
               ? Border.all(color: Colors.redAccent, width: 1.5)
               : isLineGlowing
-                  ? Border.all(color: const Color(0xFF007AFF), width: 1.0)
-                  : Border.all(color: const Color(0xFF0E2248), width: 0.5),
+                  ? Border.all(color: const Color(0xFF007AFF), width: 1.2)
+                  : Border.all(color: const Color(0xFF003675), width: 0.8),
         ),
         child: isBombHovered
             ? const Center(child: Icon(Icons.gps_fixed_rounded, color: Colors.redAccent, size: 16))
@@ -1507,6 +1500,7 @@ class _GameViewState extends ConsumerState<GameView> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: const Color(0xFF003675), width: 0.8),
         // Base plate layer underneath to prevent dark background collapse
         color: isPreview ? Colors.white.withValues(alpha: 0.35) : const Color(0xFF1E293B),
         boxShadow: isPreview
@@ -2700,3 +2694,4 @@ class LevelCompleteHeaderTitle extends StatelessWidget {
     );
   }
 }
+

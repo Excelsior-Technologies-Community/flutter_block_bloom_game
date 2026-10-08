@@ -36,6 +36,33 @@ class ProgressRepository extends ChangeNotifier {
     final flowersMerged = max(a.flowers, b.flowers);
     final totalFlowersMerged = max(max(a.totalFlowers, b.totalFlowers), flowersMerged);
 
+    String mergedDailyDate = '';
+    int mergedDailyBestScore = 0;
+    int mergedDailyFlowers = 0;
+    int mergedDailyBlooms = 0;
+    int mergedDailyMaxCombo = 0;
+
+    final dateComp = a.lastDailyPlayedDate.compareTo(b.lastDailyPlayedDate);
+    if (dateComp > 0) {
+      mergedDailyDate = a.lastDailyPlayedDate;
+      mergedDailyBestScore = a.dailyBestScore;
+      mergedDailyFlowers = a.dailyFlowers;
+      mergedDailyBlooms = a.dailyBlooms;
+      mergedDailyMaxCombo = a.dailyMaxCombo;
+    } else if (dateComp < 0) {
+      mergedDailyDate = b.lastDailyPlayedDate;
+      mergedDailyBestScore = b.dailyBestScore;
+      mergedDailyFlowers = b.dailyFlowers;
+      mergedDailyBlooms = b.dailyBlooms;
+      mergedDailyMaxCombo = b.dailyMaxCombo;
+    } else {
+      mergedDailyDate = a.lastDailyPlayedDate;
+      mergedDailyBestScore = max(a.dailyBestScore, b.dailyBestScore);
+      mergedDailyFlowers = max(a.dailyFlowers, b.dailyFlowers);
+      mergedDailyBlooms = max(a.dailyBlooms, b.dailyBlooms);
+      mergedDailyMaxCombo = max(a.dailyMaxCombo, b.dailyMaxCombo);
+    }
+
     return UserProgress(
       currentLevel: max(a.currentLevel, b.currentLevel),
       highestScore: max(a.highestScore, b.highestScore),
@@ -46,13 +73,11 @@ class ProgressRepository extends ChangeNotifier {
       totalFlowers: totalFlowersMerged,
       gems: max(a.gems, b.gems),
       gardenLevel: max(a.gardenLevel, b.gardenLevel),
-      lastDailyPlayedDate: a.lastDailyPlayedDate.compareTo(b.lastDailyPlayedDate) >= 0
-          ? a.lastDailyPlayedDate
-          : b.lastDailyPlayedDate,
-      dailyBestScore: max(a.dailyBestScore, b.dailyBestScore),
-      dailyFlowers: max(a.dailyFlowers, b.dailyFlowers),
-      dailyBlooms: max(a.dailyBlooms, b.dailyBlooms),
-      dailyMaxCombo: max(a.dailyMaxCombo, b.dailyMaxCombo),
+      lastDailyPlayedDate: mergedDailyDate,
+      dailyBestScore: mergedDailyBestScore,
+      dailyFlowers: mergedDailyFlowers,
+      dailyBlooms: mergedDailyBlooms,
+      dailyMaxCombo: mergedDailyMaxCombo,
       activeTheme: a.activeTheme.isNotEmpty ? a.activeTheme : b.activeTheme,
       unlockedThemes: {...a.unlockedThemes, ...b.unlockedThemes}.toList(),
       gamesPlayed: max(a.gamesPlayed, b.gamesPlayed),
@@ -259,10 +284,18 @@ class ProgressRepository extends ChangeNotifier {
             ? (box.get('lastDailyPlayedDate', defaultValue: '') as String)
             : '');
 
-    final dailyBestScore = getInt('dailyBestScore', 0);
-    final dailyFlowers = getInt('dailyFlowers', 0);
-    final dailyBlooms = getInt('dailyBlooms', 0);
-    final dailyMaxCombo = getInt('dailyMaxCombo', 0);
+    final todayStr = getTodayDateString();
+    final bool isDailyToday = lastDailyPlayedDate == todayStr && lastDailyPlayedDate.isNotEmpty;
+
+    final rawDailyBestScore = getInt('dailyBestScore', 0);
+    final rawDailyFlowers = getInt('dailyFlowers', 0);
+    final rawDailyBlooms = getInt('dailyBlooms', 0);
+    final rawDailyMaxCombo = getInt('dailyMaxCombo', 0);
+
+    final dailyBestScore = isDailyToday ? rawDailyBestScore : 0;
+    final dailyFlowers = isDailyToday ? rawDailyFlowers : 0;
+    final dailyBlooms = isDailyToday ? rawDailyBlooms : 0;
+    final dailyMaxCombo = isDailyToday ? rawDailyMaxCombo : 0;
 
     final activeThemeKey = _getKey('activeTheme', targetUserId: targetUserId);
     final activeTheme = box.containsKey(activeThemeKey)

@@ -27,69 +27,60 @@ class FlowerCounterBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
-      alignment: Alignment.centerRight,
       children: [
-        Container(
-          height: 38,
-          constraints: const BoxConstraints(minWidth: 100),
-          decoration: BoxDecoration(
-            color: const Color(0xFF001126),
-            borderRadius: BorderRadius.circular(19),
-            border: Border.all(
-              color: const Color(0xFFFFC800),
-              width: 1.2,
+        Image.asset(
+          'assets/flower_view_design.png',
+          width: 96,
+          height: 48,
+          fit: BoxFit.fill,
+        ),
+        Positioned(
+          left: 14,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: Text(
+              _formatCount(count),
+              style: GoogleFonts.chakraPetch(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFFFFE699),
+              ),
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black45,
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.only(left: 14, right: 14, top: 4, bottom: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                _formatCount(count),
-                style: GoogleFonts.chakraPetch(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Image.asset(
-                'assets/small_flower.png',
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Image.asset(
-                  'assets/game_flower.png',
-                  width: 20,
-                  height: 20,
-                  fit: BoxFit.contain,
-                  errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 15)),
-                ),
-              ),
-            ],
           ),
         ),
         Positioned(
-          right: -6,
+          right: 16,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/game_flower.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              errorBuilder: (ctx, err, st) => Image.asset(
+                'assets/flower.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+                errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 16)),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: -10,
+          bottom: -6,
           child: Image.asset(
-            'assets/garden_leaf.png',
-            width: 18,
-            height: 18,
+            'assets/leaf.png',
+            width: 28,
+            height: 28,
             fit: BoxFit.contain,
             errorBuilder: (ctx, err, st) => Image.asset(
-              'assets/garden_leaf2.png',
-              width: 18,
-              height: 18,
+              'assets/garden_leaf.png',
+              width: 28,
+              height: 28,
               fit: BoxFit.contain,
               errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
             ),

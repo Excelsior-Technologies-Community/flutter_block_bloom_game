@@ -16,9 +16,11 @@ class DailyGardenGameOverView extends ConsumerStatefulWidget {
   const DailyGardenGameOverView({
     super.key,
     this.onHome,
+    this.onDailyGarden,
   });
 
   final VoidCallback? onHome;
+  final VoidCallback? onDailyGarden;
 
   @override
   ConsumerState<DailyGardenGameOverView> createState() => _DailyGardenGameOverViewState();
@@ -70,14 +72,17 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
 
     final isCurrentGameActiveDaily = state.isDailyMode && (state.score > 0 || state.sessionFlowersEarned > 0 || state.totalClears > 0 || state.maxComboCount > 0);
 
+    final todayStr = progressRepo.getTodayDateString();
+
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
       builder: (context, snapshot) {
         final progress = snapshot.data;
-        final savedDailyScore = progress?.dailyBestScore ?? 0;
-        final savedDailyFlowers = progress?.dailyFlowers ?? 0;
-        final savedDailyBlooms = progress?.dailyBlooms ?? 0;
-        final savedDailyMaxCombo = progress?.dailyMaxCombo ?? 0;
+        final isPlayedToday = progress != null && progress.lastDailyPlayedDate == todayStr;
+        final savedDailyScore = isPlayedToday ? progress.dailyBestScore : 0;
+        final savedDailyFlowers = isPlayedToday ? progress.dailyFlowers : 0;
+        final savedDailyBlooms = isPlayedToday ? progress.dailyBlooms : 0;
+        final savedDailyMaxCombo = isPlayedToday ? progress.dailyMaxCombo : 0;
 
         final displayScore = isCurrentGameActiveDaily ? state.score : savedDailyScore;
         final displayFlowers = isCurrentGameActiveDaily ? state.sessionFlowersEarned : savedDailyFlowers;
@@ -183,6 +188,7 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
                                       currentUserId: currentUserId,
                                       currentUserName: currentUserName,
                                       userScore: displayScore,
+                                      todayDateString: todayStr,
                                     );
 
                                     return Column(
@@ -330,27 +336,63 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
 
                           const SizedBox(height: 28),
 
-                          // 4. BACK TO HOME Text Link
-                          GestureDetector(
-                            onTap: () {
-                              AudioService.instance.playClickSound();
-                              if (widget.onHome != null) {
-                                widget.onHome!();
-                              } else {
-                                Navigator.of(context).popUntil((route) => route.isFirst);
-                              }
-                            },
-                            child: Text(
-                              'BACK TO HOME',
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2096E7),
-                                decoration: TextDecoration.underline,
-                                decorationColor: const Color(0xFF2096E7),
-                                letterSpacing: 1.0,
+                          // 4. Navigation Links: DAILY GARDEN & BACK TO HOME
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  AudioService.instance.playClickSound();
+                                  if (widget.onDailyGarden != null) {
+                                    widget.onDailyGarden!();
+                                  } else {
+                                    Navigator.of(context).pop();
+                                  }
+                                },
+                                child: Text(
+                                  'DAILY GARDEN',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF2096E7),
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: const Color(0xFF2096E7),
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 16),
+                              Text(
+                                '•',
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2096E7),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              GestureDetector(
+                                onTap: () {
+                                  AudioService.instance.playClickSound();
+                                  if (widget.onHome != null) {
+                                    widget.onHome!();
+                                  } else {
+                                    Navigator.of(context).popUntil((route) => route.isFirst);
+                                  }
+                                },
+                                child: Text(
+                                  'BACK TO HOME',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF2096E7),
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: const Color(0xFF2096E7),
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -371,6 +413,7 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
     required String currentUserId,
     required String currentUserName,
     required int userScore,
+    required String todayDateString,
   }) {
     final Map<String, _DailyLeaderboardItem> map = {};
 
@@ -390,14 +433,17 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
         stats = Map<String, dynamic>.from(data['stats']);
       }
 
-      final score = (data['dailyBestScore'] as num?)?.toInt() ??
+      final lastDate = (data['lastDailyPlayedDate'] as String?) ??
+          (stats['lastDailyPlayedDate'] as String?) ??
+          '';
+
+      final isToday = (lastDate == todayDateString && lastDate.isNotEmpty);
+
+      final rawScore = (data['dailyBestScore'] as num?)?.toInt() ??
           (stats['dailyBestScore'] as num?)?.toInt() ??
-          (data['highestScore'] as num?)?.toInt() ??
-          (stats['highestScore'] as num?)?.toInt() ??
-          (data['totalScore'] as num?)?.toInt() ??
-          (stats['totalScore'] as num?)?.toInt() ??
           0;
 
+      final score = isToday ? rawScore : 0;
       final finalScore = isUser ? math.max(score, userScore) : score;
       final finalName = isUser ? currentUserName : name;
 
@@ -418,12 +464,12 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
       );
     }
 
-    // Default fallback entries to keep top 5 filled with realistic names if empty
+    // Default fallback entries with realistic baseline scores if list has fewer than 5 entries
     final fallbackEntries = [
-      _DailyLeaderboardItem(name: 'FLORA QUEEN', score: math.max(25000, userScore + 3000), isUser: false),
-      _DailyLeaderboardItem(name: 'BLOOM MASTER', score: math.max(24000, userScore + 2000), isUser: false),
-      _DailyLeaderboardItem(name: 'GARDEN ACE', score: math.max(23000, userScore + 1000), isUser: false),
-      _DailyLeaderboardItem(name: 'PETAL PRO', score: math.max(21000, userScore - 500), isUser: false),
+      _DailyLeaderboardItem(name: 'FLORA QUEEN', score: 15000, isUser: false),
+      _DailyLeaderboardItem(name: 'BLOOM MASTER', score: 12000, isUser: false),
+      _DailyLeaderboardItem(name: 'GARDEN ACE', score: 9500, isUser: false),
+      _DailyLeaderboardItem(name: 'PETAL PRO', score: 7200, isUser: false),
     ];
 
     for (final fallback in fallbackEntries) {
