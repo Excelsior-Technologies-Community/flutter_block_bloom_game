@@ -1031,6 +1031,7 @@ class _GameViewState extends ConsumerState<GameView> {
                                 image: const DecorationImage(
                                   image: AssetImage('assets/Rectangle 11.png'),
                                   fit: BoxFit.fill,
+                                  filterQuality: FilterQuality.high,
                                   colorFilter: ColorFilter.mode(
                                     Color(0xFF003675),
                                     BlendMode.srcATop,
@@ -1357,8 +1358,11 @@ class _GameViewState extends ConsumerState<GameView> {
   }) {
     final isClearing = state.clearingRows.contains(r) || state.clearingCols.contains(c) || isBombAffected;
 
+    final gridSize = state.level?.gridSize ?? 8;
+    final dynamicRadius = gridSize <= 5 ? 6.5 : (gridSize <= 6 ? 5.5 : 4.0);
+
     if (cell.type == CellType.occupied) {
-      final block = _buildBlockAsset(cell.colorIndex);
+      final block = _buildBlockAsset(cell.colorIndex, borderRadius: dynamicRadius);
       if (isClearing) {
         return TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0.0, end: 1.0),
@@ -1382,7 +1386,7 @@ class _GameViewState extends ConsumerState<GameView> {
       return Container(
         decoration: BoxDecoration(
           color: isLineGlowing ? const Color(0xFF1E3A8A) : const Color(0xFF0A2218),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(dynamicRadius),
           border: Border.all(
             color: isLineGlowing ? const Color(0xFFFFC800) : const Color(0xFF10B981),
             width: isLineGlowing ? 2.0 : 1.0,
@@ -1403,11 +1407,13 @@ class _GameViewState extends ConsumerState<GameView> {
             width: 22,
             height: 22,
             fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
             errorBuilder: (ctx, err, st) => Image.asset(
               'assets/leaf.png',
               width: 16,
               height: 16,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
               errorBuilder: (ctx2, err2, st2) => const Text('🌱', style: TextStyle(fontSize: 14)),
             ),
           ),
@@ -1418,7 +1424,7 @@ class _GameViewState extends ConsumerState<GameView> {
       return Container(
         decoration: BoxDecoration(
           color: isLineGlowing ? const Color(0xFF1E3A8A) : const Color(0xFF1A1A3A),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(dynamicRadius),
           border: Border.all(
             color: const Color(0xFFFFC800),
             width: isLineGlowing ? 2.2 : 1.2,
@@ -1439,11 +1445,13 @@ class _GameViewState extends ConsumerState<GameView> {
             width: 20,
             height: 20,
             fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
             errorBuilder: (ctx, err, st) => Image.asset(
               'assets/small_flower.png',
               width: 20,
               height: 20,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
               errorBuilder: (ctx2, err2, st2) => const Text('🌸', style: TextStyle(fontSize: 16)),
             ),
           ),
@@ -1461,7 +1469,7 @@ class _GameViewState extends ConsumerState<GameView> {
               scale: scaleVal,
               child: Opacity(
                 opacity: 0.92,
-                child: _buildBlockAsset(activeColorIndex, isPreview: true),
+                child: _buildBlockAsset(activeColorIndex, isPreview: true, borderRadius: dynamicRadius),
               ),
             );
           },
@@ -1478,7 +1486,7 @@ class _GameViewState extends ConsumerState<GameView> {
               : isLineGlowing
                   ? const Color(0xFF1E3A8A)
                   : const Color(0xFF000B1E),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(dynamicRadius),
           border: isBombHovered
               ? Border.all(color: Colors.redAccent, width: 1.5)
               : isLineGlowing
@@ -1547,6 +1555,7 @@ class _GameViewState extends ConsumerState<GameView> {
             Image.asset(
               'assets/blocks/$imgIndex.png',
               fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
               opacity: isPreview ? const AlwaysStoppedAnimation(0.85) : null,
               errorBuilder: (context, error, stackTrace) => _buildGlossyBlock(
                 blockColor,

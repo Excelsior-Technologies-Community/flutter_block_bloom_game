@@ -183,7 +183,19 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     state = state.copyWith(isLoading: true);
     try {
       final seed = DateTime.now().millisecondsSinceEpoch;
-      final level = levelGenerator.generateRandom(gridSize: 8, seed: seed);
+      // =========================================================================
+      // EXISTING CODE (COMMENTED OUT FOR MENTOR REVIEW):
+      // final level = levelGenerator.generateRandom(gridSize: 8, seed: seed);
+      // =========================================================================
+      int gridSize = 8;
+      if (difficulty == 'easy') {
+        gridSize = 6;
+      } else if (difficulty == 'medium') {
+        gridSize = 7;
+      } else {
+        gridSize = 8;
+      }
+      final level = levelGenerator.generateRandom(gridSize: gridSize, seed: seed);
       _setupLevel(level, isRandom: true, isDaily: false, difficulty: difficulty);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Failed to generate level: $e');
@@ -284,10 +296,14 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   List<BlockShape> _generate3Pieces([List<List<BoardCell>>? board]) {
     final random = Random();
     final result = <BlockShape>[];
+    final gridDim = board?.length ?? state.level?.gridSize ?? 8;
+
+    // Filter shapes to only those that physically fit inside the matrix grid dimensions
+    final validShapes = BlockShape.allShapes.where((s) => s.rows <= gridDim && s.cols <= gridDim).toList();
 
     if (board != null) {
       // Find all shapes that can actually fit on the current board
-      final playableShapes = BlockShape.allShapes.where((shape) => BlockBlastRules.canPieceBePlacedAnywhere(board, shape)).toList();
+      final playableShapes = validShapes.where((shape) => BlockBlastRules.canPieceBePlacedAnywhere(board, shape)).toList();
       if (playableShapes.isNotEmpty) {
         // Guarantee at least 1 or 2 playable shapes
         result.add(playableShapes[random.nextInt(playableShapes.length)]);
@@ -304,20 +320,21 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         BlockShape.single,
         BlockShape.line2H,
         BlockShape.line2V,
-        BlockShape.square2x2,
-        BlockShape.l2x2TL,
-        BlockShape.l2x2TR,
-        BlockShape.l2x2BL,
-        BlockShape.l2x2BR,
-        BlockShape.line3H,
-        BlockShape.line3V,
+        if (gridDim >= 2) BlockShape.square2x2,
+        if (gridDim >= 2) BlockShape.l2x2TL,
+        if (gridDim >= 2) BlockShape.l2x2TR,
+        if (gridDim >= 2) BlockShape.l2x2BL,
+        if (gridDim >= 2) BlockShape.l2x2BR,
+        if (gridDim >= 3) BlockShape.line3H,
+        if (gridDim >= 3) BlockShape.line3V,
       ];
       result.add(smallShapes[random.nextInt(smallShapes.length)]);
     }
 
     // Pick distinct shapes for remaining slots
+    final pool = validShapes.isNotEmpty ? validShapes : BlockShape.allShapes;
     while (result.length < 3) {
-      final candidate = BlockShape.allShapes[random.nextInt(BlockShape.allShapes.length)];
+      final candidate = pool[random.nextInt(pool.length)];
       if (!result.contains(candidate)) {
         result.add(candidate);
       }
