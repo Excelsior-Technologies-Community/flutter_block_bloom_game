@@ -527,6 +527,20 @@ class ProgressRepository extends ChangeNotifier {
     final newDailyBlooms = (isSameDay && current.dailyBlooms > blooms) ? current.dailyBlooms : blooms;
     final newDailyMaxCombo = (isSameDay && current.dailyMaxCombo > maxCombo) ? current.dailyMaxCombo : maxCombo;
 
+    int newFlowers = current.flowers;
+    int newTotalFlowers = current.totalFlowers;
+    int newTotalScore = current.totalScore;
+    int newLinesCleared = current.linesCleared;
+    int newGamesPlayed = current.gamesPlayed;
+
+    if (isFinal) {
+      newFlowers = current.flowers + flowers;
+      newTotalFlowers = current.totalFlowers + flowers;
+      newTotalScore = current.totalScore + score;
+      newLinesCleared = current.linesCleared + blooms;
+      newGamesPlayed = current.gamesPlayed + 1;
+    }
+
     final updated = current.copyWith(
       lastDailyPlayedDate: dateStr,
       dailyBestScore: newDailyBest,
@@ -535,8 +549,11 @@ class ProgressRepository extends ChangeNotifier {
       dailyMaxCombo: newDailyMaxCombo,
       highestScore: max(current.highestScore, score),
       bestCombo: max(current.bestCombo, maxCombo),
-      linesCleared: isFinal ? (current.linesCleared + blooms) : current.linesCleared,
-      totalScore: isFinal ? (current.totalScore + score) : current.totalScore,
+      flowers: newFlowers,
+      totalFlowers: newTotalFlowers,
+      linesCleared: newLinesCleared,
+      totalScore: newTotalScore,
+      gamesPlayed: newGamesPlayed,
     );
     await saveProgress(updated);
   }

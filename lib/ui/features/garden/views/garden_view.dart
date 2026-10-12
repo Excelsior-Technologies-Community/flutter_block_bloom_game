@@ -772,15 +772,14 @@ class _GardenViewState extends ConsumerState<GardenView> {
   Widget _buildThemesContent(int flowers, int currentGardenLvl, UserProgress? progress, String activeThemeAsset) {
     final unlockedThemes = progress?.unlockedThemes ?? ['classic', 'dtheme1'];
     final currentThemeFolder = getThemeFolder(progress?.activeTheme);
-    final safeLvl = currentGardenLvl.clamp(1, 6);
 
     final List<Map<String, dynamic>> themesData = [
       {
         'id': 'dtheme1',
         'legacyId': 'classic',
         'name': 'Classic Garden',
-        'asset': 'assets/decorate/dtheme1/$safeLvl.png',
-        'alignment': const Alignment(-0.95, -0.35),
+        'asset': 'assets/themes/1.png',
+        'alignment': const Alignment(-0.95, -0.40),
         'subtitle': 'Lvl $currentGardenLvl/Lvl 6',
         'cost': 0,
       },
@@ -788,8 +787,8 @@ class _GardenViewState extends ConsumerState<GardenView> {
         'id': 'dtheme2',
         'legacyId': 'space',
         'name': 'Space Garden',
-        'asset': 'assets/decorate/dtheme2/$safeLvl.png',
-        'alignment': const Alignment(-0.95, -0.35),
+        'asset': 'assets/themes/2.png',
+        'alignment': const Alignment(-0.95, -0.40),
         'subtitle': unlockedThemes.contains('dtheme2') || unlockedThemes.contains('space')
             ? 'Lvl $currentGardenLvl/Lvl 6'
             : 'Unlocks after completion of classic garden',
@@ -799,8 +798,8 @@ class _GardenViewState extends ConsumerState<GardenView> {
         'id': 'dtheme3',
         'legacyId': 'candy',
         'name': 'Candy Garden',
-        'asset': 'assets/decorate/dtheme3/$safeLvl.png',
-        'alignment': const Alignment(-0.95, -0.35),
+        'asset': 'assets/themes/3.png',
+        'alignment': const Alignment(-0.95, -0.40),
         'subtitle': unlockedThemes.contains('dtheme3') || unlockedThemes.contains('candy')
             ? 'Lvl $currentGardenLvl/Lvl 6'
             : 'Available after unlocking Space Garden.',
@@ -810,8 +809,8 @@ class _GardenViewState extends ConsumerState<GardenView> {
         'id': 'dtheme4',
         'legacyId': 'ocean',
         'name': 'Ocean Garden',
-        'asset': 'assets/decorate/dtheme4/$safeLvl.png',
-        'alignment': const Alignment(-0.95, -0.35),
+        'asset': 'assets/themes/4.png',
+        'alignment': const Alignment(-0.95, -0.40),
         'subtitle': unlockedThemes.contains('dtheme4') || unlockedThemes.contains('ocean')
             ? 'Lvl $currentGardenLvl/Lvl 6'
             : 'Available after unlocking Candy Garden.',
@@ -851,317 +850,347 @@ class _GardenViewState extends ConsumerState<GardenView> {
               final themeName = theme['name'] as String;
               final subtitle = theme['subtitle'] as String;
               final cost = theme['cost'] as int;
-              final alignment = (theme['alignment'] as Alignment?) ?? const Alignment(-0.95, -0.35);
+              final alignment = (theme['alignment'] as Alignment?) ?? const Alignment(-0.95, -0.40);
 
               final isUnlocked = unlockedThemes.contains(themeId) || unlockedThemes.contains(legacyId) || themeId == 'dtheme1';
               final isActive = currentThemeFolder == themeId;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(12),
+                height: 140,
                 decoration: BoxDecoration(
                   color: const Color(0xFF001126),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isActive ? const Color(0xFFFFC800) : const Color(0xFFFFC800).withValues(alpha: 0.7),
-                    width: isActive ? 1.5 : 1.0,
+                    color: const Color(0xFFFFC800),
+                    width: 1.5,
                   ),
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black45,
-                      blurRadius: 6,
+                      blurRadius: 8,
                       offset: Offset(0, 3),
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    // Left: Theme Image Thumbnail focusing on House Side View (Zoomed 1.25x)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: 145,
-                        height: 98,
-                        color: const Color(0xFF0F172A),
-                        child: Transform.scale(
-                          scale: 1.25,
-                          alignment: alignment,
-                          child: Image.asset(
-                            themeAsset,
-                            fit: BoxFit.cover,
-                            alignment: alignment,
-                            width: 145,
-                            height: 98,
-                            errorBuilder: (ctx, err, st) => Image.asset(
-                              'assets/splash_img.png',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14.5),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cardWidth = constraints.maxWidth;
+                      return Stack(
+                        children: [
+                          // 1. Theme Image filling left ~68% of card width with 16:9 natural framing (no top/bottom house roof cropping)
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: cardWidth * 0.68,
+                            child: Image.asset(
+                              themeAsset,
                               fit: BoxFit.cover,
-                              alignment: alignment,
-                              width: 145,
-                              height: 98,
+                              alignment: Alignment.centerLeft,
+                              errorBuilder: (ctx, err, st) => Image.asset(
+                                'assets/splash_img.png',
+                                fit: BoxFit.cover,
+                                alignment: Alignment.centerLeft,
+                              ),
                             ),
+                          ),
+
+                          // 2. Horizontal Dark Fade Gradient Mask (Transparent on left to reveal house/scenery -> Solid dark navy on right)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0x00001126),
+                                    Color(0x00001126),
+                                    Color(0x77001126),
+                                    Color(0xEE001126),
+                                    Color(0xFF001126),
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  stops: [0.0, 0.22, 0.45, 0.68, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                      // 3. Foreground details (Title, Subtitle, and Action Button) aligned to the right half
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              // Left 48% empty so the theme house is fully visible
+                              const Expanded(
+                                flex: 48,
+                                child: SizedBox.expand(),
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              // Right 52% Column with theme details
+                              Expanded(
+                                flex: 52,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    // Title with Linear Gradient (#FFFFFF -> #E9CC70)
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        themeName,
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 6),
+
+                                    // Subtitle / Requirement / Progress pill bar
+                                    if (isUnlocked) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(10),
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFFE9C46A), Color(0xFF8B5CF6)],
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          subtitle,
+                                          style: GoogleFonts.chakraPetch(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.lock_rounded,
+                                            size: 13,
+                                            color: Colors.white70,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              subtitle,
+                                              style: GoogleFonts.chakraPetch(
+                                                fontSize: 11,
+                                                color: const Color(0xFFB0C4DE),
+                                                height: 1.15,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 8),
+
+                                    // Action Button
+                                    if (isActive) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(6),
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFDBF19A),
+                                            width: 1.0,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: Color(0xFFDBF19A),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              'ACTIVE',
+                                              style: GoogleFonts.chakraPetch(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else if (isUnlocked) ...[
+                                      GestureDetector(
+                                        onTap: () async {
+                                          HapticFeedback.mediumImpact();
+                                          AudioService.instance.playClickSound();
+                                          final repo = ref.read(progressRepositoryProvider);
+                                          await repo.setActiveTheme(themeId);
+                                          ref.read(homeViewModelProvider.notifier).loadProgress();
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(6),
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFDBF19A),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'USE THEME',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      GestureDetector(
+                                        onTap: () async {
+                                          HapticFeedback.heavyImpact();
+                                          final repo = ref.read(progressRepositoryProvider);
+                                          if (flowers >= cost) {
+                                            final success = await repo.unlockTheme(themeId, cost, themeId);
+                                            if (success) {
+                                              ref.read(homeViewModelProvider.notifier).loadProgress();
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      '$themeName unlocked and activated!',
+                                                      style: GoogleFonts.chakraPetch(color: Colors.white),
+                                                    ),
+                                                    backgroundColor: const Color(0xFF52A421),
+                                                    duration: const Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          } else {
+                                            AudioService.instance.playClickSound();
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Need ${cost - flowers} more 🌸 to unlock $themeName!',
+                                                    style: GoogleFonts.chakraPetch(color: Colors.white),
+                                                  ),
+                                                  backgroundColor: const Color(0xFFD32F2F),
+                                                  duration: const Duration(seconds: 2),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(6),
+                                            gradient: const LinearGradient(
+                                              colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFDBF19A),
+                                              width: 1.0,
+                                            ),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Color(0x40000000),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                'UNLOCK FOR ',
+                                                style: GoogleFonts.chakraPetch(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                              Image.asset(
+                                                'assets/small_flower.png',
+                                                width: 13,
+                                                height: 13,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (c, e, s) => const Text('🌸', style: TextStyle(fontSize: 9)),
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                '$cost',
+                                                style: GoogleFonts.chakraPetch(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: const Color(0xFFFFC800),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Right: Details Column
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Title with Linear Gradient (#FFFFFF -> #E9CC70) - Exact Figma 20px spec
-                          ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ).createShader(bounds),
-                            child: Text(
-                              themeName,
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                                height: 1.0,
-                                letterSpacing: 0.0,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          // Subtitle / Requirement / Progress (12px clean text)
-                          if (isUnlocked) ...[
-                            // Progress pill bar: Lvl 4/Lvl 6
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFE9C46A), Color(0xFF8B5CF6)],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                              ),
-                              child: Text(
-                                subtitle,
-                                style: GoogleFonts.chakraPetch(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.lock_rounded,
-                                  size: 15,
-                                  color: Colors.white70,
-                                ),
-                                const SizedBox(width: 5),
-                                Expanded(
-                                  child: Text(
-                                    subtitle,
-                                    style: GoogleFonts.chakraPetch(
-                                      fontSize: 12,
-                                      color: const Color(0xFFB0C4DE),
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-
-                          const SizedBox(height: 10),
-
-                          // Action Element: ACTIVE Badge (Frame 140) / USE THEME / UNLOCK FOR 🌸 Cost (Frame 152)
-                          if (isActive) ...[
-                            // ACTIVE BADGE (Frame 140 Specs: green gradient fill, 1px gradient border)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                border: Border.all(
-                                  color: const Color(0xFFDBF19A),
-                                  width: 1.0,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFFDBF19A),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'ACTIVE',
-                                    style: GoogleFonts.chakraPetch(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ] else if (isUnlocked) ...[
-                            // USE THEME Button
-                            GestureDetector(
-                              onTap: () async {
-                                HapticFeedback.mediumImpact();
-                                AudioService.instance.playClickSound();
-                                final repo = ref.read(progressRepositoryProvider);
-                                await repo.setActiveTheme(themeId);
-                                ref.read(homeViewModelProvider.notifier).loadProgress();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
-                                  border: Border.all(
-                                    color: const Color(0xFFDBF19A),
-                                    width: 1.0,
-                                  ),
-                                ),
-                                child: Text(
-                                  'USE THEME',
-                                  style: GoogleFonts.chakraPetch(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            // UNLOCK FOR 🌸 COST Button (Frame 152 Specs: 142.89px Hug x 24px Hug)
-                            GestureDetector(
-                              onTap: () async {
-                                HapticFeedback.heavyImpact();
-                                final repo = ref.read(progressRepositoryProvider);
-                                if (flowers >= cost) {
-                                  final success = await repo.unlockTheme(themeId, cost, themeId);
-                                  if (success) {
-                                    ref.read(homeViewModelProvider.notifier).loadProgress();
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            '$themeName unlocked and activated!',
-                                            style: GoogleFonts.chakraPetch(color: Colors.white),
-                                          ),
-                                          backgroundColor: const Color(0xFF52A421),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                } else {
-                                  AudioService.instance.playClickSound();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Need ${cost - flowers} more 🌸 to unlock $themeName!',
-                                          style: GoogleFonts.chakraPetch(color: Colors.white),
-                                        ),
-                                        backgroundColor: const Color(0xFFD32F2F),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF94C745), Color(0xFF1A3C0E)],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
-                                  border: Border.all(
-                                    color: const Color(0xFFDBF19A),
-                                    width: 1.0,
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x40000000),
-                                      blurRadius: 4,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'UNLOCK FOR ',
-                                      style: GoogleFonts.chakraPetch(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                    Image.asset(
-                                      'assets/small_flower.png',
-                                      width: 14,
-                                      height: 14,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (c, e, s) => const Text('🌸', style: TextStyle(fontSize: 10)),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$cost',
-                                      style: GoogleFonts.chakraPetch(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFFFFC800),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+                    ],
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  ],
+);
   }
 
   // --- TAB 3: STATS CONTENT ---

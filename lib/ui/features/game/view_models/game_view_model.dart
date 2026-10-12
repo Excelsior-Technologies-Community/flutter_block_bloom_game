@@ -854,12 +854,14 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   Future<void> _recordFinishedIfNeeded() async {
     if (state.hasRecordedSession || !state.hasMadeMove) return;
     state = state.copyWith(hasRecordedSession: true);
-    await progressRepository.recordGameFinished(
-      score: state.score,
-      linesClearedInGame: state.totalClears,
-      maxCombo: state.maxComboCount,
-      flowersEarned: state.sessionFlowersEarned,
-    );
+    if (!state.isDailyMode) {
+      await progressRepository.recordGameFinished(
+        score: state.score,
+        linesClearedInGame: state.totalClears,
+        maxCombo: state.maxComboCount,
+        flowersEarned: state.sessionFlowersEarned,
+      );
+    }
   }
 
   void resetLevel() {

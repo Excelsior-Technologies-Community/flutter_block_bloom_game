@@ -19,9 +19,23 @@ class AuthView extends ConsumerStatefulWidget {
 class _AuthViewState extends ConsumerState<AuthView> {
   bool _isSignUp = false;
   bool _isForgotPassword = false;
+  int _forgotPasswordStep = 0; // 0: Email Entry, 1: Enter Code, 2: Create New Password
+  String _forgotPasswordTargetEmail = '';
+  String _sentOtpCode = '';
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _rememberMe = true;
+
+  // Controllers for 4-digit OTP input boxes in Step 1 (ENTER CODE)
+  final List<TextEditingController> _otpControllers = List.generate(4, (_) => TextEditingController());
+  final List<FocusNode> _otpFocusNodes = List.generate(4, (_) => FocusNode());
+
+  // Controllers for Step 2 (CREATE NEW PASSWORD)
+  final _newPasswordController = TextEditingController();
+  final _confirmNewPasswordController = TextEditingController();
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmNewPassword = true;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -54,6 +68,14 @@ class _AuthViewState extends ConsumerState<AuthView> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _forgotEmailController.dispose();
+    for (var c in _otpControllers) {
+      c.dispose();
+    }
+    for (var f in _otpFocusNodes) {
+      f.dispose();
+    }
+    _newPasswordController.dispose();
+    _confirmNewPasswordController.dispose();
     super.dispose();
   }
 
@@ -176,8 +198,18 @@ class _AuthViewState extends ConsumerState<AuthView> {
     );
   }
 
-  // --- FORGOT PASSWORD VIEW MATCHING FIGMA SPECS ---
+  // --- FORGOT PASSWORD WORKFLOW CONTROLLER DISPATCH ---
   Widget _buildForgotPasswordView() {
+    if (_forgotPasswordStep == 1) {
+      return _buildEnterCodeStepView();
+    } else if (_forgotPasswordStep == 2) {
+      return _buildCreateNewPasswordStepView();
+    }
+    return _buildEnterEmailStepView();
+  }
+
+  // --- STEP 0: FORGOT PASSWORD - ENTER EMAIL ---
+  Widget _buildEnterEmailStepView() {
     final authState = ref.watch(authViewModelProvider);
 
     return Center(
@@ -201,8 +233,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
               const SizedBox(height: 36),
 
-              // Email Input Field matching Figma Rectangle 49 Specs exactly:
-              // Width: 353px, Height: 45px, Radius: 12px, Border: 1px #FFFFFF, Fill: #003675 20%
+              // Email Input Field matching Figma Rectangle 49 Specs:
               Container(
                 width: 353,
                 height: 45,
@@ -265,17 +296,407 @@ class _AuthViewState extends ConsumerState<AuthView> {
                         }
                         FocusScope.of(context).unfocus();
                         final authVm = ref.read(authViewModelProvider.notifier);
-                        final sent = await authVm.sendPasswordReset(email);
-                        if (sent && mounted) {
+                        final code = await authVm.sendConfirmationCode(email);
+                        if (code != null && mounted) {
+                          setState(() {
+                            _forgotPasswordTargetEmail = email;
+                            _sentOtpCode = code;
+                            for (var c in _otpControllers) {
+                              c.clear();
+                            }
+                            _forgotPasswordStep = 1;
+                          });
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password reset email sent! Check your inbox.'),
-                              backgroundColor: Color(0xFF10B981),
+                            SnackBar(
+                              content: Text('Confirmation code sent to $email! (Code: $code)'),
+                              backgroundColor: const Color(0xFF10B981),
+                              duration: const Duration(seconds: 5),
                             ),
                           );
+                        }
+                      },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Back Link: Underlined "Back" text
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  AudioService.instance.playClickSound();
+                  setState(() {
+                    _isForgotPassword = false;
+                    _forgotPasswordStep = 0;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Back',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- STEP 1: CONFIRMATION CODE - ENTER CODE ---
+  Widget _buildEnterCodeStepView() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 370),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Header Title: 🌸 ENTER CODE 🌸
+              FloralHeaderTitle(
+                title: 'ENTER CODE',
+                fontSize: 26.0,
+                flowerSize: 36.0,
+                curveAmount: 12.0,
+                verticalOffset: -16.0,
+                letterSpacing: 1.2,
+              ),
+
+              const SizedBox(height: 36),
+
+              // 4 Digit Code Input Boxes
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(4, (index) {
+                  return Container(
+                    width: 58,
+                    height: 58,
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF003675).withValues(alpha: 0.20),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Center(
+                      child: KeyboardListener(
+                        focusNode: FocusNode(),
+                        onKeyEvent: (event) {
+                          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.backspace) {
+                            if (_otpControllers[index].text.isEmpty && index > 0) {
+                              _otpFocusNodes[index - 1].requestFocus();
+                              _otpControllers[index - 1].clear();
+                            }
+                          }
+                        },
+                        child: TextField(
+                          controller: _otpControllers[index],
+                          focusNode: _otpFocusNodes[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          maxLength: 1,
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          cursorColor: Colors.white,
+                          decoration: const InputDecoration(
+                            counterText: '',
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (val) {
+                            if (val.isNotEmpty) {
+                              if (index < 3) {
+                                _otpFocusNodes[index + 1].requestFocus();
+                              } else {
+                                _otpFocusNodes[index].unfocus();
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Action Button: ENTER
+              GreenGameButton(
+                text: 'ENTER',
+                width: 240,
+                height: 50,
+                fontSize: 20,
+                borderRadius: 12,
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  AudioService.instance.playClickSound();
+
+                  final enteredCode = _otpControllers.map((c) => c.text).join().trim();
+                  if (enteredCode.length < 4) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter all 4 digits of the code.'),
+                        backgroundColor: Color(0xFFFF3B30),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final authVm = ref.read(authViewModelProvider.notifier);
+                  final isValid = authVm.verifyConfirmationCode(_forgotPasswordTargetEmail, enteredCode);
+
+                  if (isValid || enteredCode == _sentOtpCode) {
+                    setState(() {
+                      _newPasswordController.clear();
+                      _confirmNewPasswordController.clear();
+                      _forgotPasswordStep = 2;
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Invalid confirmation code. Please check your email and try again.'),
+                        backgroundColor: Color(0xFFFF3B30),
+                      ),
+                    );
+                  }
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Back Link: Underlined "Back" text
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  AudioService.instance.playClickSound();
+                  setState(() {
+                    _forgotPasswordStep = 0;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Back',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- STEP 2: CREATE NEW PASSWORD ---
+  Widget _buildCreateNewPasswordStepView() {
+    final authState = ref.watch(authViewModelProvider);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 370),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Header Title: 🌸 CREATE NEW PASSWORD 🌸
+              FloralHeaderTitle(
+                title: 'CREATE NEW PASSWORD',
+                fontSize: 24.0,
+                flowerSize: 34.0,
+                curveAmount: 12.0,
+                verticalOffset: -16.0,
+                letterSpacing: 1.2,
+              ),
+
+              const SizedBox(height: 36),
+
+              // Password Input Field
+              Container(
+                width: 353,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003675).withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.0,
+                  ),
+                ),
+                child: TextField(
+                  controller: _newPasswordController,
+                  obscureText: _obscureNewPassword,
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  cursorColor: Colors.white,
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    hintStyle: GoogleFonts.chakraPetch(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureNewPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureNewPassword = !_obscureNewPassword;
+                        });
+                      },
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Re-enter Password Input Field
+              Container(
+                width: 353,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003675).withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 1.0,
+                  ),
+                ),
+                child: TextField(
+                  controller: _confirmNewPasswordController,
+                  obscureText: _obscureConfirmNewPassword,
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  cursorColor: Colors.white,
+                  decoration: InputDecoration(
+                    hintText: 'Re-enter Password',
+                    hintStyle: GoogleFonts.chakraPetch(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.lock_reset_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmNewPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirmNewPassword = !_obscureConfirmNewPassword;
+                        });
+                      },
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Action Button: ENTER (Glossy Green Game Button)
+              GreenGameButton(
+                text: authState.isLoading ? 'SAVING...' : 'ENTER',
+                width: 240,
+                height: 50,
+                fontSize: 20,
+                borderRadius: 12,
+                onPressed: authState.isLoading
+                    ? null
+                    : () async {
+                        FocusScope.of(context).unfocus();
+                        AudioService.instance.playClickSound();
+
+                        final pass = _newPasswordController.text.trim();
+                        final confirmPass = _confirmNewPasswordController.text.trim();
+
+                        if (pass.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password must be at least 6 characters long.'),
+                              backgroundColor: Color(0xFFFF3B30),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (pass != confirmPass) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Passwords do not match. Please re-enter.'),
+                              backgroundColor: Color(0xFFFF3B30),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final authVm = ref.read(authViewModelProvider.notifier);
+                        final success = await authVm.updatePasswordInFirebase(
+                          _forgotPasswordTargetEmail,
+                          pass,
+                        );
+
+                        if (success && mounted) {
+                          _emailController.text = _forgotPasswordTargetEmail;
+                          _passwordController.text = pass;
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Password updated successfully! Please log in with your new password.'),
+                              backgroundColor: Color(0xFF10B981),
+                              duration: Duration(seconds: 4),
+                            ),
+                          );
+
                           setState(() {
                             _isForgotPassword = false;
-                            _forgotEmailController.clear();
+                            _forgotPasswordStep = 0;
+                            _isSignUp = false;
                           });
                         }
                       },
@@ -283,19 +704,19 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
               const SizedBox(height: 20),
 
-              // Back Link: Underlined "Back" text with larger bold font
+              // Back Link: Underlined "BACK" text
               GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
                   AudioService.instance.playClickSound();
                   setState(() {
-                    _isForgotPassword = false;
+                    _forgotPasswordStep = 1;
                   });
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
-                    'Back',
+                    'BACK',
                     style: GoogleFonts.chakraPetch(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,

@@ -140,12 +140,59 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
     }
   }
 
-  Future<bool> sendPasswordReset(String email) async {
+  // --- COMMENTED OUT: PREVIOUS FIREBASE PASSWORD RESET EMAIL METHOD ---
+  // Replaced with custom in-app confirmation code (OTP) workflow.
+  //
+  // Future<bool> sendPasswordReset(String email) async {
+  //   state = state.copyWith(isLoading: true, clearError: true);
+  //   try {
+  //     await _authService.resetPassword(email);
+  //     state = state.copyWith(isLoading: false);
+  //     return true;
+  //   } catch (e) {
+  //     final message = e.toString().replaceAll('Exception: ', '');
+  //     state = state.copyWith(isLoading: false, error: message);
+  //     return false;
+  //   }
+  // }
+
+  // --- CUSTOM IN-APP FORGOT PASSWORD WORKFLOW ---
+
+  /// Generates and sends a 4-digit confirmation code email to the specified address.
+  Future<String?> sendConfirmationCode(String email) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _authService.resetPassword(email);
+      final code = await _authService.sendConfirmationCodeEmail(email);
       state = state.copyWith(isLoading: false);
-      return true;
+      return code;
+    } catch (e) {
+      final message = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, error: message);
+      return null;
+    }
+  }
+
+  /// Verifies if the entered 4-digit confirmation code is correct.
+  bool verifyConfirmationCode(String email, String code) {
+    final isValid = _authService.verifyConfirmationCode(email, code);
+    if (!isValid) {
+      state = state.copyWith(error: 'Invalid or expired confirmation code. Please try again.');
+    } else {
+      state = state.copyWith(clearError: true);
+    }
+    return isValid;
+  }
+
+  /// Updates the user's password in Firebase and local storage.
+  Future<bool> updatePasswordInFirebase(String email, String newPassword) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final success = await _authService.updatePasswordInFirebase(
+        email: email,
+        newPassword: newPassword,
+      );
+      state = state.copyWith(isLoading: false);
+      return success;
     } catch (e) {
       final message = e.toString().replaceAll('Exception: ', '');
       state = state.copyWith(isLoading: false, error: message);

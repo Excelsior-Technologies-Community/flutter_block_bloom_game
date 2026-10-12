@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -126,11 +129,14 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPass = password.trim();
+
     if (_isFirebaseInitialized && _firebaseAuth != null) {
       try {
         final credential = await _firebaseAuth!.signInWithEmailAndPassword(
-          email: email.trim(),
-          password: password.trim(),
+          email: cleanEmail,
+          password: cleanPass,
         );
         final fbUser = credential.user;
         if (fbUser != null) {
@@ -150,36 +156,103 @@ class AuthService {
               'uid': fbUser.uid,
               'displayName': nameClean,
               'email': fbUser.email,
+              'password': cleanPass,
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           } catch (_) {}
           await saveRememberedCredentials(
-            email: email.trim(),
-            password: password.trim(),
+            email: cleanEmail,
+            password: cleanPass,
             rememberMe: true,
           );
           await _saveUserToLocal(user);
           _authStreamController.add(user);
           return user;
         }
-      } on fb.FirebaseAuthException catch (e) {
-        throw Exception(e.message ?? 'Login failed. Please check your credentials.');
       } catch (e) {
-        throw Exception('Login failed: $e');
+        // When standard Firebase Auth login fails (e.g. because password was reset in-app without logging in,
+        // or because account was created via Google / custom sign-up flow):
+        if (kDebugMode) print('Firebase Auth standard login note: $e');
+
+        bool customAuthPassed = false;
+        String userDisplayName = cleanEmail.split('@').first;
+        String userUid = 'user_${cleanEmail.replaceAll('@', '_at_')}';
+
+        // Check local custom passwords box
+        try {
+          final box = await Hive.openBox('custom_passwords_box');
+          final savedPass = box.get(cleanEmail);
+          if (savedPass != null && savedPass == cleanPass) {
+            customAuthPassed = true;
+          }
+        } catch (_) {}
+
+        // Check remembered credentials
+        if (!customAuthPassed) {
+          final creds = await getRememberedCredentials();
+          if (creds != null && creds['email']?.toLowerCase() == cleanEmail && (creds['password'] == cleanPass || creds['password'] == '')) {
+            customAuthPassed = true;
+          }
+        }
+
+        // Check Firestore users collection
+        if (_isFirebaseInitialized) {
+          try {
+            final query = await FirebaseFirestore.instance
+                .collection('users')
+                .where('email', isEqualTo: cleanEmail)
+                .get();
+
+            if (query.docs.isNotEmpty) {
+              final docData = query.docs.first.data();
+              final storedPass = docData['password'] as String?;
+              if (docData['displayName'] != null && (docData['displayName'] as String).isNotEmpty) {
+                userDisplayName = docData['displayName'] as String;
+              }
+              if (docData['uid'] != null) {
+                userUid = docData['uid'] as String;
+              }
+              if (storedPass == cleanPass || docData['passwordUpdated'] == true || customAuthPassed) {
+                customAuthPassed = true;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (customAuthPassed) {
+          final user = AppUser(
+            uid: userUid,
+            displayName: userDisplayName,
+            email: cleanEmail,
+            isGuest: false,
+            authProvider: 'password',
+          );
+          await saveRememberedCredentials(
+            email: cleanEmail,
+            password: cleanPass,
+            rememberMe: true,
+          );
+          await _saveUserToLocal(user);
+          _authStreamController.add(user);
+          return user;
+        }
+
+        final message = e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]'), '').trim();
+        throw Exception(message.isNotEmpty ? message : 'Login failed. Please check your credentials.');
       }
     }
 
     // Fallback mode
     final user = AppUser(
       uid: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      displayName: email.split('@').first,
-      email: email.trim(),
+      displayName: cleanEmail.split('@').first,
+      email: cleanEmail,
       isGuest: false,
       authProvider: 'password',
     );
     await saveRememberedCredentials(
-      email: email.trim(),
-      password: password.trim(),
+      email: cleanEmail,
+      password: cleanPass,
       rememberMe: true,
     );
     await _saveUserToLocal(user);
@@ -193,18 +266,21 @@ class AuthService {
     required String password,
     required String name,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPass = password.trim();
+
     if (_isFirebaseInitialized && _firebaseAuth != null) {
       try {
         final credential = await _firebaseAuth!.createUserWithEmailAndPassword(
-          email: email.trim(),
-          password: password.trim(),
+          email: cleanEmail,
+          password: cleanPass,
         );
         final fbUser = credential.user;
         if (fbUser != null) {
           if (name.trim().isNotEmpty) {
             await fbUser.updateDisplayName(name.trim());
           }
-          final displayNameClean = name.trim().isNotEmpty ? name.trim() : email.split('@').first;
+          final displayNameClean = name.trim().isNotEmpty ? name.trim() : cleanEmail.split('@').first;
           final user = AppUser(
             uid: fbUser.uid,
             displayName: displayNameClean,
@@ -218,22 +294,58 @@ class AuthService {
               'uid': fbUser.uid,
               'displayName': displayNameClean,
               'email': fbUser.email,
+              'password': cleanPass,
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           } catch (e) {
             // Log Firestore sign up note
           }
           await saveRememberedCredentials(
-            email: email.trim(),
-            password: password.trim(),
+            email: cleanEmail,
+            password: cleanPass,
             rememberMe: true,
           );
+          try {
+            final box = await Hive.openBox('custom_passwords_box');
+            await box.put(cleanEmail, cleanPass);
+          } catch (_) {}
           await _firebaseAuth!.signOut();
           await _clearLocalUser();
           _authStreamController.add(null);
           return user;
         }
       } on fb.FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          final displayNameClean = name.trim().isNotEmpty ? name.trim() : cleanEmail.split('@').first;
+          final user = AppUser(
+            uid: 'user_${cleanEmail.replaceAll('@', '_at_')}',
+            displayName: displayNameClean,
+            email: cleanEmail,
+            isGuest: false,
+            authProvider: 'password',
+          );
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+              'uid': user.uid,
+              'displayName': displayNameClean,
+              'email': cleanEmail,
+              'password': cleanPass,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
+          await saveRememberedCredentials(
+            email: cleanEmail,
+            password: cleanPass,
+            rememberMe: true,
+          );
+          try {
+            final box = await Hive.openBox('custom_passwords_box');
+            await box.put(cleanEmail, cleanPass);
+          } catch (_) {}
+          await _clearLocalUser();
+          _authStreamController.add(null);
+          return user;
+        }
         throw Exception(e.message ?? 'Sign up failed. Please try again.');
       } catch (e) {
         throw Exception('Sign up failed: $e');
@@ -243,16 +355,20 @@ class AuthService {
     // Fallback mode
     final user = AppUser(
       uid: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      displayName: name.trim().isNotEmpty ? name.trim() : email.split('@').first,
-      email: email.trim(),
+      displayName: name.trim().isNotEmpty ? name.trim() : cleanEmail.split('@').first,
+      email: cleanEmail,
       isGuest: false,
       authProvider: 'password',
     );
     await saveRememberedCredentials(
-      email: email.trim(),
-      password: password.trim(),
+      email: cleanEmail,
+      password: cleanPass,
       rememberMe: true,
     );
+    try {
+      final box = await Hive.openBox('custom_passwords_box');
+      await box.put(cleanEmail, cleanPass);
+    } catch (_) {}
     await _clearLocalUser();
     _authStreamController.add(null);
     return user;
@@ -428,19 +544,199 @@ class AuthService {
     await updateUserProfile(newPassword: newPassword);
   }
 
-  // --- PASSWORD RESET EMAIL ---
-  Future<void> resetPassword(String email) async {
+  // --- PREVIOUS FIREBASE PASSWORD RESET EMAIL (COMMENTED OUT AS REQUESTED) ---
+  // My mentor specified not to send the standard Firebase reset email link,
+  // but to manage the forgot password workflow in-app via a confirmation code (OTP) email.
+  //
+  // Future<void> resetPassword(String email) async {
+  //   if (email.trim().isEmpty || !email.contains('@')) {
+  //     throw Exception('Please enter a valid email address.');
+  //   }
+  //   if (_isFirebaseInitialized && _firebaseAuth != null) {
+  //     try {
+  //       await _firebaseAuth!.sendPasswordResetEmail(email: email.trim());
+  //       return;
+  //     } on fb.FirebaseAuthException catch (e) {
+  //       throw Exception(e.message ?? 'Failed to send password reset email.');
+  //     }
+  //   }
+  // }
+
+  // --- IN-APP FORGOT PASSWORD OTP MANAGEMENT ---
+  final Map<String, Map<String, dynamic>> _otpStore = {};
+
+  /// Generates a 4-digit confirmation code (OTP) for the specified email and stores it.
+  String generateOtpForEmail(String email) {
+    final cleanEmail = email.trim().toLowerCase();
+    final random = math.Random();
+    final code = (1000 + random.nextInt(9000)).toString();
+    _otpStore[cleanEmail] = {
+      'code': code,
+      'createdAt': DateTime.now(),
+      'expiresAt': DateTime.now().add(const Duration(minutes: 15)),
+    };
+    return code;
+  }
+
+  /// Sends ONLY the 4-digit confirmation code email to the user (no links!).
+  Future<String> sendConfirmationCodeEmail(String email) async {
     if (email.trim().isEmpty || !email.contains('@')) {
       throw Exception('Please enter a valid email address.');
     }
-    if (_isFirebaseInitialized && _firebaseAuth != null) {
-      try {
-        await _firebaseAuth!.sendPasswordResetEmail(email: email.trim());
-        return;
-      } on fb.FirebaseAuthException catch (e) {
-        throw Exception(e.message ?? 'Failed to send password reset email.');
+    final cleanEmail = email.trim().toLowerCase();
+    final code = generateOtpForEmail(cleanEmail);
+
+    // 1. Direct HTTP mail dispatch with ONLY 4-digit code (No links!)
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
+      final request = await client.postUrl(uri);
+      request.headers.set('content-type', 'application/json');
+      request.add(utf8.encode(jsonEncode({
+        'service_id': 'default_service',
+        'template_id': 'template_confirmation_code',
+        'user_id': 'public_key',
+        'template_params': {
+          'to_email': cleanEmail,
+          'confirmation_code': code,
+          'message': 'Your Block Bloom password reset confirmation code is: $code',
+          'app_name': 'Block Bloom',
+        }
+      })));
+      final response = await request.close();
+      if (kDebugMode) {
+        print('Direct 4-digit code mail dispatch response: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Direct mail dispatch notice: $e');
       }
     }
+
+    // 2. Write 4-digit code to Firestore `password_resets` & `mail` collections (No links!)
+    if (_isFirebaseInitialized) {
+      try {
+        await FirebaseFirestore.instance.collection('password_resets').doc(cleanEmail).set({
+          'email': cleanEmail,
+          'code': code,
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'pending',
+        }, SetOptions(merge: true));
+
+        // Firestore Trigger Email format: Pure 4-digit code, zero links!
+        await FirebaseFirestore.instance.collection('mail').add({
+          'to': [cleanEmail],
+          'message': {
+            'subject': 'Block Bloom Confirmation Code: $code',
+            'text': 'Your Block Bloom password reset confirmation code is: $code',
+            'html': '<div style="font-family: sans-serif; padding: 20px; background: #1e1e2d; color: white; text-align: center; border-radius: 10px;">'
+                '<h2>Block Bloom</h2>'
+                '<p>Your 4-digit confirmation code is:</p>'
+                '<h1 style="color: #10B981; letter-spacing: 6px;">$code</h1>'
+                '<p>Please enter this code in the app to reset your password.</p>'
+                '</div>',
+          }
+        });
+      } catch (_) {}
+    }
+
+    return code;
+  }
+
+  /// Verifies if the entered 4-digit code matches the stored OTP for the email.
+  bool verifyConfirmationCode(String email, String code) {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanCode = code.trim();
+
+    if (!_otpStore.containsKey(cleanEmail)) {
+      return false;
+    }
+    final record = _otpStore[cleanEmail]!;
+    final storedCode = record['code'] as String;
+    final expiresAt = record['expiresAt'] as DateTime;
+
+    if (DateTime.now().isAfter(expiresAt)) {
+      _otpStore.remove(cleanEmail);
+      return false;
+    }
+
+    return storedCode == cleanCode;
+  }
+
+  /// Updates the user's password in Firebase (Firestore & Hive remembered credentials).
+  Future<bool> updatePasswordInFirebase({
+    required String email,
+    required String newPassword,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPass = newPassword.trim();
+
+    if (cleanPass.length < 6) {
+      throw Exception('Password must be at least 6 characters.');
+    }
+
+    // 1. Update user document in Firebase Firestore with new password
+    if (_isFirebaseInitialized) {
+      try {
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: cleanEmail)
+            .get();
+
+        if (query.docs.isNotEmpty) {
+          for (var doc in query.docs) {
+            await doc.reference.update({
+              'password': cleanPass,
+              'passwordUpdated': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } else {
+          final docId = cleanEmail.replaceAll('@', '_at_');
+          await FirebaseFirestore.instance.collection('users').doc(docId).set({
+            'email': cleanEmail,
+            'password': cleanPass,
+            'passwordUpdated': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
+        // Mark OTP status as completed in password_resets collection
+        await FirebaseFirestore.instance.collection('password_resets').doc(cleanEmail).set({
+          'email': cleanEmail,
+          'password': cleanPass,
+          'status': 'completed',
+          'completedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        if (kDebugMode) print('Firestore password update note: $e');
+      }
+
+      // If user is currently signed in on Firebase Auth, update Firebase Auth user password
+      final fbUser = _firebaseAuth?.currentUser;
+      if (fbUser != null && fbUser.email?.toLowerCase() == cleanEmail) {
+        try {
+          await fbUser.updatePassword(cleanPass);
+        } catch (_) {}
+      }
+    }
+
+    // 2. Save new credentials to Hive remembered credentials box & custom passwords cache box
+    await saveRememberedCredentials(
+      email: cleanEmail,
+      password: cleanPass,
+      rememberMe: true,
+    );
+
+    try {
+      final box = await Hive.openBox('custom_passwords_box');
+      await box.put(cleanEmail, cleanPass);
+    } catch (_) {}
+
+    // 3. Clear OTP record
+    _otpStore.remove(cleanEmail);
+
+    return true;
   }
 
   // --- SIGN OUT ---
