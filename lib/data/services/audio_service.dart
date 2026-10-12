@@ -1,8 +1,9 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-class AudioService {
+class AudioService with WidgetsBindingObserver {
   AudioService._internal();
   static final AudioService instance = AudioService._internal();
   factory AudioService() => instance;
@@ -15,6 +16,7 @@ class AudioService {
   double _bgmVolume = 0.7;
   bool _hapticEnabled = true;
   bool _isBgmPlaying = false;
+  bool _wasBgmPlayingBeforeLifecyclePause = false;
   bool _initialized = false;
 
   double get sfxVolume => _sfxVolume;
@@ -24,6 +26,9 @@ class AudioService {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
+
+    // Register WidgetsBindingObserver to auto-pause music when screen is off / app backgrounded
+    WidgetsBinding.instance.addObserver(this);
 
     // Load persisted volume & haptic settings from Hive if box is open
     try {
@@ -45,7 +50,7 @@ class AudioService {
           audioFocus: AndroidAudioFocus.none,
         ),
         iOS: AudioContextIOS(
-          category: AVAudioSessionCategory.playback,
+          category: AVAudioSessionCategory.ambient,
           options: {
             AVAudioSessionOptions.mixWithOthers,
           },
@@ -64,7 +69,7 @@ class AudioService {
 
       // Loop safety fallback listener
       _bgmPlayer.onPlayerComplete.listen((_) async {
-        if (_bgmVolume > 0.0 && _isBgmPlaying) {
+        if (_bgmVolume > 0.0 && _isBgmPlaying && !_wasBgmPlayingBeforeLifecyclePause) {
           try {
             await _bgmPlayer.play(AssetSource('sounds/bgm.wav'));
           } catch (_) {}
@@ -154,6 +159,7 @@ class AudioService {
   // Start background music loop (continuous throughout app unless disabled in settings)
   Future<void> startBackgroundMusic() async {
     if (_bgmVolume <= 0.0) return;
+    _wasBgmPlayingBeforeLifecyclePause = false;
 
     try {
       if (_bgmPlayer.state == PlayerState.playing) {
@@ -166,6 +172,72 @@ class AudioService {
       await _bgmPlayer.play(AssetSource('sounds/bgm.wav'));
     } catch (_) {
       _isBgmPlaying = false;
+    }
+  }
+
+  // Explicitly pause background music
+  Future<void> pauseBackgroundMusic() async {
+    _isBgmPlaying = false;
+    _wasBgmPlayingBeforeLifecyclePause = false;
+    try {
+      await _bgmPlayer.pause();
+    } catch (_) {}
+  }
+
+  // Explicitly resume background music
+  Future<void> resumeBackgroundMusic() async {
+    if (_bgmVolume <= 0.0) return;
+    _isBgmPlaying = true;
+    _wasBgmPlayingBeforeLifecyclePause = false;
+    try {
+      if (_bgmPlayer.state == PlayerState.paused) {
+        await _bgmPlayer.resume();
+      } else {
+        await startBackgroundMusic();
+      }
+    } catch (_) {}
+  }
+
+  /// App lifecycle listener:
+  /// When screen turns off, phone locks, or app is backgrounded (paused/inactive/hidden),
+  /// the music turns OFF immediately.
+  /// When screen turns back on and user returns (resumed), music turns back ON.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        // Screen turned off / locked / app minimized: pause music immediately
+        if (_isBgmPlaying && _bgmVolume > 0.0) {
+          _wasBgmPlayingBeforeLifecyclePause = true;
+          _bgmPlayer.pause();
+        }
+        // Silence any ongoing sfx
+        for (final player in _sfxPool) {
+          try {
+            player.stop();
+          } catch (_) {}
+        }
+        break;
+
+      case AppLifecycleState.resumed:
+        // Screen turned on / unlocked / app foregrounded: resume music if previously playing
+        if (_wasBgmPlayingBeforeLifecyclePause && _bgmVolume > 0.0) {
+          _wasBgmPlayingBeforeLifecyclePause = false;
+          _isBgmPlaying = true;
+          if (_bgmPlayer.state == PlayerState.paused) {
+            _bgmPlayer.resume();
+          } else {
+            startBackgroundMusic();
+          }
+        }
+        break;
+
+      case AppLifecycleState.detached:
+        _wasBgmPlayingBeforeLifecyclePause = false;
+        _bgmPlayer.pause();
+        break;
     }
   }
 
@@ -184,6 +256,7 @@ class AudioService {
     _bgmPlayer.setVolume(_bgmVolume);
     if (_bgmVolume <= 0.0) {
       _isBgmPlaying = false;
+      _wasBgmPlayingBeforeLifecyclePause = false;
       _bgmPlayer.pause();
     } else if (!_isBgmPlaying || _bgmPlayer.state != PlayerState.playing) {
       startBackgroundMusic();
@@ -206,6 +279,7 @@ class AudioService {
   }
 
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final player in _sfxPool) {
       player.dispose();
     }

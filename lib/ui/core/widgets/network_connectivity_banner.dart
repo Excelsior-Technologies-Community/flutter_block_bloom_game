@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/data/services/network_service.dart';
+import 'package:block_bloom/ui/core/widgets/blooming_flower_loader.dart';
 
 class NetworkConnectivityWrapper extends ConsumerStatefulWidget {
   final Widget child;
@@ -24,7 +25,6 @@ class _NetworkConnectivityWrapperState
     with TickerProviderStateMixin {
   late AnimationController _dialogAnimController;
   late Animation<double> _fadeAnimation;
-  late AnimationController _loadingRotateController;
 
   StreamSubscription<NetworkStatus>? _subscription;
 
@@ -47,11 +47,6 @@ class _NetworkConnectivityWrapperState
       curve: Curves.easeInOut,
     );
 
-    _loadingRotateController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkInitialNetworkStatus();
     });
@@ -62,7 +57,6 @@ class _NetworkConnectivityWrapperState
     _subscription?.cancel();
     _autoDismissTimer?.cancel();
     _dialogAnimController.dispose();
-    _loadingRotateController.dispose();
     super.dispose();
   }
 
@@ -214,20 +208,9 @@ class _NetworkConnectivityWrapperState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Rotating assets/game_flower.png icon
-              RotationTransition(
-                turns: _loadingRotateController,
-                child: Image.asset(
-                  'assets/game_flower.png',
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.local_florist_rounded,
-                    color: Colors.white,
-                    size: 60,
-                  ),
-                ),
+              // 5-Petal Blooming Flower Loader: petals close 1 by 1 and open 1 by 1
+              const BloomingFlowerLoader(
+                size: 76,
               ),
 
               const SizedBox(height: 18),
@@ -380,19 +363,9 @@ class _NetworkConnectivityWrapperState
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (isLoading)
-                RotationTransition(
-                  turns: _loadingRotateController,
-                  child: Image.asset(
-                    'assets/game_flower.png',
-                    width: 20,
-                    height: 20,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.local_florist_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+                const BloomingFlowerLoader(
+                  size: 20,
+                  slowRotation: false,
                 )
               else
                 Image.asset(
