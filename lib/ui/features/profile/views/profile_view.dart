@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
@@ -214,7 +215,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   }
                                 }
 
-                                final success = await ref.read(authViewModelProvider.notifier).updateUserProfile(
+                                await ref.read(authViewModelProvider.notifier).updateUserProfile(
                                   displayName: newName.isNotEmpty ? newName : null,
                                   newPassword: newPass.isNotEmpty ? newPass : null,
                                 );
@@ -522,7 +523,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                               // 5. Box 2: HIGHEST SCORE
                               _buildStatBox(
-                                iconAsset: 'assets/trophy_icon.png',
+                                iconAsset: 'assets/trophy_icon.svg',
                                 fallbackIcon: Icons.emoji_events_rounded,
                                 iconColor: const Color(0xFFFFC800),
                                 label: 'HIGHEST SCORE',
@@ -611,15 +612,25 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             width: 26,
             height: 26,
             child: iconAsset != null
-                ? Image.asset(
-                    iconAsset,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      fallbackIcon,
-                      color: iconColor,
-                      size: 24,
-                    ),
-                  )
+                ? (iconAsset.endsWith('.svg')
+                    ? SvgPicture.asset(
+                        iconAsset,
+                        fit: BoxFit.contain,
+                        placeholderBuilder: (context) => Icon(
+                          fallbackIcon,
+                          color: iconColor,
+                          size: 24,
+                        ),
+                      )
+                    : Image.asset(
+                        iconAsset,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          fallbackIcon,
+                          color: iconColor,
+                          size: 24,
+                        ),
+                      ))
                 : Icon(
                     fallbackIcon,
                     color: iconColor,

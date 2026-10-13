@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/domain/models/cell_state.dart';
 import 'package:block_bloom/domain/models/game_level.dart';
@@ -1551,15 +1552,16 @@ class _GameViewState extends ConsumerState<GameView> {
               ),
             ),
 
-            // Layer 2: Main Block PNG Image Asset
-            Image.asset(
-              'assets/blocks/$imgIndex.png',
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-              opacity: isPreview ? const AlwaysStoppedAnimation(0.85) : null,
-              errorBuilder: (context, error, stackTrace) => _buildGlossyBlock(
-                blockColor,
-                isPreview: isPreview,
+            // Layer 2: Main Block SVG Image Asset
+            Opacity(
+              opacity: isPreview ? 0.85 : 1.0,
+              child: SvgPicture.asset(
+                'assets/blocks/$imgIndex.svg',
+                fit: BoxFit.cover,
+                placeholderBuilder: (context) => _buildGlossyBlock(
+                  blockColor,
+                  isPreview: isPreview,
+                ),
               ),
             ),
 

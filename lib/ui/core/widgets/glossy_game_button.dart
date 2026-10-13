@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 
@@ -72,12 +73,12 @@ class GlossyGameButton extends StatefulWidget {
       height: height,
       width: width,
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/play_icon.png',
+      icon: SvgPicture.asset(
+        'assets/play_icon.svg',
         width: 26,
         height: 26,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.play_arrow_rounded,
           color: Colors.white,
           size: 28,
@@ -103,12 +104,12 @@ class GlossyGameButton extends StatefulWidget {
       height: height,
       width: width,
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/calendar_icon.png',
+      icon: SvgPicture.asset(
+        'assets/calendar_icon.svg',
         width: 26,
         height: 26,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.calendar_today_rounded,
           color: Colors.white,
           size: 24,
@@ -134,12 +135,12 @@ class GlossyGameButton extends StatefulWidget {
       height: height,
       width: width,
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/garden_icon.png',
+      icon: SvgPicture.asset(
+        'assets/garden_icon.svg',
         width: 26,
         height: 26,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.eco_rounded,
           color: Colors.white,
           size: 26,
@@ -173,12 +174,12 @@ class GlossyGameButton extends StatefulWidget {
         ],
       ),
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/trophy_icon.png',
+      icon: SvgPicture.asset(
+        'assets/trophy_icon.svg',
         width: 26,
         height: 26,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.emoji_events_rounded,
           color: Color(0xFFFFD700),
           size: 26,
@@ -219,12 +220,12 @@ class GlossyGameButton extends StatefulWidget {
       height: height,
       width: width,
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/settings_icon.png',
+      icon: SvgPicture.asset(
+        'assets/settings_icon.svg',
         width: 26,
         height: 26,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.settings_outlined,
           color: Color(0xFF725726),
           size: 26,
@@ -260,13 +261,12 @@ class GlossyGameButton extends StatefulWidget {
         ],
       ),
       onPressed: onPressed,
-      icon: Image.asset(
-        'assets/profile.png',
+      icon: SvgPicture.asset(
+        'assets/profile.svg',
         width: 24,
         height: 24,
         fit: BoxFit.contain,
-        color: Colors.white,
-        errorBuilder: (context, error, stackTrace) => const Icon(
+        placeholderBuilder: (context) => const Icon(
           Icons.account_circle,
           color: Colors.white,
           size: 26,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
@@ -140,12 +141,12 @@ class DailyGardenIntroView extends ConsumerWidget {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Image.asset(
-                                    'assets/calendar_icon.png',
+                                  SvgPicture.asset(
+                                    'assets/calendar_icon.svg',
                                     width: 20,
                                     height: 20,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (ctx, err, st) => const Icon(
+                                    placeholderBuilder: (ctx) => const Icon(
                                       Icons.calendar_month_rounded,
                                       color: Color(0xFFFFC800),
                                       size: 20,
