@@ -334,12 +334,7 @@ class _GameViewState extends ConsumerState<GameView> {
                     ],
                   ),
 
-                  // Bottom Right Floating Flower / Score Union Pill Badge (#001834 background + game_leaf)
-                  Positioned(
-                    bottom: 12,
-                    right: 16,
-                    child: _buildBottomFlowerBadge(state),
-                  ),
+
 
                   // Floating Score, Combo & Curved "LINE CLEAR!" Overlay
                   FloatingScoreOverlay(
@@ -501,8 +496,6 @@ class _GameViewState extends ConsumerState<GameView> {
 
   // --- TOP BAR HEADER ---
   Widget _buildTopBar(BuildContext context, GameViewModelState state) {
-    final displayTarget = state.level?.targetScore ?? 25000;
-
     return Container(
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -618,41 +611,10 @@ class _GameViewState extends ConsumerState<GameView> {
             ),
           ),
 
-          // Right: Target Crown Badge
+          // Right: Flower Counter Badge (Moved from bottom)
           Align(
             alignment: Alignment.centerRight,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'assets/score.png',
-                  width: 22,
-                  height: 20,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, st) => const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Color(0xFFFFC800),
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ).createShader(bounds),
-                  child: Text(
-                    _formatScore(displayTarget),
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: _buildFlowerBadge(state),
           ),
         ],
       ),
@@ -716,8 +678,8 @@ class _GameViewState extends ConsumerState<GameView> {
     );
   }
 
-  // Bottom Right Flower Badge using flower_view_design.png & leaf.png (only flower record)
-  Widget _buildBottomFlowerBadge(GameViewModelState state) {
+  // Flower Badge using flower_view_design.png & leaf.png (only flower record)
+  Widget _buildFlowerBadge(GameViewModelState state) {
     final flowerCount = state.sessionFlowersEarned;
 
     return Stack(

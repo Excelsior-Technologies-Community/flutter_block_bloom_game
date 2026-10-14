@@ -850,7 +850,6 @@ class _GardenViewState extends ConsumerState<GardenView> {
               final themeName = theme['name'] as String;
               final subtitle = theme['subtitle'] as String;
               final cost = theme['cost'] as int;
-              final alignment = (theme['alignment'] as Alignment?) ?? const Alignment(-0.95, -0.40);
 
               final isUnlocked = unlockedThemes.contains(themeId) || unlockedThemes.contains(legacyId) || themeId == 'dtheme1';
               final isActive = currentThemeFolder == themeId;

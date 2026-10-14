@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
-import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
 import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/features/home/views/home_view.dart';
 import 'package:block_bloom/ui/providers.dart';
