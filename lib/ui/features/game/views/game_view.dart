@@ -723,12 +723,35 @@ class _GameViewState extends ConsumerState<GameView> {
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // 1. Leaf placed in BACK so its stem is naturally tucked behind the pill
+        Positioned(
+          right: -16,
+          bottom: -4,
+          child: Image.asset(
+            'assets/leaf.png',
+            width: 34,
+            height: 30,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (ctx, err, st) => Image.asset(
+              'assets/garden_leaf.png',
+              width: 30,
+              height: 30,
+              fit: BoxFit.contain,
+              errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+
+        // 2. Double-lobed Pill Badge background rendered ON TOP of the leaf stem
         Image.asset(
           'assets/flower_view_design.png',
           width: 96,
           height: 48,
           fit: BoxFit.fill,
         ),
+
+        // 3. Flower Count Text (Left Lobe)
         Positioned(
           left: 14,
           top: 0,
@@ -744,6 +767,8 @@ class _GameViewState extends ConsumerState<GameView> {
             ),
           ),
         ),
+
+        // 4. Pink Flower Icon (Right Lobe)
         Positioned(
           right: 16,
           top: 0,
@@ -754,30 +779,15 @@ class _GameViewState extends ConsumerState<GameView> {
               width: 24,
               height: 24,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
               errorBuilder: (ctx, err, st) => Image.asset(
                 'assets/flower.png',
                 width: 24,
                 height: 24,
                 fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
                 errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 16)),
               ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -10,
-          bottom: -6,
-          child: Image.asset(
-            'assets/leaf.png',
-            width: 28,
-            height: 28,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => Image.asset(
-              'assets/garden_leaf.png',
-              width: 28,
-              height: 28,
-              fit: BoxFit.contain,
-              errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
             ),
           ),
         ),
@@ -1405,17 +1415,17 @@ class _GameViewState extends ConsumerState<GameView> {
         child: Center(
           child: Image.asset(
             'assets/game_leaf.png',
-            width: 22,
-            height: 22,
+            width: 20,
+            height: 20,
             fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
             errorBuilder: (ctx, err, st) => Image.asset(
               'assets/leaf.png',
-              width: 16,
-              height: 16,
+              width: 20,
+              height: 20,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.high,
-              errorBuilder: (ctx2, err2, st2) => const Text('🌱', style: TextStyle(fontSize: 14)),
+              errorBuilder: (ctx2, err2, st2) => const Text('🌱', style: TextStyle(fontSize: 16)),
             ),
           ),
         ),
@@ -1561,6 +1571,14 @@ class _GameViewState extends ConsumerState<GameView> {
                 placeholderBuilder: (context) => _buildGlossyBlock(
                   blockColor,
                   isPreview: isPreview,
+                ),
+                errorBuilder: (context, error, stackTrace) => Image.asset(
+                  'assets/blocks/$imgIndex.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, st) => _buildGlossyBlock(
+                    blockColor,
+                    isPreview: isPreview,
+                  ),
                 ),
               ),
             ),

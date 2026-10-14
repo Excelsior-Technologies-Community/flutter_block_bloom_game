@@ -20,6 +20,7 @@ class GreenGameButton extends StatefulWidget {
     this.fontSize = 15.0,
     this.textColor = Colors.white,
     this.icon,
+    this.isLoading = false,
   });
 
   /// Button label text (e.g. 'RESUME', 'RESTART', 'HOME')
@@ -46,6 +47,9 @@ class GreenGameButton extends StatefulWidget {
   /// Optional icon to display before the text
   final Widget? icon;
 
+  /// Whether the button is in loading state
+  final bool isLoading;
+
   @override
   State<GreenGameButton> createState() => _GreenGameButtonState();
 }
@@ -55,7 +59,7 @@ class _GreenGameButtonState extends State<GreenGameButton> {
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = widget.onPressed != null;
+    final isEnabled = widget.onPressed != null && !widget.isLoading;
     final isPressedNow = _isPressed && isEnabled;
 
     // Figma Gradient colors: Top #94C745, Bottom #1A3C0E
@@ -100,7 +104,13 @@ class _GreenGameButtonState extends State<GreenGameButton> {
               width: 1.2,
             ),
             boxShadow: [
-              // Figma Shadow: #000000 25%
+              // Vibrant Green Glow Shadow
+              BoxShadow(
+                color: const Color(0xFF94C745).withValues(alpha: isPressedNow ? 0.22 : 0.45),
+                blurRadius: isPressedNow ? 4 : 10,
+                offset: Offset(0, isPressedNow ? 2 : 4),
+              ),
+              // Depth Shadow: #000000 25%
               BoxShadow(
                 color: Colors.black.withValues(alpha: isPressedNow ? 0.15 : 0.25),
                 blurRadius: isPressedNow ? 3 : 6,
@@ -140,7 +150,7 @@ class _GreenGameButtonState extends State<GreenGameButton> {
                   ),
                 ),
 
-                // Button Content (Optional Icon + Bold Text)
+                // Button Content (Optional Icon / Loading Spinner + Bold Text)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -148,7 +158,17 @@ class _GreenGameButtonState extends State<GreenGameButton> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (widget.icon != null) ...[
+                        if (widget.isLoading) ...[
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ] else if (widget.icon != null) ...[
                           widget.icon!,
                           const SizedBox(width: 6),
                         ],

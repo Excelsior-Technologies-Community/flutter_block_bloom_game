@@ -28,12 +28,35 @@ class FlowerCounterBadge extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // 1. Leaf placed in BACK so its stem is naturally tucked behind the pill
+        Positioned(
+          right: -16,
+          bottom: -4,
+          child: Image.asset(
+            'assets/leaf.png',
+            width: 34,
+            height: 30,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (ctx, err, st) => Image.asset(
+              'assets/garden_leaf.png',
+              width: 34,
+              height: 30,
+              fit: BoxFit.contain,
+              errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+
+        // 2. Double-lobed Pill Badge background rendered ON TOP of the leaf stem
         Image.asset(
           'assets/flower_view_design.png',
           width: 96,
           height: 48,
           fit: BoxFit.fill,
         ),
+
+        // 3. Flower Count Text (Left Lobe)
         Positioned(
           left: 14,
           top: 0,
@@ -49,6 +72,8 @@ class FlowerCounterBadge extends StatelessWidget {
             ),
           ),
         ),
+
+        // 4. Pink Flower Icon (Right Lobe)
         Positioned(
           right: 16,
           top: 0,
@@ -59,30 +84,15 @@ class FlowerCounterBadge extends StatelessWidget {
               width: 24,
               height: 24,
               fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
               errorBuilder: (ctx, err, st) => Image.asset(
                 'assets/flower.png',
                 width: 24,
                 height: 24,
                 fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
                 errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 16)),
               ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -10,
-          bottom: -6,
-          child: Image.asset(
-            'assets/leaf.png',
-            width: 28,
-            height: 28,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => Image.asset(
-              'assets/garden_leaf.png',
-              width: 28,
-              height: 28,
-              fit: BoxFit.contain,
-              errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
             ),
           ),
         ),

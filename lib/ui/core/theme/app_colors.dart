@@ -33,14 +33,18 @@ class AppColors {
   );
 
   static const List<Color> blockColors = [
-    Color(0xFF10B981), // Mint Emerald
-    Color(0xFF0EA5E9), // Sky Blue
-    Color(0xFF8B5CF6), // Violet
-    Color(0xFFF43F5E), // Coral Red
-    Color(0xFFF59E0B), // Amber Gold
-    Color(0xFF14B8A6), // Teal
-    Color(0xFFEC4899), // Rose Pink
-    Color(0xFF84CC16), // Lime Green
+    Color(0xFFDD2C2C), // 1: Ruby Crimson Red
+    Color(0xFFABC90F), // 2: Chartreuse Lime Green
+    Color(0xFFFFAA1E), // 3: Tangerine Amber
+    Color(0xFF019262), // 4: Jade Emerald Green
+    Color(0xFF60D612), // 5: Vibrant Neon Green
+    Color(0xFFFF8899), // 6: Coral Peach Pink
+    Color(0xFFC85FFF), // 7: Royal Violet Purple
+    Color(0xFFFFB222), // 8: Golden Honey
+    Color(0xFFF406B1), // 9: Vivid Fuchsia Magenta
+    Color(0xFF007AFF), // 10: Azure Electric Blue
+    Color(0xFF04AFAE), // 11: Aqua Mint Teal
+    Color(0xFFDD2C52), // 12: Ruby Crimson Rose
   ];
 }
 

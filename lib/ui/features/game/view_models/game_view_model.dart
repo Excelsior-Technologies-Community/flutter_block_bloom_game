@@ -345,7 +345,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
   List<int> _generate3Colors() {
     final random = Random();
-    return List.generate(3, (_) => random.nextInt(8));
+    return List.generate(3, (_) => random.nextInt(12));
   }
 
   // --- FLOWER POWERS & REFRESH ---

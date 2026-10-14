@@ -277,6 +277,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
               // Action Button: ENTER (Glossy Green Game Button)
               GreenGameButton(
                 text: authState.isLoading ? 'SENDING...' : 'ENTER',
+                isLoading: authState.isLoading,
                 width: 240,
                 height: 50,
                 fontSize: 20,
@@ -642,6 +643,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
               // Action Button: ENTER (Glossy Green Game Button)
               GreenGameButton(
                 text: authState.isLoading ? 'SAVING...' : 'ENTER',
+                isLoading: authState.isLoading,
                 width: 240,
                 height: 50,
                 fontSize: 20,
@@ -990,15 +992,40 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
                               const SizedBox(height: 20),
 
-                              // 6. Action Button: LOG IN / SIGN UP
-                              SizedBox(
-                                width: double.infinity,
-                                child: GlossyGameButton.play(
-                                  text: authState.isLoading
-                                      ? 'PLEASE WAIT...'
-                                      : (_isSignUp ? 'SIGN UP' : 'LOG IN'),
-                                  onPressed: authState.isLoading ? () {} : _submitForm,
-                                ),
+                              // 6. Action Button: LOG IN / SIGN UP (Green Shadow Game Button with garden_leaf like daily garden)
+                              Stack(
+                                clipBehavior: Clip.none,
+                                alignment: Alignment.center,
+                                children: [
+                                  GreenGameButton(
+                                    text: authState.isLoading
+                                        ? 'PLEASE WAIT...'
+                                        : (_isSignUp ? 'SIGN UP' : 'LOG IN'),
+                                    isLoading: authState.isLoading,
+                                    width: double.infinity,
+                                    height: 52.0,
+                                    fontSize: 18.0,
+                                    borderRadius: 14.0,
+                                    onPressed: authState.isLoading ? null : _submitForm,
+                                  ),
+                                  Positioned(
+                                    right: -6,
+                                    bottom: 2,
+                                    child: Image.asset(
+                                      'assets/garden_leaf.png',
+                                      width: 28,
+                                      height: 28,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (ctx, err, st) => Image.asset(
+                                        'assets/garden_leaf2.png',
+                                        width: 28,
+                                        height: 28,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (c2, e2, s2) => const SizedBox.shrink(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
 
                               const SizedBox(height: 18),

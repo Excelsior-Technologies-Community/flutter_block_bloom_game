@@ -13,7 +13,7 @@ class BoardCell {
   });
 
   final CellType type;
-  final int colorIndex; // 1..8 for block color variants, 0 if empty
+  final int colorIndex; // 1..12 for block color variants, 0 if empty
   final FlowerType? flowerType;
 
   static const BoardCell empty = BoardCell(type: CellType.empty, colorIndex: 0);

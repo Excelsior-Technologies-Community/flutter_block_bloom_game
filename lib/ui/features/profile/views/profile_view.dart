@@ -512,7 +512,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                               // 4. Box 1: FLOWERS COLLECTED
                               _buildStatBox(
-                                iconAsset: 'assets/sample.png',
+                                iconAsset: 'assets/stats/flower.png',
                                 fallbackIcon: Icons.local_florist_rounded,
                                 iconColor: const Color(0xFFFF7BB0),
                                 label: 'FLOWERS COLLECTED',
@@ -523,7 +523,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                               // 5. Box 2: HIGHEST SCORE
                               _buildStatBox(
-                                iconAsset: 'assets/trophy_icon.svg',
+                                iconAsset: 'assets/stats/score.png',
                                 fallbackIcon: Icons.emoji_events_rounded,
                                 iconColor: const Color(0xFFFFC800),
                                 label: 'HIGHEST SCORE',
@@ -534,7 +534,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                               // 6. Box 3: LEVEL COMPLETED
                               _buildStatBox(
-                                iconAsset: null,
+                                iconAsset: 'assets/stats/star.png',
                                 fallbackIcon: Icons.star_rounded,
                                 iconColor: const Color(0xFFFFC800),
                                 label: 'LEVEL COMPLETED',
@@ -609,8 +609,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         children: [
           // Icon
           SizedBox(
-            width: 26,
-            height: 26,
+            width: 28,
+            height: 28,
             child: iconAsset != null
                 ? (iconAsset.endsWith('.svg')
                     ? SvgPicture.asset(
@@ -619,22 +619,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         placeholderBuilder: (context) => Icon(
                           fallbackIcon,
                           color: iconColor,
-                          size: 24,
+                          size: 26,
                         ),
                       )
                     : Image.asset(
                         iconAsset,
                         fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
                         errorBuilder: (context, error, stackTrace) => Icon(
                           fallbackIcon,
                           color: iconColor,
-                          size: 24,
+                          size: 26,
                         ),
                       ))
                 : Icon(
                     fallbackIcon,
                     color: iconColor,
-                    size: 26,
+                    size: 28,
                   ),
           ),
 
