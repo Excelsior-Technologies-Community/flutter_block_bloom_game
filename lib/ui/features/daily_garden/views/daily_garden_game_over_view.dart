@@ -148,64 +148,87 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
                           // 2. TODAY'S TOP 10 Leaderboard Card
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF001126),
+                              color: const Color(0xFF001834),
                               borderRadius: BorderRadius.circular(18),
+                              image: const DecorationImage(
+                                image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                                fit: BoxFit.none,
+                                repeat: ImageRepeat.repeat,
+                                alignment: Alignment.center,
+                                scale: 2.8,
+                                colorFilter: ColorFilter.mode(
+                                  Color(0xFF001834),
+                                  BlendMode.modulate,
+                                ),
+                              ),
                               border: Border.all(
                                 color: const Color(0xFFFFC800),
                                 width: 1.5,
                               ),
-                            ),
-                            child: Column(
-                              children: [
-                                // Header: TODAY'S TOP 10
-                                ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ).createShader(bounds),
-                                  child: Text(
-                                    "TODAY'S TOP 10",
-                                    style: GoogleFonts.chakraPetch(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 14),
-
-                                // Dynamic Firestore Leaderboard Rows
-                                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                  stream: FirebaseFirestore.instance.collection('users').snapshots(),
-                                  builder: (context, firestoreSnapshot) {
-                                    final entries = _buildLeaderboardEntries(
-                                      firestoreSnapshot.data?.docs ?? [],
-                                      currentUserId: currentUserId,
-                                      currentUserName: currentUserName,
-                                      userScore: displayScore,
-                                      todayDateString: todayStr,
-                                    );
-
-                                    return Column(
-                                      children: [
-                                        for (int i = 0; i < entries.length; i++) ...[
-                                          if (i > 0) const SizedBox(height: 8),
-                                          _renderLeaderboardRowItem(
-                                            rank: i + 1,
-                                            entry: entries[i],
-                                            displayScore: displayScore,
-                                          ),
-                                        ],
-                                      ],
-                                    );
-                                  },
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x88000000),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 6),
                                 ),
                               ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                                child: Column(
+                                  children: [
+                                    // Header: TODAY'S TOP 10
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        "TODAY'S TOP 10",
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 14),
+
+                                    // Dynamic Firestore Leaderboard Rows
+                                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                      stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                                      builder: (context, firestoreSnapshot) {
+                                        final entries = _buildLeaderboardEntries(
+                                          firestoreSnapshot.data?.docs ?? [],
+                                          currentUserId: currentUserId,
+                                          currentUserName: currentUserName,
+                                          userScore: displayScore,
+                                          todayDateString: todayStr,
+                                        );
+
+                                        return Column(
+                                          children: [
+                                            for (int i = 0; i < entries.length; i++) ...[
+                                              if (i > 0) const SizedBox(height: 8),
+                                              _renderLeaderboardRowItem(
+                                                rank: i + 1,
+                                                entry: entries[i],
+                                                displayScore: displayScore,
+                                              ),
+                                            ],
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
 
@@ -214,123 +237,146 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
                           // 3. YOUR SCORE & Stats Card
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF001126),
+                              color: const Color(0xFF001834),
                               borderRadius: BorderRadius.circular(18),
+                              image: const DecorationImage(
+                                image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                                fit: BoxFit.none,
+                                repeat: ImageRepeat.repeat,
+                                alignment: Alignment.center,
+                                scale: 2.8,
+                                colorFilter: ColorFilter.mode(
+                                  Color(0xFF001834),
+                                  BlendMode.modulate,
+                                ),
+                              ),
                               border: Border.all(
                                 color: const Color(0xFFFFC800),
                                 width: 1.5,
                               ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x88000000),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 6),
+                                ),
+                              ],
                             ),
-                            child: Column(
-                              children: [
-                                // YOUR SCORE Header
-                                ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ).createShader(bounds),
-                                  child: Text(
-                                    'YOUR SCORE',
-                                    style: GoogleFonts.chakraPetch(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 1.5,
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 4),
-
-                                // Score Display
-                                ShaderMask(
-                                  shaderCallback: (bounds) => const LinearGradient(
-                                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ).createShader(bounds),
-                                  child: Text(
-                                    _formatScore(displayScore),
-                                    style: GoogleFonts.chakraPetch(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // 3 Columns: FLOWERS, BLOOM, MAX COMBO
-                                Row(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                                child: Column(
                                   children: [
-                                    // Column 1: FLOWERS
-                                    Expanded(
-                                      child: _buildStatItem(
-                                        icon: Image.asset(
-                                          'assets/game_flower.png',
-                                          width: 26,
-                                          height: 26,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (ctx, err, st) => Image.asset(
-                                            'assets/flower.png',
-                                            width: 26,
-                                            height: 26,
-                                            fit: BoxFit.contain,
-                                            errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 20)),
-                                          ),
+                                    // YOUR SCORE Header
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        'YOUR SCORE',
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 1.5,
                                         ),
-                                        label: 'FLOWERS',
-                                        value: '+$displayFlowers',
                                       ),
                                     ),
 
-                                    // Vertical Divider
-                                    Container(height: 46, width: 1, color: const Color(0xFF814D00)),
+                                    const SizedBox(height: 4),
 
-                                    // Column 2: BLOOM
-                                    Expanded(
-                                      child: _buildStatItem(
-                                        icon: Image.asset(
-                                          'assets/game_leaf.png',
-                                          width: 26,
-                                          height: 26,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (ctx, err, st) => Image.asset(
-                                            'assets/leaf.png',
-                                            width: 26,
-                                            height: 26,
-                                            fit: BoxFit.contain,
-                                            errorBuilder: (c2, e2, s2) => const Text('🌱', style: TextStyle(fontSize: 20)),
-                                          ),
+                                    // Score Display
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        _formatScore(displayScore),
+                                        style: GoogleFonts.chakraPetch(
+                                          fontSize: 40,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
                                         ),
-                                        label: 'BLOOM',
-                                        value: '$displayBlooms',
                                       ),
                                     ),
 
-                                    // Vertical Divider
-                                    Container(height: 46, width: 1, color: const Color(0xFF814D00)),
+                                    const SizedBox(height: 16),
 
-                                    // Column 3: MAX COMBO
-                                    Expanded(
-                                      child: _buildStatItem(
-                                        icon: const Icon(
-                                          Icons.star_rounded,
-                                          color: Color(0xFFFFC800),
-                                          size: 28,
+                                    // 3 Columns: FLOWERS, BLOOM, MAX COMBO
+                                    Row(
+                                      children: [
+                                        // Column 1: FLOWERS
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            icon: Image.asset(
+                                              'assets/game_flower.png',
+                                              width: 26,
+                                              height: 26,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (ctx, err, st) => Image.asset(
+                                                'assets/flower.png',
+                                                width: 26,
+                                                height: 26,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (c2, e2, s2) => const Text('🌸', style: TextStyle(fontSize: 20)),
+                                              ),
+                                            ),
+                                            label: 'FLOWERS',
+                                            value: '+$displayFlowers',
+                                          ),
                                         ),
-                                        label: 'MAX COMBO',
-                                        value: 'X$displayMaxCombo',
-                                      ),
+
+                                        // Vertical Divider
+                                        Container(height: 46, width: 1, color: const Color(0xFF814D00)),
+
+                                        // Column 2: BLOOM
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            icon: Image.asset(
+                                              'assets/game_leaf.png',
+                                              width: 26,
+                                              height: 26,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (ctx, err, st) => Image.asset(
+                                                'assets/leaf.png',
+                                                width: 26,
+                                                height: 26,
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (c2, e2, s2) => const Text('🌱', style: TextStyle(fontSize: 20)),
+                                              ),
+                                            ),
+                                            label: 'BLOOM',
+                                            value: '$displayBlooms',
+                                          ),
+                                        ),
+
+                                        // Vertical Divider
+                                        Container(height: 46, width: 1, color: const Color(0xFF814D00)),
+
+                                        // Column 3: MAX COMBO
+                                        Expanded(
+                                          child: _buildStatItem(
+                                            icon: const Icon(
+                                              Icons.star_rounded,
+                                              color: Color(0xFFFFC800),
+                                              size: 28,
+                                            ),
+                                            label: 'MAX COMBO',
+                                            value: 'X$displayMaxCombo',
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
 
@@ -490,6 +536,14 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
     required _DailyLeaderboardItem entry,
     required int displayScore,
   }) {
+    final crownAsset = rank == 1
+        ? 'assets/leaderboard_icons/gold_crown.png'
+        : (rank == 2
+            ? 'assets/leaderboard_icons/silver_crown.png'
+            : (rank == 3
+                ? 'assets/leaderboard_icons/platinum_crown.png'
+                : null));
+
     if (entry.isUser) {
       return Container(
         width: double.infinity,
@@ -511,15 +565,27 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
         ),
         child: Row(
           children: [
-            Text(
-              '$rank.',
-              style: GoogleFonts.chakraPetch(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: Colors.black,
-              ),
+            SizedBox(
+              width: 24,
+              child: crownAsset != null
+                  ? Center(
+                      child: Image.asset(
+                        crownAsset,
+                        width: 22,
+                        height: 22,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : Text(
+                      '$rank.',
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                      ),
+                    ),
             ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 14),
             Text(
               'You',
               style: GoogleFonts.chakraPetch(
@@ -542,24 +608,9 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
       );
     }
 
-    Color? crownColor;
-    Color? jewelColor;
-
-    if (rank == 1) {
-      crownColor = const Color(0xFFFFC800);
-      jewelColor = const Color(0xFFFF4081);
-    } else if (rank == 2) {
-      crownColor = const Color(0xFFE0E0E0);
-      jewelColor = const Color(0xFF00E5FF);
-    } else if (rank == 3) {
-      crownColor = const Color(0xFFFFAB40);
-      jewelColor = const Color(0xFFFFD700);
-    }
-
     return _buildLeaderboardRow(
       rank: rank,
-      crownColor: crownColor,
-      jewelColor: jewelColor,
+      crownAsset: crownAsset,
       name: entry.name,
       score: _formatScore(entry.score),
     );
@@ -567,8 +618,7 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
 
   Widget _buildLeaderboardRow({
     required int rank,
-    Color? crownColor,
-    Color? jewelColor,
+    String? crownAsset,
     required String name,
     required String score,
   }) {
@@ -585,42 +635,33 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
       ),
       child: Row(
         children: [
-          if (crownColor != null) ...[
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  Icons.workspace_premium_rounded,
-                  color: crownColor,
-                  size: 22,
-                ),
-                if (jewelColor != null)
-                  Positioned(
-                    top: 5,
-                    child: Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: jewelColor,
-                        shape: BoxShape.circle,
+          SizedBox(
+            width: 24,
+            child: crownAsset != null
+                ? Center(
+                    child: Image.asset(
+                      crownAsset,
+                      width: 22,
+                      height: 22,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.workspace_premium_rounded,
+                        color: rank == 1
+                            ? const Color(0xFFFFC800)
+                            : (rank == 2 ? const Color(0xFFE0E0E0) : const Color(0xFFFFAB40)),
+                        size: 20,
                       ),
                     ),
+                  )
+                : Text(
+                    '$rank.',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2096E7),
+                    ),
                   ),
-              ],
-            ),
-          ] else ...[
-            SizedBox(
-              width: 22,
-              child: Text(
-                '$rank.',
-                style: GoogleFonts.chakraPetch(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF2096E7),
-                ),
-              ),
-            ),
-          ],
+          ),
           const SizedBox(width: 14),
           Text(
             name,

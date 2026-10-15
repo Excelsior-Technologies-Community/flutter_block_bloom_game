@@ -70,19 +70,40 @@ class GameOverView extends ConsumerWidget {
                       // 2. Score Section Card
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF001126),
+                          color: const Color(0xFF001834),
                           borderRadius: BorderRadius.circular(18),
+                          image: const DecorationImage(
+                            image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                            fit: BoxFit.none,
+                            repeat: ImageRepeat.repeat,
+                            alignment: Alignment.center,
+                            scale: 2.8,
+                            colorFilter: ColorFilter.mode(
+                              Color(0xFF001834),
+                              BlendMode.modulate,
+                            ),
+                          ),
                           border: Border.all(
                             color: const Color(0xFFFFC800),
                             width: 1.5,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x88000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Column(
-                          children: [
-                            // YOUR SCORE Header
-                            ShaderMask(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+                            child: Column(
+                              children: [
+                                // YOUR SCORE Header
+                                ShaderMask(
                               shaderCallback: (bounds) => const LinearGradient(
                                 colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
                                 begin: Alignment.topCenter,
@@ -214,21 +235,44 @@ class GameOverView extends ConsumerWidget {
                           ],
                         ),
                       ),
+                    ),
+                  ),
 
-                      const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                      // 3. Stats Card (3 Columns: FLOWERS, BLOOM, MAX COMBO)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF001126),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: const Color(0xFFFFC800),
-                            width: 1.5,
-                          ),
+                  // 3. Stats Card (3 Columns: FLOWERS, BLOOM, MAX COMBO)
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF001834),
+                      borderRadius: BorderRadius.circular(18),
+                      image: const DecorationImage(
+                        image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                        fit: BoxFit.none,
+                        repeat: ImageRepeat.repeat,
+                        alignment: Alignment.center,
+                        scale: 2.8,
+                        colorFilter: ColorFilter.mode(
+                          Color(0xFF001834),
+                          BlendMode.modulate,
                         ),
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFFFFC800),
+                        width: 1.5,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x88000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         child: Row(
                           children: [
                             // Column 1: FLOWERS
@@ -294,6 +338,8 @@ class GameOverView extends ConsumerWidget {
                           ],
                         ),
                       ),
+                    ),
+                  ),
 
                       const SizedBox(height: 36),
 

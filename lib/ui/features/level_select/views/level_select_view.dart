@@ -543,8 +543,9 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
-                    // HOME Back Button
+                    // HOME Back Button (clean, borderless, circle-free)
                     GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () {
                         HapticFeedback.lightImpact();
                         AudioService.instance.playClickSound();
@@ -552,52 +553,39 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                           Navigator.of(context).pop();
                         }
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0x99001126),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFFFFC800).withValues(alpha: 0.6),
-                            width: 1.0,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black38,
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ShaderMask(
                               shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ).createShader(bounds),
                               child: const Icon(
                                 Icons.arrow_back_rounded,
                                 color: Colors.white,
-                                size: 20,
+                                size: 26,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             ShaderMask(
                               shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                               ).createShader(bounds),
                               child: Text(
                                 'HOME',
                                 style: GoogleFonts.chakraPetch(
-                                  fontSize: 18,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 1.0,
+                                  height: 1.0,
                                 ),
                               ),
                             ),

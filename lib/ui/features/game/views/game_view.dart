@@ -2163,49 +2163,74 @@ class _PersistentComboBannerState extends State<PersistentComboBanner> with Sing
           ),
         );
       },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.asset(
-            'assets/combo_board.png',
-            width: 175,
-            fit: BoxFit.contain,
-            errorBuilder: (ctx, err, st) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF814D00),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFC800), width: 1.5),
+      child: SizedBox(
+        width: 175,
+        height: 175 * (188 / 824),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/combo_board.png',
+                fit: BoxFit.contain,
+                errorBuilder: (ctx, err, st) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF814D00),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFFC800), width: 1.5),
+                  ),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: 11,
-            child: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ).createShader(bounds),
-              child: Text(
-                'COMBO ${_activeCombo}X',
-                style: GoogleFonts.chakraPetch(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.0,
-                  shadows: const [
-                    Shadow(
-                      color: Color(0xFF4A2800),
-                      offset: Offset(1.5, 2.0),
-                      blurRadius: 3,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 9,
+              child: Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Figma border stroke: 1px outer stroke, color #705320
+                    Text(
+                      'COMBO ${_activeCombo}X',
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.0,
+                        height: 1.0,
+                        foreground: Paint()
+                          ..style = PaintingStyle.stroke
+                          ..strokeWidth = 2.0
+                          ..strokeJoin = StrokeJoin.round
+                          ..color = const Color(0xFF705320),
+                      ),
+                    ),
+                    // Figma Linear Gradient fill: #FFFFFF to #FFC610
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ).createShader(bounds),
+                      child: Text(
+                        'COMBO ${_activeCombo}X',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.0,
+                          height: 1.0,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2272,32 +2297,42 @@ class LevelCompletedOverlay extends ConsumerWidget {
                   // Score & Stats Card
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF071E36), Color(0xFF041223)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                      color: const Color(0xFF001834),
+                      borderRadius: BorderRadius.circular(18),
+                      image: const DecorationImage(
+                        image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                        fit: BoxFit.none,
+                        repeat: ImageRepeat.repeat,
+                        alignment: Alignment.center,
+                        scale: 2.8,
+                        colorFilter: ColorFilter.mode(
+                          Color(0xFF001834),
+                          BlendMode.modulate,
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: const Color(0xFFFFC800),
                         width: 1.5,
                       ),
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
-                          color: const Color(0xFFFFC800).withValues(alpha: 0.12),
+                          color: Color(0x88000000),
                           blurRadius: 16,
-                          spreadRadius: 2,
+                          offset: Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        // YOUR SCORE text matching Figma spec image
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 22, 16, 20),
+                        child: Column(
+                          children: [
+                            // YOUR SCORE text matching Figma spec image
+                            ShaderMask(
+                              shaderCallback: (bounds) => const LinearGradient(
+                                colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ).createShader(bounds),
@@ -2512,8 +2547,10 @@ class LevelCompletedOverlay extends ConsumerWidget {
                       ],
                     ),
                   ),
+                ),
+              ),
 
-                  const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
                   // NEXT LEVEL Glossy Green Button matching reference radius (14.0)
                   GreenGameButton(
