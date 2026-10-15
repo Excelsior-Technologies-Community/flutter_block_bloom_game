@@ -52,13 +52,23 @@ class GardenNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF001126),
+        color: const Color(0xFF001834),
         borderRadius: BorderRadius.circular(18),
+        image: const DecorationImage(
+          image: AssetImage('assets/leaderboard_icons/back_design.png'),
+          fit: BoxFit.none,
+          repeat: ImageRepeat.repeat,
+          alignment: Alignment.center,
+          scale: 2.8,
+          colorFilter: ColorFilter.mode(
+            Color(0xFF001834),
+            BlendMode.modulate,
+          ),
+        ),
         border: Border.all(
           color: const Color(0xFFFFC800),
-          width: 1.2,
+          width: 1.5,
         ),
         boxShadow: const [
           BoxShadow(
@@ -68,24 +78,30 @@ class GardenNavBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(navItems.length, (index) {
-          final isSelected = index == selectedIndex;
-          final item = navItems[index];
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(navItems.length, (index) {
+              final isSelected = index == selectedIndex;
+              final item = navItems[index];
 
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: GardenNavItem(
-                label: item.label,
-                iconAsset: item.iconAsset,
-                isSelected: isSelected,
-                onTap: () => onItemSelected(index),
-              ),
-            ),
-          );
-        }),
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: GardenNavItem(
+                    label: item.label,
+                    iconAsset: item.iconAsset,
+                    isSelected: isSelected,
+                    onTap: () => onItemSelected(index),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -136,10 +152,7 @@ class GardenNavItem extends StatelessWidget {
                     end: Alignment.bottomCenter,
                   ),
                 )
-              : Border.all(
-                  color: const Color(0xFF103975).withValues(alpha: 0.5),
-                  width: 1.0,
-                ),
+              : null,
           boxShadow: isSelected
               ? [
                   const BoxShadow(

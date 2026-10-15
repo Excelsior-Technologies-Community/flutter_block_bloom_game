@@ -12,7 +12,7 @@ import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
 
 /// Screen 1: My Garden Main View Screen
-/// Contains Top Bar (Back button, MY GARDEN title, FlowerCounterBadge using sample.png),
+/// Contains Top Bar (Back button, MY GARDEN title, FlowerCounterBadge using garden_flower_view_design.png),
 /// Center GardenShieldBadge (using my_garden_shield.png with GARDEN LEVEL & number),
 /// Dynamic tab content (OVERVIEW, DECORATE, THEMES, STATS),
 /// VIEW GARDEN FULLSCREEN button (navigates to Screen 2: GardenFullscreenView),
@@ -276,8 +276,11 @@ class _GardenViewState extends ConsumerState<GardenView> {
 
         const Spacer(),
 
-        // Right: Flower Counter Badge using sample.png background
-        FlowerCounterBadge(count: flowers),
+        // Right: Flower Counter Badge using garden_flower_view_design.png in Garden section only
+        FlowerCounterBadge(
+          count: flowers,
+          badgeAsset: 'assets/garden_flower_view_design.png',
+        ),
       ],
     );
   }
@@ -317,10 +320,20 @@ class _GardenViewState extends ConsumerState<GardenView> {
         // Next Level Progress Card
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFF001126),
+            color: const Color(0xFF001834),
             borderRadius: BorderRadius.circular(16),
+            image: const DecorationImage(
+              image: AssetImage('assets/leaderboard_icons/back_design.png'),
+              fit: BoxFit.none,
+              repeat: ImageRepeat.repeat,
+              alignment: Alignment.center,
+              scale: 2.8,
+              colorFilter: ColorFilter.mode(
+                Color(0xFF001834),
+                BlendMode.modulate,
+              ),
+            ),
             border: Border.all(
               color: const Color(0xFFFFC800),
               width: 1.5,
@@ -333,123 +346,129 @@ class _GardenViewState extends ConsumerState<GardenView> {
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Dynamic Header: NEXT LEVEL X - STAGE NAME
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ).createShader(bounds),
-                child: Text(
-                  headerTitle,
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Progress Bar Row: Flower Icon + Progress Bar + Info (i) Icon
-              Row(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(
-                    'assets/game_flower.png',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.contain,
-                    errorBuilder: (ctx, err, st) => const Text('🌸', style: TextStyle(fontSize: 22)),
+                  // Dynamic Header: NEXT LEVEL X - STAGE NAME
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ).createShader(bounds),
+                    child: Text(
+                      headerTitle,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
                   ),
 
-                  const SizedBox(width: 10),
+                  const SizedBox(height: 10),
 
-                  // Gradient Progress Bar
-                  Expanded(
-                    child: Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [
-                        Container(
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF001D3D),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFFFFC800).withValues(alpha: 0.6),
-                              width: 1.0,
-                            ),
-                          ),
-                        ),
-                        FractionallySizedBox(
-                          widthFactor: progressFactor,
+                  // Progress Bar Row: Flower Icon + Progress Bar + Info (i) Icon
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/game_flower.png',
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                        errorBuilder: (ctx, err, st) => const Text('🌸', style: TextStyle(fontSize: 22)),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      // Gradient Progress Bar
+                      Expanded(
+                        child: Stack(
                           alignment: Alignment.centerLeft,
-                          child: Container(
-                            height: 18,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFE9C46A), Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
+                          children: [
+                            Container(
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF001D3D),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFFFC800).withValues(alpha: 0.8),
+                                  width: 1.2,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            FractionallySizedBox(
+                              widthFactor: progressFactor,
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFE9C46A), Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Center(
+                                child: Text(
+                                  progressText,
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      // Info Icon Button
+                      GestureDetector(
+                        onTap: () {
+                          _showInfoDialog(context);
+                        },
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFFFDF70),
+                              width: 1.5,
                             ),
                           ),
-                        ),
-                        Positioned.fill(
-                          child: Center(
+                          child: const Center(
                             child: Text(
-                              progressText,
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
+                              'i',
+                              style: TextStyle(
+                                color: Color(0xFFFFDF70),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 10),
-
-                  // Info Icon Button
-                  GestureDetector(
-                    onTap: () {
-                      _showInfoDialog(context);
-                    },
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF2096E7),
-                          width: 1.5,
-                        ),
                       ),
-                      child: const Center(
-                        child: Text(
-                          'i',
-                          style: TextStyle(
-                            color: Color(0xFF2096E7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
 
@@ -574,10 +593,20 @@ class _GardenViewState extends ConsumerState<GardenView> {
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF001126),
+                  color: const Color(0xFF001834),
                   borderRadius: BorderRadius.circular(14),
+                  image: const DecorationImage(
+                    image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                    fit: BoxFit.none,
+                    repeat: ImageRepeat.repeat,
+                    alignment: Alignment.center,
+                    scale: 2.8,
+                    colorFilter: ColorFilter.mode(
+                      Color(0xFF001834),
+                      BlendMode.modulate,
+                    ),
+                  ),
                   border: cardBorder,
                   boxShadow: isNext
                       ? const [
@@ -589,43 +618,45 @@ class _GardenViewState extends ConsumerState<GardenView> {
                         ]
                       : null,
                 ),
-                child: Row(
-                  children: [
-                    // 1. Group 178 Level Badge (35x35px gold gradient border circle)
-                    _buildLevelCircleBadge(lvl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        // 1. Group 178 Level Badge (35x35px gold gradient border circle)
+                        _buildLevelCircleBadge(lvl),
 
-                    const SizedBox(width: 12),
+                        const SizedBox(width: 12),
 
-                    // 2. Icon from assets/decorate_icons/
-                    Image.asset(
-                      stage['iconAsset'] as String,
-                      width: 36,
-                      height: 36,
-                      fit: BoxFit.contain,
-                      errorBuilder: (ctx, err, st) => const Icon(
-                        Icons.nature_rounded,
-                        size: 32,
-                        color: Color(0xFFFFC800),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // 3. Title & Subtitle / Progress bar
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            stage['name'] as String,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: isUnlocked
-                                  ? Colors.white
-                                  : (isNext ? const Color(0xFFFFC800) : Colors.white),
-                            ),
+                        // 2. Icon from assets/decorate_icons/
+                        Image.asset(
+                          stage['iconAsset'] as String,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
+                          errorBuilder: (ctx, err, st) => const Icon(
+                            Icons.nature_rounded,
+                            size: 32,
+                            color: Color(0xFFFFC800),
                           ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        // 3. Title & Subtitle / Progress bar
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                stage['name'] as String,
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFFFDF70),
+                                ),
+                              ),
                           if (isNext) ...[
                             const SizedBox(height: 4),
                             // Compact Progress bar inside active item (Pink flower icon + purple gradient progress)
@@ -758,9 +789,11 @@ class _GardenViewState extends ConsumerState<GardenView> {
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
+              ),
+            );
             },
           ),
         ),
@@ -1266,13 +1299,23 @@ class _GardenViewState extends ConsumerState<GardenView> {
       itemBuilder: (context, index) {
         final card = statCards[index];
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF001126),
+            color: const Color(0xFF001834),
             borderRadius: BorderRadius.circular(16),
+            image: const DecorationImage(
+              image: AssetImage('assets/leaderboard_icons/back_design.png'),
+              fit: BoxFit.none,
+              repeat: ImageRepeat.repeat,
+              alignment: Alignment.center,
+              scale: 2.8,
+              colorFilter: ColorFilter.mode(
+                Color(0xFF001834),
+                BlendMode.modulate,
+              ),
+            ),
             border: Border.all(
               color: const Color(0xFFFFC800),
-              width: 1.2,
+              width: 1.5,
             ),
             boxShadow: const [
               BoxShadow(
@@ -1282,61 +1325,67 @@ class _GardenViewState extends ConsumerState<GardenView> {
               ),
             ],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Stat Icon from assets/stats/
-              SizedBox(
-                width: 52,
-                height: 52,
-                child: Image.asset(
-                  card['icon'] as String,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, st) => Icon(
-                    card['fallbackIcon'] as IconData,
-                    size: 40,
-                    color: const Color(0xFFFFC800),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Stat Icon from assets/stats/
+                  SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: Image.asset(
+                      card['icon'] as String,
+                      fit: BoxFit.contain,
+                      errorBuilder: (ctx, err, st) => Icon(
+                        card['fallbackIcon'] as IconData,
+                        size: 40,
+                        color: const Color(0xFFFFC800),
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
-              // Title Label
-              Text(
-                card['title'] as String,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.chakraPetch(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFB0C4DE),
-                  letterSpacing: 0.4,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              // Stat Value with LinearGradient #FFFFFF to #E9CC70
-              ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ).createShader(bounds),
-                child: Text(
-                  card['value'] as String,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.chakraPetch(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    height: 1.0,
-                    letterSpacing: 0.5,
+                  // Title Label
+                  Text(
+                    card['title'] as String,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFFFEFA8),
+                      letterSpacing: 0.4,
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 4),
+
+                  // Stat Value with LinearGradient #FFFFFF to #E9CC70
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFFFFFFFF), Color(0xFFE9CC70)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ).createShader(bounds),
+                    child: Text(
+                      card['value'] as String,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        height: 1.0,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },

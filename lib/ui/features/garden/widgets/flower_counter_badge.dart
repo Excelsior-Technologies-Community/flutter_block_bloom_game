@@ -7,9 +7,11 @@ class FlowerCounterBadge extends StatelessWidget {
   const FlowerCounterBadge({
     super.key,
     required this.count,
+    this.badgeAsset = 'assets/flower_view_design.png',
   });
 
   final int count;
+  final String badgeAsset;
 
   String _formatCount(int count) {
     final str = count.toString();
@@ -50,10 +52,16 @@ class FlowerCounterBadge extends StatelessWidget {
 
         // 2. Double-lobed Pill Badge background rendered ON TOP of the leaf stem
         Image.asset(
-          'assets/flower_view_design.png',
+          badgeAsset,
           width: 96,
           height: 48,
           fit: BoxFit.fill,
+          errorBuilder: (ctx, err, st) => Image.asset(
+            'assets/flower_view_design.png',
+            width: 96,
+            height: 48,
+            fit: BoxFit.fill,
+          ),
         ),
 
         // 3. Flower Count Text (Left Lobe)
