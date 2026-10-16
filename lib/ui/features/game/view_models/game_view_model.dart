@@ -220,6 +220,9 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         level.gridSize,
         (c) {
           final val = level.initialGrid[r][c];
+          if (val == -1) {
+            return BoardCell.blocked;
+          }
           if (val > 0) {
             return BoardCell(type: CellType.occupied, colorIndex: val);
           }
@@ -228,7 +231,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       ),
     );
 
-    // Seed initial Flowers 🌸 and Leaf 🌱 on empty spots
+    // Seed initial Flowers 🌸 and Leaf 🌱 only on playable empty spots
     final random = Random();
     final flowerTypes = FlowerType.values;
     int placedFlowers = 0;
@@ -293,6 +296,8 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     }).toList();
   }
 
+  /// Generates 3 pieces with reference to the active board template and current state,
+  /// guaranteeing placement compatibility and high solvability ("perfect like")
   List<BlockShape> _generate3Pieces([List<List<BoardCell>>? board]) {
     final random = Random();
     final result = <BlockShape>[];
@@ -302,18 +307,45 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     final validShapes = BlockShape.allShapes.where((s) => s.rows <= gridDim && s.cols <= gridDim).toList();
 
     if (board != null) {
-      // Find all shapes that can actually fit on the current board
+      // Find all shapes that can actually fit on the current board template
       final playableShapes = validShapes.where((shape) => BlockBlastRules.canPieceBePlacedAnywhere(board, shape)).toList();
+
       if (playableShapes.isNotEmpty) {
-        // Guarantee at least 1 or 2 playable shapes
+        // Compact shapes (<= 4 blocks) that fit beautifully into template contours
+        final compactPlayable = playableShapes.where((s) {
+          int count = 0;
+          for (final row in s.matrix) {
+            for (final v in row) {
+              if (v == 1) count++;
+            }
+          }
+          return count <= 4;
+        }).toList();
+
+        // Slot 1: Primary playable piece
         result.add(playableShapes[random.nextInt(playableShapes.length)]);
-        if (playableShapes.length > 1) {
-          final second = playableShapes[random.nextInt(playableShapes.length)];
-          if (!result.contains(second)) result.add(second);
+
+        // Slot 2: Complementary piece (prefer distinct)
+        final secondCandidates = playableShapes.where((s) => !result.contains(s)).toList();
+        if (secondCandidates.isNotEmpty) {
+          result.add(secondCandidates[random.nextInt(secondCandidates.length)]);
+        } else {
+          result.add(playableShapes[random.nextInt(playableShapes.length)]);
+        }
+
+        // Slot 3: Versatile compact piece (singles, dominos, small Ls) to fit template corners
+        final poolForThird = compactPlayable.isNotEmpty ? compactPlayable : playableShapes;
+        final thirdCandidates = poolForThird.where((s) => !result.contains(s)).toList();
+        if (thirdCandidates.isNotEmpty) {
+          result.add(thirdCandidates[random.nextInt(thirdCandidates.length)]);
+        } else {
+          result.add(poolForThird[random.nextInt(poolForThird.length)]);
         }
       } else {
-        // Fallback to small 1x1 tile if board is tight so player can always clear lines
+        // Fallback: small tiles so player can always clear lines
         result.add(BlockShape.single);
+        result.add(BlockShape.line2H);
+        result.add(BlockShape.line2V);
       }
     } else {
       final smallShapes = [
@@ -329,16 +361,18 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         if (gridDim >= 3) BlockShape.line3V,
       ];
       result.add(smallShapes[random.nextInt(smallShapes.length)]);
-    }
-
-    // Pick distinct shapes for remaining slots
-    final pool = validShapes.isNotEmpty ? validShapes : BlockShape.allShapes;
-    while (result.length < 3) {
-      final candidate = pool[random.nextInt(pool.length)];
-      if (!result.contains(candidate)) {
-        result.add(candidate);
+      while (result.length < 3) {
+        final candidate = validShapes[random.nextInt(validShapes.length)];
+        if (!result.contains(candidate)) {
+          result.add(candidate);
+        }
       }
     }
+
+    while (result.length < 3) {
+      result.add(BlockShape.single);
+    }
+
     result.shuffle(random);
     return result;
   }
@@ -754,7 +788,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     for (int r = max(0, centerRow - 1); r <= min(n - 1, centerRow + 1); r++) {
       for (int c = max(0, centerCol - 1); c <= min(n - 1, centerCol + 1); c++) {
         final cell = newBoard[r][c];
-        if (cell.type != CellType.empty) {
+        if (cell.type != CellType.empty && cell.type != CellType.blocked) {
           if (cell.type == CellType.occupied) {
             occupiedCoords.add(Point(r, c));
             newBoard[r][c] = BoardCell.empty;
@@ -808,7 +842,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
     newPieces[pieceIndex] = null;
 
     if (newPieces.every((p) => p == null)) {
-      final freshPieces = _generate3Pieces();
+      final freshPieces = _generate3Pieces(newBoard);
       final freshColors = _generate3Colors();
       for (int i = 0; i < 3; i++) {
         newPieces[i] = freshPieces[i];

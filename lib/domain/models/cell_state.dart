@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-enum CellType { empty, occupied, bloom, flower }
+enum CellType { empty, occupied, bloom, flower, blocked }
 
 enum FlowerType { sunflower, blueFlower, redFlower }
 
@@ -17,11 +17,13 @@ class BoardCell {
   final FlowerType? flowerType;
 
   static const BoardCell empty = BoardCell(type: CellType.empty, colorIndex: 0);
+  static const BoardCell blocked = BoardCell(type: CellType.blocked, colorIndex: 0);
 
   bool get isEmpty => type == CellType.empty;
   bool get isOccupied => type == CellType.occupied;
   bool get isBloom => type == CellType.bloom;
   bool get isFlower => type == CellType.flower;
+  bool get isBlocked => type == CellType.blocked;
 
   BoardCell copyWith({
     CellType? type,

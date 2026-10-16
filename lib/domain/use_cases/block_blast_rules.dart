@@ -12,12 +12,16 @@ class BlockBlastRules {
     if (startRow < 0 || startCol < 0) return false;
     if (startRow + piece.rows > n || startCol + piece.cols > n) return false;
 
-    if (piece.isBomb) return true; // Bomb can be placed on any tile within bounds
+    if (piece.isBomb) {
+      // Bomb can only be placed on a valid non-blocked cell
+      return board[startRow][startCol].type != CellType.blocked;
+    }
 
     for (int r = 0; r < piece.rows; r++) {
       for (int c = 0; c < piece.cols; c++) {
         if (piece.matrix[r][c] == 1) {
-          if (board[startRow + r][startCol + c].type != CellType.empty) {
+          final cell = board[startRow + r][startCol + c];
+          if (cell.type != CellType.empty) {
             return false;
           }
         }
@@ -87,34 +91,46 @@ class BlockBlastRules {
     return false;
   }
 
+  /// Calculates completed rows, skipping blocked/void template cells.
+  /// A row clears when all playable cells in that row are filled (requires at least 2 playable cells).
   static List<int> getCompletedRows(List<List<BoardCell>> board) {
     final n = board.length;
     final rows = <int>[];
     for (int r = 0; r < n; r++) {
+      int playableCount = 0;
       bool full = true;
       for (int c = 0; c < n; c++) {
-        if (board[r][c].type == CellType.empty) {
+        final cell = board[r][c];
+        if (cell.type == CellType.blocked) continue;
+        playableCount++;
+        if (cell.type == CellType.empty) {
           full = false;
           break;
         }
       }
-      if (full) rows.add(r);
+      if (full && playableCount >= 2) rows.add(r);
     }
     return rows;
   }
 
+  /// Calculates completed columns, skipping blocked/void template cells.
+  /// A column clears when all playable cells in that column are filled (requires at least 2 playable cells).
   static List<int> getCompletedCols(List<List<BoardCell>> board) {
     final n = board.length;
     final cols = <int>[];
     for (int c = 0; c < n; c++) {
+      int playableCount = 0;
       bool full = true;
       for (int r = 0; r < n; r++) {
-        if (board[r][c].type == CellType.empty) {
+        final cell = board[r][c];
+        if (cell.type == CellType.blocked) continue;
+        playableCount++;
+        if (cell.type == CellType.empty) {
           full = false;
           break;
         }
       }
-      if (full) cols.add(c);
+      if (full && playableCount >= 2) cols.add(c);
     }
     return cols;
   }

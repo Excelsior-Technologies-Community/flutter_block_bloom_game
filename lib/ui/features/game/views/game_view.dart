@@ -16,6 +16,7 @@ import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/features/game/widgets/pause_dialog.dart';
 import 'package:block_bloom/ui/features/game/widgets/game_over_dialog.dart';
+import 'package:block_bloom/ui/features/game/widgets/contoured_board_frame.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_game_over_view.dart';
 
 class GameView extends ConsumerStatefulWidget {
@@ -296,6 +297,17 @@ class _GameViewState extends ConsumerState<GameView> {
             child: SafeArea(
               child: Stack(
                 children: [
+                  // Atmospheric garden backdrop visible through template voids
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.22,
+                      child: Image.asset(
+                        'assets/splash_img.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, st) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
                   Column(
                     children: [
                       // Header / Top Navigation Bar
@@ -881,6 +893,8 @@ class _GameViewState extends ConsumerState<GameView> {
     final level = state.level;
     if (level == null) return const SizedBox.shrink();
 
+    final isStandard = level.template?.isStandardSquare ?? true;
+
     final activePieceIndex = _hoveredPieceIndex ?? _selectedPieceIndex;
     final activePiece = (activePieceIndex != null && activePieceIndex < state.availablePieces.length) ? state.availablePieces[activePieceIndex] : null;
     final activeColorIndex = (activePieceIndex != null && activePieceIndex < state.pieceColors.length) ? state.pieceColors[activePieceIndex] + 1 : 1;
@@ -898,37 +912,37 @@ class _GameViewState extends ConsumerState<GameView> {
         _hoveredStartCol!,
       );
 
-      if (!activePiece.isBomb) {
+      if (isValidPlacement && !activePiece.isBomb) {
         for (int r = 0; r < activePiece.rows; r++) {
           for (int c = 0; c < activePiece.cols; c++) {
             if (activePiece.matrix[r][c] == 1) {
               final targetR = _hoveredStartRow! + r;
               final targetC = _hoveredStartCol! + c;
               if (targetR >= 0 && targetR < level.gridSize && targetC >= 0 && targetC < level.gridSize) {
-                previewCells.add('$targetR,$targetC');
+                if (state.board[targetR][targetC].type != CellType.blocked) {
+                  previewCells.add('$targetR,$targetC');
+                }
               }
             }
           }
         }
 
-        if (isValidPlacement) {
-          final simulatedBoard = List.generate(
-            level.gridSize,
-            (r) => List<BoardCell>.from(state.board[r]),
-          );
-          for (int r = 0; r < activePiece.rows; r++) {
-            for (int c = 0; c < activePiece.cols; c++) {
-              if (activePiece.matrix[r][c] == 1) {
-                simulatedBoard[_hoveredStartRow! + r][_hoveredStartCol! + c] = BoardCell(
-                  type: CellType.occupied,
-                  colorIndex: activeColorIndex,
-                );
-              }
+        final simulatedBoard = List.generate(
+          level.gridSize,
+          (r) => List<BoardCell>.from(state.board[r]),
+        );
+        for (int r = 0; r < activePiece.rows; r++) {
+          for (int c = 0; c < activePiece.cols; c++) {
+            if (activePiece.matrix[r][c] == 1) {
+              simulatedBoard[_hoveredStartRow! + r][_hoveredStartCol! + c] = BoardCell(
+                type: CellType.occupied,
+                colorIndex: activeColorIndex,
+              );
             }
           }
-          glowingRows.addAll(BlockBlastRules.getCompletedRows(simulatedBoard));
-          glowingCols.addAll(BlockBlastRules.getCompletedCols(simulatedBoard));
         }
+        glowingRows.addAll(BlockBlastRules.getCompletedRows(simulatedBoard));
+        glowingCols.addAll(BlockBlastRules.getCompletedCols(simulatedBoard));
       }
     }
 
@@ -997,33 +1011,10 @@ class _GameViewState extends ConsumerState<GameView> {
                           clipBehavior: Clip.none,
                           alignment: Alignment.center,
                           children: [
-                            // Outer Texture Border Layer (Asset Rectangle 11.png with #003675 color filter)
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                image: const DecorationImage(
-                                  image: AssetImage('assets/Rectangle 11.png'),
-                                  fit: BoxFit.fill,
-                                  filterQuality: FilterQuality.high,
-                                  colorFilter: ColorFilter.mode(
-                                    Color(0xFF003675),
-                                    BlendMode.srcATop,
-                                  ),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF007AFF).withValues(alpha: 0.25),
-                                    blurRadius: 14,
-                                    spreadRadius: 1,
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.6),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(7.0),
+                            // Contoured Texture Border Layer (Hugs template silhouette: Heart, Diamond, Funnel, Cross, etc.)
+                            ContouredBoardFrame(
+                              template: level.template,
+                              gridSize: level.gridSize,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(11),
                                 child: Container(
@@ -1046,6 +1037,12 @@ class _GameViewState extends ConsumerState<GameView> {
                                           final r = index ~/ level.gridSize;
                                           final c = index % level.gridSize;
                                           final cell = state.board[r][c];
+
+                                          // Skip blocked / void template cells in shaped Candy Crush templates
+                                          if (cell.type == CellType.blocked) {
+                                            return const SizedBox.shrink();
+                                          }
+
                                           final isPreviewCell = previewCells.contains('$r,$c');
                                           final isLineGlowing = glowingRows.contains(r) || glowingCols.contains(c);
                                           final isBombAffected = state.bombClearedCells.contains('$r,$c');
@@ -1068,6 +1065,7 @@ class _GameViewState extends ConsumerState<GameView> {
                                             isBombHovered: isBombHovered,
                                             isBombAffected: isBombAffected,
                                             state: state,
+                                            isStandard: isStandard,
                                           );
 
                                           return MouseRegion(
@@ -1328,7 +1326,12 @@ class _GameViewState extends ConsumerState<GameView> {
     required bool isBombHovered,
     required bool isBombAffected,
     required GameViewModelState state,
+    bool isStandard = true,
   }) {
+    if (cell.type == CellType.blocked) {
+      return const SizedBox.shrink();
+    }
+
     final isClearing = state.clearingRows.contains(r) || state.clearingCols.contains(c) || isBombAffected;
 
     final gridSize = state.level?.gridSize ?? 8;
@@ -1464,7 +1467,19 @@ class _GameViewState extends ConsumerState<GameView> {
               ? Border.all(color: Colors.redAccent, width: 1.5)
               : isLineGlowing
                   ? Border.all(color: const Color(0xFF007AFF), width: 1.2)
-                  : Border.all(color: const Color(0xFF003675), width: 0.8),
+                  : Border.all(
+                      color: !isStandard ? const Color(0xFF0A3975) : const Color(0xFF003675),
+                      width: !isStandard ? 1.0 : 0.8,
+                    ),
+          boxShadow: !isStandard
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF003675).withValues(alpha: 0.35),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: isBombHovered
             ? const Center(child: Icon(Icons.gps_fixed_rounded, color: Colors.redAccent, size: 16))

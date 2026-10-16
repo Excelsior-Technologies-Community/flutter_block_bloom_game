@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:block_bloom/domain/models/board_template.dart';
 import 'package:block_bloom/domain/models/game_level.dart';
 
 class LevelGenerator {
@@ -14,37 +15,23 @@ class LevelGenerator {
       level = _generateInternal(levelNumber);
     }
     _generating.remove(levelNumber);
-    
+
     _pregenerateNext(levelNumber + 1);
     return level;
   }
 
-  /// Calculates matrix grid size based on level progression.
-  /// Mentors can easily adjust or revert the level matrix sizing criteria below.
+  /// Calculates matrix grid size based on level progression & active template
   static int getGridSizeForLevel(int levelNumber) {
-    if (levelNumber <= 2) {
-      return 5; // Level 1 - 2: 5x5 matrix (small matrix for initial levels)
-    } else if (levelNumber <= 5) {
-      return 6; // Level 3 - 5: 6x6 matrix (increasing matrix size)
-    } else if (levelNumber <= 9) {
-      return 7; // Level 6 - 9: 7x7 matrix (medium-large matrix)
-    } else {
-      return 8; // Level 10+: 8x8 matrix (full standard size)
-    }
+    if (levelNumber <= 0) return 8;
+    final template = BoardTemplate.getTemplateForLevel(levelNumber);
+    return template.rows;
   }
 
   GameLevel _generateInternal(int levelNumber) {
     final random = Random(levelNumber * 7919);
-    
-    // =========================================================================
-    // EXISTING CODE (COMMENTED OUT FOR MENTOR REVIEW):
-    // final gridSize = 8;
-    // =========================================================================
-
-    // NEW CODE: Progressive matrix size increasing level by level
-    final gridSize = getGridSizeForLevel(levelNumber);
-
-    return _generateLevelWithSeed(levelNumber, gridSize, random);
+    final template = BoardTemplate.getTemplateForLevel(levelNumber);
+    final gridSize = template.rows;
+    return _generateLevelWithSeed(levelNumber, gridSize, random, template: template);
   }
 
   void _pregenerateNext(int startLevel) {
@@ -78,44 +65,57 @@ class LevelGenerator {
   }
 
   /// Calculates target completion score based on level progression & matrix size.
-  /// Mentors can easily adjust or revert the target score scaling criteria below.
   static int getTargetScoreForLevel(int levelNumber, int gridSize) {
-    if (levelNumber <= 0) return 3000; // Default target score for random/daily puzzles
+    if (levelNumber <= 0) return 3000;
 
     if (levelNumber == 1) {
-      return 1000; // Level 1 (5x5 matrix): Minimal score for easy tutorial
+      return 1000;
     } else if (levelNumber == 2) {
-      return 1500; // Level 2 (5x5 matrix): Low score requirement
+      return 1500;
     } else if (levelNumber == 3) {
-      return 2500; // Level 3 (6x6 matrix): Moderate entry score
+      return 2500;
     } else if (levelNumber <= 5) {
-      return 2500 + ((levelNumber - 3) * 1000); // Level 4-5 (6x6): 3500 - 4500 pts
+      return 2500 + ((levelNumber - 3) * 1000);
     } else if (levelNumber <= 9) {
-      return 5000 + ((levelNumber - 5) * 1500); // Level 6-9 (7x7): 6500 - 11000 pts
+      return 5000 + ((levelNumber - 5) * 1500);
     } else {
-      return min(25000, 11000 + ((levelNumber - 9) * 2000)); // Level 10+ (8x8): Scaling up to 25000 max
+      return min(25000, 11000 + ((levelNumber - 9) * 2000));
     }
   }
 
-  GameLevel _generateLevelWithSeed(int levelNumber, int gridSize, Random random) {
-    // Blank grid with no pre-existing blocks at game start
-    final initialGrid = List.generate(gridSize, (_) => List<int>.filled(gridSize, 0));
-    
-    // =========================================================================
-    // EXISTING CODE (COMMENTED OUT FOR MENTOR REVIEW):
-    // const targetScore = 25000;
-    // =========================================================================
+  GameLevel _generateLevelWithSeed(
+    int levelNumber,
+    int gridSize,
+    Random random, {
+    BoardTemplate? template,
+  }) {
+    final activeTemplate = template ?? (levelNumber > 0 ? BoardTemplate.getTemplateForLevel(levelNumber) : null);
+    final actualSize = activeTemplate?.rows ?? gridSize;
 
-    // NEW CODE: Target score scales with level progression & matrix size
-    final targetScore = getTargetScoreForLevel(levelNumber, gridSize);
+    // Build initial grid: 0 for playable cells, -1 for template void/blocked cells
+    final initialGrid = List.generate(
+      actualSize,
+      (r) => List.generate(
+        actualSize,
+        (c) {
+          if (activeTemplate != null && !activeTemplate.isPlayable(r, c)) {
+            return -1; // Blocked void space outside template contour
+          }
+          return 0; // Playable empty space
+        },
+      ),
+    );
+
+    final targetScore = getTargetScoreForLevel(levelNumber, actualSize);
     final targetClears = 10 + (levelNumber > 1 ? (levelNumber ~/ 2) : 0);
 
     return GameLevel(
       levelNumber: levelNumber,
-      gridSize: gridSize,
+      gridSize: actualSize,
       targetScore: targetScore,
       targetClears: targetClears,
       initialGrid: initialGrid,
+      template: activeTemplate,
     );
   }
 }

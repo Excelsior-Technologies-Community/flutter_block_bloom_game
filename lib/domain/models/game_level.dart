@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:block_bloom/domain/models/board_template.dart';
 
 class BlockShape {
   final List<List<int>> matrix;
@@ -224,6 +225,7 @@ class GameLevel {
     required this.targetScore,
     required this.targetClears,
     required this.initialGrid,
+    this.template,
   });
 
   final int levelNumber;
@@ -231,4 +233,5 @@ class GameLevel {
   final int targetScore;
   final int targetClears;
   final List<List<int>> initialGrid;
+  final BoardTemplate? template;
 }
