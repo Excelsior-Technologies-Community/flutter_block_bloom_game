@@ -87,6 +87,25 @@ const List<LevelChapter> kLevelChapters = [
   ),
 ];
 
+/// Visual decorative scenery element placed along the winding level path (gate, house, tree, flower)
+class LevelMapSceneryElement {
+  final String asset;
+  final double levelAnchor;
+  final double xFraction;
+  final double width;
+  final double height;
+  final String tooltip;
+
+  const LevelMapSceneryElement({
+    required this.asset,
+    required this.levelAnchor,
+    required this.xFraction,
+    required this.width,
+    required this.height,
+    required this.tooltip,
+  });
+}
+
 /// Candy Crush Saga style Winding Level Select View Screen
 /// Features:
 /// - Opens directly focused on player's existing unlocked level (existing path)
@@ -136,9 +155,13 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   static const double nodeWidth = 72.0;
   static const double nodeHeight = 62.0;
 
+  late final List<LevelMapSceneryElement> _sceneryElements;
+
   @override
   void initState() {
     super.initState();
+
+    _sceneryElements = _buildAllMapElements();
 
     final homeState = ref.read(homeViewModelProvider);
     final unlocked = (homeState.progress?.unlockedLevels ?? 1).clamp(
@@ -247,10 +270,107 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
         ((levelIndex - 1) * stepHeight) + (partitionsBefore * partitionGap);
     final double y = mapHeight - paddingBottom - distFromBottom;
 
-    final double amplitude = screenWidth * 0.28;
-    final double centerX = screenWidth / 2;
-    final double x = centerX + amplitude * math.sin(levelIndex * 0.72);
+    // Harmonious S-curve alternating Center -> Right -> Center -> Left matching game level screen design
+    final double phase = (levelIndex - 1) * (math.pi / 2);
+    final double x = screenWidth *
+        (0.46 + 0.23 * math.sin(phase) - 0.04 * math.cos(phase).abs());
     return Offset(x, y);
+  }
+
+  Offset _getElementPosition(
+    double levelAnchor,
+    double xFraction,
+    double screenWidth,
+    double mapHeight,
+  ) {
+    final int partitionsBefore = (levelAnchor - 1) ~/ levelsPerChapter;
+    final double distFromBottom =
+        ((levelAnchor - 1) * stepHeight) + (partitionsBefore * partitionGap);
+    final double y = mapHeight - paddingBottom - distFromBottom;
+    final double x = screenWidth * xFraction;
+    return Offset(x, y);
+  }
+
+  static List<LevelMapSceneryElement> _buildAllMapElements() {
+    final List<LevelMapSceneryElement> elements = [];
+    for (int chapter = 0; chapter < 5; chapter++) {
+      final double base = chapter * 20.0 + 1.0;
+      elements.addAll([
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/gate.png',
+          levelAnchor: base + 2.3, // ~ Level 3
+          xFraction: 0.63,
+          width: 98,
+          height: 86,
+          tooltip: 'Floral Arch Gate',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/house.png',
+          levelAnchor: base + 4.0, // ~ Level 5
+          xFraction: 0.18,
+          width: 96,
+          height: 96,
+          tooltip: 'Fairy Blossom Cottage',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/tree.png',
+          levelAnchor: base + 5.9, // ~ Level 7
+          xFraction: 0.66,
+          width: 86,
+          height: 88,
+          tooltip: 'Enchanted Luminescent Tree',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/flower.png',
+          levelAnchor: base + 7.8, // ~ Level 9
+          xFraction: 0.22,
+          width: 82,
+          height: 62,
+          tooltip: 'Bloom Valley Blossoms',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/gate.png',
+          levelAnchor: base + 10.3, // ~ Level 11
+          xFraction: 0.63,
+          width: 98,
+          height: 86,
+          tooltip: 'Floral Arch Gate',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/house.png',
+          levelAnchor: base + 12.0, // ~ Level 13
+          xFraction: 0.18,
+          width: 96,
+          height: 96,
+          tooltip: 'Fairy Blossom Cottage',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/tree.png',
+          levelAnchor: base + 13.9, // ~ Level 15
+          xFraction: 0.66,
+          width: 86,
+          height: 88,
+          tooltip: 'Enchanted Luminescent Tree',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/flower.png',
+          levelAnchor: base + 15.8, // ~ Level 17
+          xFraction: 0.22,
+          width: 82,
+          height: 62,
+          tooltip: 'Bloom Valley Blossoms',
+        ),
+        LevelMapSceneryElement(
+          asset: 'assets/levels_elements/tree.png',
+          levelAnchor: base + 17.8, // ~ Level 19
+          xFraction: 0.66,
+          width: 86,
+          height: 88,
+          tooltip: 'Enchanted Luminescent Tree',
+        ),
+      ]);
+    }
+    return elements;
   }
 
   double _calculateTargetOffset({
@@ -1074,6 +1194,14 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                     },
                   ),
 
+                  // Decorative Map Scenery Elements (gate, house, tree, flower)
+                  for (final element in _sceneryElements)
+                    _buildSceneryElement(
+                      element: element,
+                      screenWidth: screenSize.width,
+                      mapHeight: mapHeight,
+                    ),
+
                   // Start Milestone (below Level 1)
                   _buildStartMilestone(context, screenSize.width, mapHeight),
 
@@ -1180,6 +1308,15 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                                   height: 1.0,
                                 ),
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            Image.asset(
+                              'assets/levels_elements/flower.png',
+                              width: 18,
+                              height: 18,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Text('🌸', style: TextStyle(fontSize: 14)),
                             ),
                           ],
                         ),
@@ -2062,6 +2199,39 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     );
   }
 
+  /// Interactive Decorative Scenery Element (gate.png, house.png, tree.png, flower.png)
+  Widget _buildSceneryElement({
+    required LevelMapSceneryElement element,
+    required double screenWidth,
+    required double mapHeight,
+  }) {
+    final Offset pos = _getElementPosition(
+      element.levelAnchor,
+      element.xFraction,
+      screenWidth,
+      mapHeight,
+    );
+
+    return Positioned(
+      left: pos.dx - (element.width / 2),
+      top: pos.dy - (element.height / 2),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          AudioService.instance.playClickSound();
+        },
+        child: Image.asset(
+          element.asset,
+          width: element.width,
+          height: element.height,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+
   /// Individual Level Node Button
   Widget _buildLevelNode({
     required BuildContext context,
@@ -2149,6 +2319,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
           // 3. Level Number Label (ONLY rendered for unlocked levels)
           if (isUnlocked)
             Positioned(
+              top: (nodeHeight * 0.38),
               child: ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
                   colors: [Color(0xFFFFFFFF), Color(0xFFFFE082)],

@@ -152,47 +152,80 @@ class _AuthViewState extends ConsumerState<AuthView> {
     if (success) _onSuccessNavigate();
   }
 
+  void _handleBackNavigation() {
+    HapticFeedback.lightImpact();
+    AudioService.instance.playClickSound();
+    if (_isForgotPassword) {
+      if (_forgotPasswordStep == 2) {
+        setState(() {
+          _forgotPasswordStep = 1;
+        });
+      } else if (_forgotPasswordStep == 1) {
+        setState(() {
+          _forgotPasswordStep = 0;
+        });
+      } else {
+        setState(() {
+          _isForgotPassword = false;
+          _forgotPasswordStep = 0;
+        });
+      }
+    } else if (_isSignUp) {
+      ref.read(authViewModelProvider.notifier).clearError();
+      setState(() {
+        _isSignUp = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF05001C),
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/splash_img.png',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) => Container(
-                color: const Color(0xFF05001C),
-              ),
-            ),
-          ),
-
-          // Gradient Overlay for deep contrast
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.55),
-                    Colors.black.withValues(alpha: 0.35),
-                    Colors.black.withValues(alpha: 0.70),
-                  ],
+    return PopScope(
+      canPop: !_isForgotPassword && !_isSignUp,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF05001C),
+        body: Stack(
+          children: [
+            // Background Image
+            Positioned.fill(
+              child: Image.asset(
+                'assets/splash_img.png',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: const Color(0xFF05001C),
                 ),
               ),
             ),
-          ),
 
-          // Main Foreground Form Content
-          SafeArea(
-            child: _isForgotPassword ? _buildForgotPasswordView() : _buildAuthForm(),
-          ),
-        ],
+            // Gradient Overlay for deep contrast
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.55),
+                      Colors.black.withValues(alpha: 0.35),
+                      Colors.black.withValues(alpha: 0.70),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Main Foreground Form Content
+            SafeArea(
+              child: _isForgotPassword ? _buildForgotPasswordView() : _buildAuthForm(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -321,14 +354,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
               // Back Link: Underlined "Back" text
               GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  AudioService.instance.playClickSound();
-                  setState(() {
-                    _isForgotPassword = false;
-                    _forgotPasswordStep = 0;
-                  });
-                },
+                onTap: _handleBackNavigation,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
@@ -480,13 +506,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
               // Back Link: Underlined "Back" text
               GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  AudioService.instance.playClickSound();
-                  setState(() {
-                    _forgotPasswordStep = 0;
-                  });
-                },
+                onTap: _handleBackNavigation,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
@@ -707,13 +727,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
 
               // Back Link: Underlined "BACK" text
               GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  AudioService.instance.playClickSound();
-                  setState(() {
-                    _forgotPasswordStep = 1;
-                  });
-                },
+                onTap: _handleBackNavigation,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(

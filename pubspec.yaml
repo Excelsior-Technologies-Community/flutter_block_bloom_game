@@ -85,6 +85,7 @@ flutter:
     - assets/themes/
     - assets/stats/
     - assets/leaderboard_icons/
+    - assets/levels_elements/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
