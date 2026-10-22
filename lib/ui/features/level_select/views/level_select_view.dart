@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/board_template.dart';
+import 'package:block_bloom/domain/use_cases/level_generator.dart';
 import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/features/game/views/game_view.dart';
 import 'package:block_bloom/ui/features/garden/widgets/flower_counter_badge.dart';
+import 'package:block_bloom/ui/features/level_select/widgets/candy_crush_level_popup.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 /// Chapter definition representing a 20-level partition in the Candy Crush style map
@@ -143,6 +145,10 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   late final AnimationController _shimmerController;
   late final Animation<double> _shimmerAnimation;
 
+  // Cloud controller for dreamy horizontal drifting clouds layer
+  late final AnimationController _cloudController;
+  late final Animation<double> _cloudAnimation;
+
   int _previousUnlockedLevel = 1;
   int _currentUnlockedLevel = 1;
 
@@ -227,6 +233,16 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
     );
 
+    // Cloud controller for gentle drifting cloudscape (45-second relaxing cycle)
+    _cloudController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 45),
+    )..repeat();
+
+    _cloudAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _cloudController, curve: Curves.linear),
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(homeViewModelProvider.notifier).loadProgress();
 
@@ -253,6 +269,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     _avatarEntranceController.dispose();
     _moveController.dispose();
     _shimmerController.dispose();
+    _cloudController.dispose();
     super.dispose();
   }
 
@@ -518,274 +535,22 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   }
 
   void _showLevelPreviewDialog(int levelNum, {required bool isCompleted}) {
-    showDialog(
+    final homeState = ref.read(homeViewModelProvider);
+    final userProgress = homeState.progress;
+    final bestScore = userProgress?.bestScore[levelNum];
+    final template = BoardTemplate.getTemplateForLevel(levelNum);
+    final targetScore =
+        LevelGenerator.getTargetScoreForLevel(levelNum, template.rows);
+
+    CandyCrushLevelPopup.show(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 40,
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 340),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF092038), Color(0xFF041223)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFFFC800), width: 2.0),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFFC800).withValues(alpha: 0.2),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top Row: Level Title + Close 'X' Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const SizedBox(width: 32),
-                    ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Color(0xFFFFFFFF), Color(0xFFFFD700)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ).createShader(bounds),
-                      child: Text(
-                        'LEVEL $levelNum',
-                        style: GoogleFonts.chakraPetch(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        AudioService.instance.playClickSound();
-                        Navigator.of(ctx).pop();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E3A5F).withValues(alpha: 0.8),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFFFFC800),
-                            width: 1.2,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Status Badge (COMPLETED vs CURRENT LEVEL)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? const Color(0xFF1A3C0E).withValues(alpha: 0.8)
-                        : const Color(0xFF381A00).withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isCompleted
-                          ? const Color(0xFF6EE7B7)
-                          : const Color(0xFFFFC800),
-                      width: 1.2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isCompleted
-                            ? Icons.star_rounded
-                            : Icons.auto_awesome_rounded,
-                        color: isCompleted
-                            ? const Color(0xFF6EE7B7)
-                            : const Color(0xFFFFC800),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        isCompleted ? 'COMPLETED' : 'CURRENT LEVEL',
-                        style: GoogleFonts.chakraPetch(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isCompleted
-                              ? const Color(0xFF6EE7B7)
-                              : const Color(0xFFFFC800),
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Board Template Badge
-                Builder(
-                  builder: (context) {
-                    final template = BoardTemplate.getTemplateForLevel(levelNum);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF001834),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFFFFC800).withValues(alpha: 0.6),
-                          width: 1.0,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(template.emoji, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 8),
-                          Text(
-                            template.name.toUpperCase(),
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFFFFC800),
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '(${template.rows}x${template.cols}${template.isStandardSquare ? '' : ' Shaped'})',
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 11,
-                              color: Colors.white60,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Objective Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF030D19),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF1E3A5F),
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/game_flower.png',
-                            width: 30,
-                            height: 30,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Text(
-                                  '🌸',
-                                  style: TextStyle(fontSize: 22),
-                                ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            isCompleted ? 'Replay Goal' : 'Target Goal',
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF8EA2C0),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isCompleted
-                            ? 'Replay Level $levelNum to earn more flowers and beat your high score!'
-                            : 'Clear lines, trigger combos & bloom flowers to complete Level $levelNum!',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.chakraPetch(
-                          fontSize: 13,
-                          color: Colors.white70,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Green Candy Crush Style Play Button
-                GreenGameButton(
-                  text: isCompleted ? 'PLAY AGAIN' : 'PLAY NOW',
-                  icon: Icon(
-                    isCompleted
-                        ? Icons.replay_rounded
-                        : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  width: 220.0,
-                  height: 52.0,
-                  borderRadius: 16.0,
-                  fontSize: 16,
-                  onPressed: () {
-                    AudioService.instance.playClickSound();
-                    Navigator.of(ctx).pop();
-                    _startLevel(levelNum);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
+      levelNum: levelNum,
+      isCompleted: isCompleted,
+      template: template,
+      targetScore: targetScore,
+      bestScore: bestScore,
+      onPlay: () {
+        _startLevel(levelNum);
       },
     );
   }
@@ -1134,7 +899,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       backgroundColor: const Color(0xFF05001C),
       body: Stack(
         children: [
-          // 1. FULLSCREEN MAP BACKGROUND IMAGE
+          // 1. FULLSCREEN MAP BACKGROUND (Always covers 100% of the screen from start to end)
           Positioned.fill(
             child: Image.asset(
               'assets/level.png',
@@ -1165,6 +930,40 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
+              ),
+            ),
+          ),
+
+          // Ambient Drifting Stylized Clouds (Candy Crush Saga atmosphere)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _cloudAnimation,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: screenSize,
+                    painter: AmbientCloudsPainter(
+                      progress: _cloudAnimation.value,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // Ambient Floating Magical Fireflies / Fairy Motes (Candy Crush / Gardenscapes aesthetic)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _shimmerAnimation,
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: screenSize,
+                    painter: AmbientFirefliesPainter(
+                      progress: _shimmerAnimation.value,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -1203,7 +1002,11 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                     ),
 
                   // Start Milestone (below Level 1)
-                  _buildStartMilestone(context, screenSize.width, mapHeight),
+                  _buildStartMilestone(
+                    context,
+                    screenSize.width,
+                    mapHeight,
+                  ),
 
                   // 4 Chapter Partition Gates (between 20 & 21, 40 & 41, 60 & 61, 80 & 81)
                   for (int g = 0; g < 4; g++) ...[
@@ -1216,12 +1019,17 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                         mapHeight,
                       ),
                       screenWidth: screenSize.width,
+                      mapHeight: mapHeight,
                       unlockedLevels: unlockedLevels,
                     ),
                   ],
 
                   // Grand Summit Milestone (above Level 100)
-                  _buildSummitMilestone(context, screenSize.width, mapHeight),
+                  _buildSummitMilestone(
+                    context,
+                    screenSize.width,
+                    mapHeight,
+                  ),
 
                   // All 100 Level Node Buttons
                   for (int i = 0; i < totalLevels; i++) ...[
@@ -1280,11 +1088,15 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ).createShader(bounds),
+                              shaderCallback: (bounds) =>
+                                  const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFFFFFF),
+                                      Color(0xFFFFC610),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ).createShader(bounds),
                               child: const Icon(
                                 Icons.arrow_back_rounded,
                                 color: Colors.white,
@@ -1293,11 +1105,15 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                             ),
                             const SizedBox(width: 8),
                             ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ).createShader(bounds),
+                              shaderCallback: (bounds) =>
+                                  const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFFFFFF),
+                                      Color(0xFFFFC610),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ).createShader(bounds),
                               child: Text(
                                 'HOME',
                                 style: GoogleFonts.chakraPetch(
@@ -1308,15 +1124,6 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                                   height: 1.0,
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Image.asset(
-                              'assets/levels_elements/flower.png',
-                              width: 18,
-                              height: 18,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Text('🌸', style: TextStyle(fontSize: 14)),
                             ),
                           ],
                         ),
@@ -1408,97 +1215,200 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   }
 
   /// Start Milestone Widget (Anchored at the very bottom below Level 1)
+  /// Chapter 1 Start Milestone styled with exact Figma specifications (200 Hug x 71.5 Hug)
   Widget _buildStartMilestone(
     BuildContext context,
     double screenWidth,
     double mapHeight,
   ) {
     final double level1Y = _getNodePosition(1, screenWidth, mapHeight).dy;
-    final double cardWidth = math.min(screenWidth * 0.84, 310.0);
-    const double cardHeight = 74.0;
+    final LevelChapter chapter1 = kLevelChapters[0];
+    final double cardWidth = math.min(212.0, screenWidth - 36.0);
+    const double cardHeight = 78.0;
 
     return Positioned(
       left: (screenWidth - cardWidth) / 2,
-      top: level1Y + 48.0,
-      child: Container(
-        width: cardWidth,
-        height: cardHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xDD092A20), Color(0xF003150F)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      top: level1Y + 52.0,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          AudioService.instance.playClickSound();
+          HapticFeedback.lightImpact();
+          _showChapterInfoDialog(chapter1, true, 100);
+        },
+        child: Container(
+          width: cardWidth,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFC800),
+                Color(0xFF814D00),
+                Color(0xFF6B4000),
+                Color(0xFF814D00),
+                Color(0xFFFFC800),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7A79B6).withValues(alpha: 0.55),
+                blurRadius: 1.63,
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: const Color(0xFF7A79B6).withValues(alpha: 0.38),
+                blurRadius: 22.85,
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.55),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF10B981), width: 1.8),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF10B981).withValues(alpha: 0.35),
-              blurRadius: 16,
-              spreadRadius: 2,
-            ),
-            const BoxShadow(
-              color: Colors.black54,
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF047857)],
+          padding: const EdgeInsets.all(1.0), // Figma 1px border
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Figma padding: 10px
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: const Color(0xFF001834), // Figma Fill: #001834
+              borderRadius: BorderRadius.circular(9),
+              image: const DecorationImage(
+                image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                colorFilter: ColorFilter.mode(
+                  Color(0xFF001834),
+                  BlendMode.modulate,
                 ),
-                border: Border.all(color: Colors.white70, width: 1.5),
-              ),
-              child: const Center(
-                child: Text('🌸', style: TextStyle(fontSize: 22)),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFFFFFFFF), Color(0xFF6EE7B7)],
-                    ).createShader(bounds),
-                    child: Text(
-                      'START YOUR BLOOM',
-                      style: GoogleFonts.chakraPetch(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.0,
+            child: Row(
+              children: [
+                // LEFT COLUMN
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF001834),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: const Color(0xFFFFC800),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Text(
+                            'CHAPTER 1',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 18,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              chapter1.title.toUpperCase(),
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: 14.0,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 14,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Color(0xFF00E676),
+                                  size: 13,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'CHAPTER UNLOCKED',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 9.0,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF00E676),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
+                // RIGHT COLUMN: 3 STARS + LEVEL RANGE
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (int s = 0; s < 3; s++) ...[
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFFC800),
+                              size: 15,
+                            ),
+                            if (s < 2) const SizedBox(width: 2),
+                          ],
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 5),
+                      Text(
+                        'LV 1 - 20',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Chapter 1: Bloom Valley • Levels 1 - 20',
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 11,
-                      color: const Color(0xFFA7F3D0),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const Icon(
-              Icons.flag_circle_rounded,
-              color: Color(0xFF34D399),
-              size: 26,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1567,34 +1477,39 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFFFFFFFF), Color(0xFFFFD700)],
-                    ).createShader(bounds),
-                    child: Text(
-                      'MASTER SANCTUARY',
-                      style: GoogleFonts.chakraPetch(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFD700)],
+                      ).createShader(bounds),
+                      child: Text(
+                        'MASTER SANCTUARY',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Level 100 • Ultimate Garden Champion',
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 11,
-                      color: const Color(0xFFFDE68A),
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 2),
+                    Text(
+                      'Level 100 • Ultimate Garden Champion',
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 11,
+                        color: const Color(0xFFFDE68A),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const Text('👑', style: TextStyle(fontSize: 24)),
@@ -1614,357 +1529,209 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
   /// - Dual-layer glossy specular shimmer beam sweeping across card surface
   /// - Animated twinkling ✦ starlets at card corners
   /// - Sequentially twinkling golden stars for unlocked chapters
-  /// - Pulsing energy glow on progress indicator for locked chapters
+  /// - Pulsing energy glow on progres  /// Chapter Gate Card designed according to exact Figma specifications:
+  /// - Dimensions: Width: Hug (200px), Height: Hug (71.5px)
+  /// - Radius: 10px
+  /// - Border: 1px Linear Gradient [#FFC800, #814D00, #6B4000, #814D00, #FFC800]
+  /// - Padding: 10px, Gap: 20px, Flow: Horizontal
+  /// - Background: #001834
+  /// - Shadows: Blur 1.63 (#7A79B6), Blur 22.85 (#7A79B6)
+  /// - Left Column: CHAPTER pill, Title (e.g. FLORA GROVE), Status (✔ CHAPTER UNLOCKED)
+  /// - Right Column: 3 Gold Stars (★ ★ ★), Level Range (LV 21 - 40)
+  /// - Positioned next to the path (Left: 168px in Figma frame) avoiding node overlap
   Widget _buildChapterGate({
     required BuildContext context,
     required int gateIndex,
     required double gateCenterY,
     required double screenWidth,
+    required double mapHeight,
     required int unlockedLevels,
   }) {
     final LevelChapter targetChapter = kLevelChapters[gateIndex + 1];
     final int requiredLevel = targetChapter.startLevel;
     final bool isUnlocked = unlockedLevels >= requiredLevel;
 
-    final double cardWidth = math.min(screenWidth * 0.88, 330.0);
-    const double cardHeight = 126.0;
+    final double cardWidth = math.min(212.0, screenWidth - 36.0);
+    const double cardHeight = 78.0;
 
-    final Color primaryColor =
-        isUnlocked ? targetChapter.themeColor : const Color(0xFFFFB800);
-    final Color secondaryColor =
-        isUnlocked ? targetChapter.secondaryColor : const Color(0xFFFFE066);
+    // Alternate Left-Right vice versa across chapters
+    // gateIndex 0 (Chapter 2): Right (matching Figma game level screen)
+    // gateIndex 1 (Chapter 3): Left
+    // gateIndex 2 (Chapter 4): Right
+    // gateIndex 3 (Chapter 5): Left
+    // 16.0px margin guarantees cards never touch the boundary of the screen
+    final bool placeOnRight = (gateIndex % 2 == 0);
+    final double cardLeft = placeOnRight
+        ? (screenWidth - cardWidth - 16.0)
+        : 16.0;
 
     return Positioned(
-      left: (screenWidth - cardWidth) / 2,
+      left: cardLeft,
       top: gateCenterY - (cardHeight / 2),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () =>
-            _showChapterInfoDialog(targetChapter, isUnlocked, unlockedLevels),
+        onTap: () {
+          AudioService.instance.playClickSound();
+          HapticFeedback.lightImpact();
+          _showChapterInfoDialog(targetChapter, isUnlocked, unlockedLevels);
+        },
         child: AnimatedBuilder(
-          animation: Listenable.merge([_shimmerAnimation, _pulseController]),
+          animation: _pulseController,
           builder: (context, child) {
-            final double shimmerValue = _shimmerAnimation.value;
             final double pulseValue = _pulseController.value;
-            final double pulseSin =
-                (math.sin(pulseValue * math.pi)).clamp(0.0, 1.0);
-
-            // Subtle floating levitation offset (each gate has slight phase difference)
+            // Subtle floating levitation offset
             final double hoverOffsetY =
-                math.sin((pulseValue * 2 * math.pi) + (gateIndex * 1.5)) * 3.5;
+                math.sin((pulseValue * 2 * math.pi) + (gateIndex * 1.5)) * 2.5;
 
             return Transform.translate(
               offset: Offset(0, hoverOffsetY),
-              child: Stack(
-                clipBehavior: Clip.none,
+              child: child,
+            );
+          },
+          child: Container(
+            width: cardWidth,
+            height: cardHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFFFC800),
+                  Color(0xFF814D00),
+                  Color(0xFF6B4000),
+                  Color(0xFF814D00),
+                  Color(0xFFFFC800),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                // Figma Drop shadow 1: Blur: 1.63, Color: #7A79B6
+                BoxShadow(
+                  color: const Color(0xFF7A79B6).withValues(alpha: 0.55),
+                  blurRadius: 1.63,
+                  spreadRadius: 0,
+                ),
+                // Figma Drop shadow 2: Blur: 22.85, Color: #7A79B6
+                BoxShadow(
+                  color: const Color(0xFF7A79B6).withValues(alpha: 0.38),
+                  blurRadius: 22.85,
+                  spreadRadius: 0,
+                ),
+                // Deep dark contrast shadow for map depth
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(1.0), // Figma 1px border
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Figma padding: 10px
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: const Color(0xFF001834), // Figma Fill: #001834
+                borderRadius: BorderRadius.circular(9),
+                image: const DecorationImage(
+                  image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  colorFilter: ColorFilter.mode(
+                    Color(0xFF001834),
+                    BlendMode.modulate,
+                  ),
+                ),
+              ),
+              child: Row(
                 children: [
-                  // 1. OUTER ROTATING SWEEP GRADIENT BORDER WITH DYNAMIC NEON GLOW
-                  Container(
-                    width: cardWidth,
-                    height: cardHeight,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: SweepGradient(
-                        center: Alignment.center,
-                        startAngle: 0.0,
-                        endAngle: math.pi * 2,
-                        transform:
-                            GradientRotation(shimmerValue * 2 * math.pi),
-                        colors: [
-                          primaryColor,
-                          secondaryColor,
-                          Colors.white.withValues(alpha: 0.85),
-                          primaryColor,
-                        ],
-                        stops: const [0.0, 0.45, 0.65, 1.0],
-                      ),
-                      boxShadow: [
-                        // Animated breathing neon halo
-                        BoxShadow(
-                          color: primaryColor.withValues(
-                            alpha:
-                                (isUnlocked ? 0.35 : 0.25) +
-                                (0.18 * pulseSin),
-                          ),
-                          blurRadius: 18.0 + (10.0 * pulseSin),
-                          spreadRadius: 1.5 + (1.5 * pulseSin),
-                        ),
-                        // Ambient dark shadow for depth
-                        const BoxShadow(
-                          color: Colors.black87,
-                          blurRadius: 16,
-                          offset: Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(2.0), // Neon border thickness
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xF2091D33), Color(0xF7030C18)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      child: Row(
+                  // LEFT COLUMN: CHAPTER PILL + TITLE + STATUS
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 2. LEFT MEDALLION: CHAPTER EMOJI / LOCK WITH ROTATING ORBITAL AURA
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Rotating orbital energy ring
-                              Transform.rotate(
-                                angle: -shimmerValue * 2 * math.pi,
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: SweepGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        primaryColor.withValues(alpha: 0.8),
-                                        Colors.white.withValues(alpha: 0.9),
-                                        Colors.transparent,
-                                      ],
-                                      stops: const [0.0, 0.5, 0.7, 1.0],
-                                    ),
-                                  ),
-                                ),
+                          // 1. Chapter Pill (e.g. CHAPTER 2)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF001834),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFFFC800),
+                                width: 1.0,
                               ),
-
-                              // Inner Medallion Badge
-                              Transform.scale(
-                                scale: 1.0 + (0.04 * pulseSin),
-                                child: Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      colors: isUnlocked
-                                          ? [primaryColor, secondaryColor]
-                                          : [
-                                              const Color(0xFF4A2800),
-                                              const Color(0xFF1E1002),
-                                            ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    border: Border.all(
-                                      color: isUnlocked
-                                          ? Colors.white
-                                          : const Color(0xFFFFD700),
-                                      width: 2.0,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withValues(
-                                          alpha: 0.5 + (0.2 * pulseSin),
-                                        ),
-                                        blurRadius: 10 + (4 * pulseSin),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: isUnlocked
-                                        ? Text(
-                                            targetChapter.iconEmoji,
-                                            style: const TextStyle(
-                                              fontSize: 26,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.lock_rounded,
-                                            color: Color(0xFFFFD700),
-                                            size: 26,
-                                          ),
-                                  ),
-                                ),
+                            ),
+                            child: Text(
+                              'CHAPTER ${targetChapter.number}',
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.6,
                               ),
-                            ],
+                            ),
                           ),
 
-                          const SizedBox(width: 12),
+                          const SizedBox(height: 3),
 
-                          // 3. CENTER / RIGHT INFORMATION
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Top Tag: Chapter Number & Level Range
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: primaryColor.withValues(
-                                          alpha: 0.22,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: primaryColor.withValues(
-                                            alpha: 0.7,
-                                          ),
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'CHAPTER ${targetChapter.number}',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w900,
-                                          color: primaryColor,
-                                          letterSpacing: 0.8,
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      'LV ${targetChapter.startLevel} - ${targetChapter.endLevel}',
-                                      style: GoogleFonts.chakraPetch(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
+                          // 2. Chapter Title (e.g. SUNBURST MEADOW) with FittedBox protection
+                          SizedBox(
+                            height: 18,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                targetChapter.title.toUpperCase(),
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 14.0,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
                                 ),
+                              ),
+                            ),
+                          ),
 
-                                const SizedBox(height: 4),
+                          const SizedBox(height: 3),
 
-                                // Chapter Name
-                                Text(
-                                  targetChapter.title.toUpperCase(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.chakraPetch(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 0.8,
-                                    shadows: [
-                                      Shadow(
-                                        color: primaryColor.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        blurRadius: 8,
-                                      ),
-                                    ],
+                          // 3. Status Badge with FittedBox protection
+                          SizedBox(
+                            height: 14,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isUnlocked
+                                        ? Icons.check_circle_rounded
+                                        : Icons.lock_rounded,
+                                    color: isUnlocked
+                                        ? const Color(0xFF00E676)
+                                        : const Color(0xFFFFB800),
+                                    size: 13,
                                   ),
-                                ),
-
-                                const SizedBox(height: 6),
-
-                                // Status Pill / Progress
-                                if (isUnlocked)
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle_rounded,
-                                        color: Color(0xFF6EE7B7),
-                                        size: 14,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'CHAPTER UNLOCKED',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color(0xFF6EE7B7),
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      // 3 Golden Stars with sequential twinkling pulse
-                                      for (int s = 0; s < 3; s++) ...[
-                                        Transform.scale(
-                                          scale: 1.0 +
-                                              (0.22 *
-                                                  math.max(
-                                                    0.0,
-                                                    math.sin(
-                                                      (shimmerValue +
-                                                              (s * 0.33)) *
-                                                          2 *
-                                                          math.pi,
-                                                    ),
-                                                  )),
-                                          child: const Padding(
-                                            padding: EdgeInsets.only(
-                                              left: 2.0,
-                                            ),
-                                            child: Icon(
-                                              Icons.star_rounded,
-                                              color: Color(0xFFFFD700),
-                                              size: 15,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  )
-                                else ...[
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.lock_clock_rounded,
-                                            color: Color(0xFFFFB800),
-                                            size: 13,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Reach Level $requiredLevel',
-                                            style: GoogleFonts.chakraPetch(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: const Color(0xFFFFB800),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Text(
-                                        '${(unlockedLevels).clamp(0, requiredLevel - 1)}/${requiredLevel - 1}',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white60,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: LinearProgressIndicator(
-                                      value: (unlockedLevels /
-                                              (requiredLevel - 1))
-                                          .clamp(0.0, 1.0),
-                                      backgroundColor:
-                                          const Color(0xFF0F172A),
-                                      valueColor:
-                                          const AlwaysStoppedAnimation<Color>(
-                                        Color(0xFFFFB800),
-                                      ),
-                                      minHeight: 5,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isUnlocked
+                                        ? 'CHAPTER UNLOCKED'
+                                        : 'UNLOCK AT LV $requiredLevel',
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: 9.0,
+                                      fontWeight: FontWeight.w800,
+                                      color: isUnlocked
+                                          ? const Color(0xFF00E676)
+                                          : const Color(0xFFFFB800),
+                                      letterSpacing: 0.4,
                                     ),
                                   ),
                                 ],
-                              ],
+                              ),
                             ),
                           ),
                         ],
@@ -1972,125 +1739,53 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                     ),
                   ),
 
-                  // 4. ANIMATED CANDY CRUSH SPECULAR SHIMMER LIGHT BEAM
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment(
-                                -2.4 + (shimmerValue * 3.8),
-                                -1.2,
-                              ),
-                              end: Alignment(
-                                -0.6 + (shimmerValue * 3.8),
-                                1.2,
-                              ),
-                              stops: const [0.0, 0.42, 0.50, 0.58, 1.0],
-                              colors: [
-                                Colors.transparent,
-                                Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(
-                                  alpha: 0.24,
-                                ), // radiant beam
-                                Colors.white.withValues(alpha: 0.06),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 8),
 
-                  // 5. ANIMATED TWINKLE SPARKLE ✦ (Top-Right)
-                  Positioned(
-                    top: -4,
-                    right: -2,
-                    child: IgnorePointer(
-                      child: Transform.rotate(
-                        angle: shimmerValue * math.pi,
-                        child: Transform.scale(
-                          scale: 0.6 +
-                              (0.4 *
-                                  ((math.sin(
-                                            (shimmerValue +
-                                                    (gateIndex * 0.2)) *
-                                                2 *
-                                                math.pi,
-                                          ) +
-                                          1) /
-                                      2)),
-                          child: Icon(
-                            Icons.auto_awesome,
-                            color: secondaryColor.withValues(
-                              alpha: 0.6 +
-                                  (0.4 *
-                                      ((math.sin(
-                                                (shimmerValue +
-                                                        (gateIndex * 0.2)) *
-                                                    2 *
-                                                    math.pi,
-                                              ) +
-                                              1) /
-                                          2)),
-                            ),
-                            size: 18,
-                          ),
+                  // RIGHT COLUMN: 3 STARS + LEVEL RANGE (e.g. ★ ★ ★ and LV 21 - 40)
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // 3 Stars in a row
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (int s = 0; s < 3; s++) ...[
+                              Icon(
+                                Icons.star_rounded,
+                                color: isUnlocked
+                                    ? const Color(0xFFFFC800)
+                                    : Colors.white24,
+                                size: 15,
+                              ),
+                              if (s < 2) const SizedBox(width: 2),
+                            ],
+                          ],
                         ),
-                      ),
-                    ),
-                  ),
 
-                  // 6. ANIMATED TWINKLE SPARKLE ✦ (Bottom-Left)
-                  Positioned(
-                    bottom: -4,
-                    left: 20,
-                    child: IgnorePointer(
-                      child: Transform.rotate(
-                        angle: -shimmerValue * math.pi,
-                        child: Transform.scale(
-                          scale: 0.5 +
-                              (0.4 *
-                                  ((math.sin(
-                                            (shimmerValue +
-                                                    0.5 +
-                                                    (gateIndex * 0.2)) *
-                                                2 *
-                                                math.pi,
-                                          ) +
-                                          1) /
-                                      2)),
-                          child: Icon(
-                            Icons.auto_awesome,
-                            color: (isUnlocked
-                                    ? targetChapter.themeColor
-                                    : const Color(0xFFFFD700))
-                                .withValues(
-                              alpha: 0.5 +
-                                  (0.4 *
-                                      ((math.sin(
-                                                (shimmerValue +
-                                                        0.5 +
-                                                        (gateIndex * 0.2)) *
-                                                    2 *
-                                                    math.pi,
-                                              ) +
-                                              1) /
-                                          2)),
-                            ),
-                            size: 16,
+                        const SizedBox(height: 5),
+
+                        // Level range (e.g. LV 21 - 40)
+                        Text(
+                          'LV ${targetChapter.startLevel} - ${targetChapter.endLevel}',
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            letterSpacing: 0.4,
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -2128,7 +1823,7 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     return Offset(bezierPos.dx, bezierPos.dy + hop);
   }
 
-  /// Moving / Hovering Avatar Indicator stationed at current active unlocked level
+  /// Moving / Hovering Avatar Indicator stationed at current active unlocked level (Candy Crush Saga Style)
   Widget _buildMovingAvatar({
     required Offset prevPos,
     required Offset currPos,
@@ -2146,10 +1841,23 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
             t,
           );
 
+          // Dynamic cartoon jump physics: tilt forward in flight direction & squash on hop
+          final double flightTilt =
+              (currPos.dx >= prevPos.dx ? 1.0 : -1.0) *
+              math.sin(t * math.pi) *
+              0.16;
+          final double jumpSquash = 1.0 + (math.sin(t * math.pi * 2) * 0.12);
+
           return Positioned(
-            left: pathPos.dx - 22,
-            top: pathPos.dy - 54,
-            child: _buildAvatarBadge(),
+            left: pathPos.dx - 27,
+            top: pathPos.dy - 76,
+            child: Transform.rotate(
+              angle: flightTilt,
+              child: Transform.scale(
+                scale: jumpSquash,
+                child: _buildAvatarBadge(isMoving: true),
+              ),
+            ),
           );
         },
       );
@@ -2163,43 +1871,213 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       ]),
       builder: (context, child) {
         final double entranceOffset = _avatarDropAnimation.value;
+        final double pulseVal = _pulseController.value;
         final double bobOffset = _avatarEntranceController.isCompleted
-            ? math.sin(_pulseController.value * 2 * math.pi) * 4.0
+            ? math.sin(pulseVal * 2 * math.pi) * 4.5
             : 0.0;
+        final double breatheX =
+            1.0 + (math.sin(pulseVal * 2 * math.pi) * 0.04);
+        final double breatheY =
+            1.0 - (math.sin(pulseVal * 2 * math.pi) * 0.04);
 
-        return Positioned(
-          left: currPos.dx - 22,
-          top: currPos.dy - 54 + entranceOffset + bobOffset,
-          child: _buildAvatarBadge(),
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Under-avatar glowing spotlight beacon directly on current level node
+            Positioned(
+              left: currPos.dx - 24,
+              top: currPos.dy - 6,
+              child: IgnorePointer(
+                child: Container(
+                  width: 48,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFFD700).withValues(
+                          alpha:
+                              0.45 + (0.35 * math.sin(pulseVal * math.pi)),
+                        ),
+                        blurRadius: 16,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Main Player Avatar with Crown, Specular Gloss, and "YOU" Banner
+            Positioned(
+              left: currPos.dx - 27,
+              top: currPos.dy - 76 + entranceOffset + bobOffset,
+              child: Transform.scale(
+                scaleX: breatheX,
+                scaleY: breatheY,
+                child: _buildAvatarBadge(isMoving: false),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildAvatarBadge() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFC800), Color(0xFF94C745)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+  /// Candy Crush Saga style Player Character Marker with 3D Medallion, Crown & "YOU" Ribbon Banner
+  Widget _buildAvatarBadge({bool isMoving = false}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // 1. Floating Golden Crown
+        Container(
+          margin: const EdgeInsets.only(bottom: 1),
+          child: const Text('👑', style: TextStyle(fontSize: 14, height: 1.0)),
         ),
-        border: Border.all(color: Colors.white, width: 2.2),
-        boxShadow: const [
-          BoxShadow(color: Color(0xFFFFC800), blurRadius: 14, spreadRadius: 3),
-          BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 3)),
-        ],
-      ),
-      child: const Center(
-        child: Icon(Icons.star_rounded, color: Colors.white, size: 26),
-      ),
+
+        // 2. Shiny 3D Avatar Medallion with Flower Icon & Specular Reflection
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFFE082),
+                Color(0xFFFFB300),
+                Color(0xFFF57C00),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: Colors.white, width: 2.8),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFFB300).withValues(alpha: 0.65),
+                blurRadius: 16,
+                spreadRadius: 3,
+              ),
+              const BoxShadow(
+                color: Colors.black54,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Vibrant Sky Blue Inner Disc
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0xFF81D4FA), Color(0xFF0288D1)],
+                  ),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/levels_elements/flower.png',
+                    width: 30,
+                    height: 30,
+                    fit: BoxFit.contain,
+                    errorBuilder: (ctx, err, st) => const Icon(
+                      Icons.star_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Glossy Curvature Specular Highlight
+              Positioned(
+                top: 3,
+                left: 8,
+                right: 8,
+                height: 14,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: 0.6),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 3),
+
+        // 3. Candy Crush Style "YOU" Marker Banner
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2.5),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF2A6D), Color(0xFFC2185B)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFFE082), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF2A6D).withValues(alpha: 0.5),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+              const BoxShadow(
+                color: Colors.black45,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                color: Color(0xFFFFD54F),
+                size: 10,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                'YOU',
+                style: GoogleFonts.chakraPetch(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                  height: 1.1,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black87,
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  /// Interactive Decorative Scenery Element (gate.png, house.png, tree.png, flower.png)
+  /// Interactive Animated Scenery Element (gate.png, house.png, tree.png, flower.png)
   Widget _buildSceneryElement({
     required LevelMapSceneryElement element,
     required double screenWidth,
@@ -2212,23 +2090,10 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       mapHeight,
     );
 
-    return Positioned(
-      left: pos.dx - (element.width / 2),
-      top: pos.dy - (element.height / 2),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          HapticFeedback.lightImpact();
-          AudioService.instance.playClickSound();
-        },
-        child: Image.asset(
-          element.asset,
-          width: element.width,
-          height: element.height,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-        ),
-      ),
+    return CandyCrushAnimatedSceneryElement(
+      element: element,
+      position: pos,
+      shimmerAnimation: _shimmerAnimation,
     );
   }
 
@@ -2362,6 +2227,243 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       left: position.dx - nodeWidth / 2,
       top: position.dy - nodeHeight / 2,
       child: nodeButton,
+    );
+  }
+}
+
+/// Candy Crush style lively animated scenery element:
+/// - Floating levitation hover bobbing
+/// - Organic squash & stretch breathing
+/// - Gentle enchanted breeze pendulum sway
+/// - Element-specific pulsing magical aura halo
+/// - Twinkling magical firefly sparkles (✦)
+/// - Juicy elastic cartoon bounce upon tap
+class CandyCrushAnimatedSceneryElement extends StatefulWidget {
+  final LevelMapSceneryElement element;
+  final Offset position;
+  final Animation<double> shimmerAnimation;
+
+  const CandyCrushAnimatedSceneryElement({
+    super.key,
+    required this.element,
+    required this.position,
+    required this.shimmerAnimation,
+  });
+
+  @override
+  State<CandyCrushAnimatedSceneryElement> createState() =>
+      _CandyCrushAnimatedSceneryElementState();
+}
+
+class _CandyCrushAnimatedSceneryElementState
+    extends State<CandyCrushAnimatedSceneryElement>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tapController;
+  late final Animation<double> _tapSpringScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _tapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+
+    // Candy Crush elastic spring pop: quick squash -> overshoot -> bounce settle
+    _tapSpringScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.88)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.88, end: 1.22)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 45,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.22, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 40,
+      ),
+    ]).animate(_tapController);
+  }
+
+  @override
+  void dispose() {
+    _tapController.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    HapticFeedback.mediumImpact();
+    AudioService.instance.playClickSound();
+    _tapController.forward(from: 0.0);
+  }
+
+  Color _getAuraColor() {
+    final asset = widget.element.asset;
+    if (asset.contains('tree')) {
+      return const Color(0xFF00E5FF); // Luminescent cyan
+    } else if (asset.contains('house')) {
+      return const Color(0xFFFFB300); // Warm fairy lantern amber
+    } else if (asset.contains('flower')) {
+      return const Color(0xFFFF4081); // Vibrant floral magenta
+    } else {
+      return const Color(0xFF69F0AE); // Mystic emerald ivy
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auraColor = _getAuraColor();
+    // Unique phase offset per element so elements don't bob in lockstep
+    final double phase = widget.element.levelAnchor * 1.85;
+
+    return Positioned(
+      left: widget.position.dx - (widget.element.width / 2) - 12,
+      top: widget.position.dy - (widget.element.height / 2) - 12,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([widget.shimmerAnimation, _tapController]),
+        builder: (context, child) {
+          final double t = widget.shimmerAnimation.value;
+          final double angle = (t * 2 * math.pi) + phase;
+
+          // 1. Idle Floating Bob (±4.5 px)
+          final double bobY = math.sin(angle) * 4.5;
+
+          // 2. Squash & Stretch Breathing
+          final double breatheScaleX = 1.0 + (math.sin(angle) * 0.035);
+          final double breatheScaleY = 1.0 - (math.sin(angle) * 0.035);
+
+          // 3. Pendulum Sway Tilt (±2.5 degrees)
+          final double swayAngle = math.sin(angle * 0.5) * 0.045;
+
+          // 4. Tap pop multiplier
+          final double tapScale = _tapController.isAnimating
+              ? _tapSpringScale.value
+              : 1.0;
+
+          // 5. Breathing aura halo opacity
+          final double auraPulse = 0.35 + (0.25 * ((math.sin(angle) + 1) / 2));
+
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onTap,
+            child: SizedBox(
+              width: widget.element.width + 24,
+              height: widget.element.height + 24,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  // A. Magical Breathing Halo Aura
+                  Transform.translate(
+                    offset: Offset(0, bobY),
+                    child: Container(
+                      width: widget.element.width * 0.85,
+                      height: widget.element.height * 0.85,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: auraColor.withValues(
+                              alpha: auraPulse *
+                                  (_tapController.isAnimating ? 1.6 : 1.0),
+                            ),
+                            blurRadius: 22.0 +
+                                (_tapController.isAnimating ? 14.0 : 0.0),
+                            spreadRadius: 4.0 +
+                                (_tapController.isAnimating ? 6.0 : 0.0),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // B. Main Element Graphic with Squash, Stretch, Tilt, and Tap Elasticity
+                  Transform.translate(
+                    offset: Offset(0, bobY),
+                    child: Transform.rotate(
+                      angle: swayAngle,
+                      child: Transform.scale(
+                        scaleX: breatheScaleX * tapScale,
+                        scaleY: breatheScaleY * tapScale,
+                        child: Image.asset(
+                          widget.element.asset,
+                          width: widget.element.width,
+                          height: widget.element.height,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // C. Twinkling Magic Sparkle ✦ (Top-Right)
+                  Positioned(
+                    top: 2 + (bobY * 0.5),
+                    right: 4,
+                    child: IgnorePointer(
+                      child: Transform.rotate(
+                        angle: t * 2 * math.pi,
+                        child: Transform.scale(
+                          scale: (0.5 +
+                                  (0.5 *
+                                      ((math.sin(angle + 1.2) + 1) / 2))) *
+                              tapScale,
+                          child: Icon(
+                            Icons.auto_awesome,
+                            color: Color.lerp(
+                              auraColor,
+                              Colors.white,
+                              0.65,
+                            )!.withValues(
+                              alpha: 0.45 +
+                                  (0.55 * ((math.sin(angle + 1.2) + 1) / 2)),
+                            ),
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // D. Twinkling Magic Sparkle ✦ (Bottom-Left)
+                  Positioned(
+                    bottom: 4 + (bobY * 0.5),
+                    left: 2,
+                    child: IgnorePointer(
+                      child: Transform.rotate(
+                        angle: -t * 2 * math.pi,
+                        child: Transform.scale(
+                          scale: (0.45 +
+                                  (0.45 *
+                                      ((math.sin(angle + 3.14) + 1) / 2))) *
+                              tapScale,
+                          child: Icon(
+                            Icons.auto_awesome,
+                            color: Color.lerp(
+                              auraColor,
+                              Colors.white,
+                              0.75,
+                            )!.withValues(
+                              alpha: 0.4 +
+                                  (0.5 * ((math.sin(angle + 3.14) + 1) / 2)),
+                            ),
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -2505,4 +2607,175 @@ class LevelPathPainter extends CustomPainter {
         oldDelegate.points != points ||
         oldDelegate.pulseProgress != pulseProgress;
   }
+}
+
+/// Animated floating firefly particles drifting upward across the magical level map (Candy Crush / Gardenscapes aesthetic)
+class AmbientFirefliesPainter extends CustomPainter {
+  final double progress;
+  static const int _particleCount = 22;
+
+  AmbientFirefliesPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width == 0 || size.height == 0) return;
+
+    final Paint glowPaint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < _particleCount; i++) {
+      // Deterministic pseudo-random distribution per particle
+      final double seed = (i * 97.13) % 1.0;
+      final double speed = 0.35 + (((i * 37) % 5) * 0.12);
+      final double currentT = (progress * speed + seed) % 1.0;
+
+      // Vertical drift upward
+      final double y = size.height * (1.0 - currentT);
+
+      // Horizontal organic sine sway
+      final double swayAmplitude = 18.0 + ((i % 4) * 7.0);
+      final double baseX = size.width * ((seed * 1.55) % 1.0);
+      final double x = baseX +
+          math.sin((currentT * 4 * math.pi) + (i * 1.5)) * swayAmplitude;
+
+      // Twinkling opacity
+      final double twinkle =
+          (math.sin((currentT * 6 * math.pi) + (i * 2.0)) + 1.0) / 2.0;
+      final double alpha = (0.20 + 0.70 * twinkle).clamp(0.0, 1.0);
+
+      // Particle size
+      final double radius = 1.8 + ((i % 3) * 1.1);
+
+      // Themed firefly color: golden fairy light / soft emerald / mystic cyan
+      final Color color = (i % 3 == 0)
+          ? const Color(0xFFFFF59D)
+          : (i % 3 == 1)
+              ? const Color(0xFF69F0AE)
+              : const Color(0xFF80D8FF);
+
+      // Outer soft glow
+      glowPaint.color = color.withValues(alpha: alpha * 0.45);
+      canvas.drawCircle(Offset(x, y), radius * 2.4, glowPaint);
+
+      // Bright inner core
+      glowPaint.color = Colors.white.withValues(alpha: alpha * 0.9);
+      canvas.drawCircle(Offset(x, y), radius * 0.8, glowPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant AmbientFirefliesPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+/// Ambient drifting stylized clouds layer providing authentic Candy Crush Saga depth & atmosphere
+class AmbientCloudsPainter extends CustomPainter {
+  final double progress;
+
+  AmbientCloudsPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width == 0 || size.height == 0) return;
+
+    // 4 Drifting cloud layers at different altitudes, speeds, scales, and opacities
+    const List<_CloudConfig> configs = [
+      _CloudConfig(
+        baseYFraction: 0.12,
+        speed: 0.65,
+        scale: 1.3,
+        opacity: 0.13,
+        xOffset: 0.08,
+      ),
+      _CloudConfig(
+        baseYFraction: 0.38,
+        speed: 1.0,
+        scale: 0.95,
+        opacity: 0.15,
+        xOffset: 0.62,
+      ),
+      _CloudConfig(
+        baseYFraction: 0.64,
+        speed: 0.8,
+        scale: 1.2,
+        opacity: 0.14,
+        xOffset: 0.32,
+      ),
+      _CloudConfig(
+        baseYFraction: 0.86,
+        speed: 1.15,
+        scale: 1.05,
+        opacity: 0.15,
+        xOffset: 0.82,
+      ),
+    ];
+
+    for (final cfg in configs) {
+      final double totalTravel = size.width + (260 * cfg.scale);
+      final double x =
+          ((progress * cfg.speed + cfg.xOffset) % 1.0) * totalTravel -
+          (130 * cfg.scale);
+      final double y = size.height * cfg.baseYFraction;
+      _drawFluffyCloud(canvas, Offset(x, y), cfg.scale, cfg.opacity);
+    }
+  }
+
+  void _drawFluffyCloud(
+    Canvas canvas,
+    Offset center,
+    double scale,
+    double opacity,
+  ) {
+    final Paint cloudPaint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity)
+      ..style = PaintingStyle.fill;
+
+    // Clustered rounded puffs creating a classic soft cartoon cloud shape
+    canvas.drawCircle(
+      Offset(center.dx - 36 * scale, center.dy + 4 * scale),
+      24 * scale,
+      cloudPaint,
+    );
+    canvas.drawCircle(
+      Offset(center.dx, center.dy - 10 * scale),
+      34 * scale,
+      cloudPaint,
+    );
+    canvas.drawCircle(
+      Offset(center.dx + 34 * scale, center.dy + 2 * scale),
+      26 * scale,
+      cloudPaint,
+    );
+    canvas.drawCircle(
+      Offset(center.dx - 14 * scale, center.dy + 12 * scale),
+      22 * scale,
+      cloudPaint,
+    );
+    canvas.drawCircle(
+      Offset(center.dx + 16 * scale, center.dy + 12 * scale),
+      22 * scale,
+      cloudPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant AmbientCloudsPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _CloudConfig {
+  final double baseYFraction;
+  final double speed;
+  final double scale;
+  final double opacity;
+  final double xOffset;
+
+  const _CloudConfig({
+    required this.baseYFraction,
+    required this.speed,
+    required this.scale,
+    required this.opacity,
+    required this.xOffset,
+  });
 }

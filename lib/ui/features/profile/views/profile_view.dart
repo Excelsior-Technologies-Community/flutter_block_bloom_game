@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/ui/core/utils/app_validators.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
 import 'package:block_bloom/ui/providers.dart';
 
@@ -65,6 +66,11 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (context) {
+        String? nameError;
+        String? passwordError;
+        String? confirmPasswordError;
+        bool isSubmitting = false;
+
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: StatefulBuilder(
@@ -79,19 +85,44 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 1. Name Input Field
+                      // 1. Name Input Field with Validation
                       _buildDialogTextField(
                         controller: _nameController,
                         hintText: 'Enter Name',
+                        errorText: nameError,
+                        onChanged: (val) {
+                          if (nameError != null) {
+                            setDialogState(() {
+                              nameError = AppValidators.validateName(val, isRequired: true);
+                            });
+                          }
+                        },
                       ),
 
                       const SizedBox(height: 14),
 
-                      // 2. Change Password Input Field
+                      // 2. Change Password Input Field with Validation
                       _buildDialogTextField(
                         controller: _passwordController,
-                        hintText: isGoogleUser ? 'Set Password (Optional)' : 'Change Password',
+                        hintText: isGoogleUser ? 'Set Password (Optional)' : 'Change Password (Min 6 chars)',
                         obscureText: _obscurePassword,
+                        errorText: passwordError,
+                        onChanged: (val) {
+                          if (passwordError != null || confirmPasswordError != null) {
+                            setDialogState(() {
+                              passwordError = val.isNotEmpty
+                                  ? AppValidators.validatePassword(val, isRequired: false)
+                                  : null;
+                              if (confirmPasswordError != null && _confirmPasswordController.text.isNotEmpty) {
+                                confirmPasswordError = AppValidators.validateConfirmPassword(
+                                  _confirmPasswordController.text,
+                                  val,
+                                  isRequired: val.isNotEmpty,
+                                );
+                              }
+                            });
+                          }
+                        },
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -108,11 +139,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                       const SizedBox(height: 14),
 
-                      // 3. Confirm Password Input Field
+                      // 3. Confirm Password Input Field with Validation
                       _buildDialogTextField(
                         controller: _confirmPasswordController,
                         hintText: 'Confirm Password',
                         obscureText: _obscureConfirmPassword,
+                        errorText: confirmPasswordError,
+                        onChanged: (val) {
+                          if (confirmPasswordError != null) {
+                            setDialogState(() {
+                              confirmPasswordError = AppValidators.validateConfirmPassword(
+                                val,
+                                _passwordController.text,
+                                isRequired: _passwordController.text.isNotEmpty,
+                              );
+                            });
+                          }
+                        },
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -147,7 +190,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   borderRadius: BorderRadius.circular(9.0),
                                 ),
                               ),
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: isSubmitting ? null : () => Navigator.pop(context),
                               child: Text(
                                 'CANCEL',
                                 style: GoogleFonts.chakraPetch(
@@ -198,47 +241,98 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   borderRadius: BorderRadius.circular(9.0),
                                 ),
                               ),
-                              onPressed: () async {
-                                final newName = _nameController.text.trim();
-                                final newPass = _passwordController.text.trim();
-                                final confirmPass = _confirmPasswordController.text.trim();
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      FocusScope.of(context).unfocus();
+                                      AudioService.instance.playClickSound();
 
-                                if (newPass.isNotEmpty || confirmPass.isNotEmpty) {
-                                  if (newPass != confirmPass) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Passwords do not match'),
-                                        backgroundColor: Colors.redAccent,
+                                      final newName = _nameController.text;
+                                      final newPass = _passwordController.text;
+                                      final confirmPass = _confirmPasswordController.text;
+
+                                      // Run proper field validations
+                                      final nameErr = AppValidators.validateName(newName, isRequired: true);
+                                      final passErr = newPass.isNotEmpty
+                                          ? AppValidators.validatePassword(newPass, isRequired: false)
+                                          : null;
+                                      final confirmErr = (newPass.isNotEmpty || confirmPass.isNotEmpty)
+                                          ? AppValidators.validateConfirmPassword(
+                                              confirmPass,
+                                              newPass,
+                                              isRequired: newPass.isNotEmpty,
+                                            )
+                                          : null;
+
+                                      if (nameErr != null || passErr != null || confirmErr != null) {
+                                        HapticFeedback.heavyImpact();
+                                        setDialogState(() {
+                                          nameError = nameErr;
+                                          passwordError = passErr;
+                                          confirmPasswordError = confirmErr;
+                                        });
+                                        return;
+                                      }
+
+                                      setDialogState(() {
+                                        nameError = null;
+                                        passwordError = null;
+                                        confirmPasswordError = null;
+                                        isSubmitting = true;
+                                      });
+
+                                      try {
+                                        await ref.read(authViewModelProvider.notifier).updateUserProfile(
+                                          displayName: newName.trim(),
+                                          newPassword: newPass.isNotEmpty ? newPass : null,
+                                        );
+
+                                        final repo = ref.read(progressRepositoryProvider);
+                                        final p = await repo.getProgress();
+                                        await repo.saveProgress(p, displayName: newName.trim());
+
+                                        if (context.mounted) {
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Profile updated successfully!'),
+                                              backgroundColor: Color(0xFF10B981),
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          setDialogState(() {
+                                            isSubmitting = false;
+                                          });
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(e.toString().replaceAll('Exception: ', '')),
+                                              backgroundColor: const Color(0xFFFF3B30),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              child: isSubmitting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
-                                    );
-                                    return;
-                                  }
-                                }
-
-                                await ref.read(authViewModelProvider.notifier).updateUserProfile(
-                                  displayName: newName.isNotEmpty ? newName : null,
-                                  newPassword: newPass.isNotEmpty ? newPass : null,
-                                );
-
-                                if (newName.isNotEmpty) {
-                                  final repo = ref.read(progressRepositoryProvider);
-                                  final p = await repo.getProgress();
-                                  await repo.saveProgress(p, displayName: newName);
-                                }
-
-                                if (context.mounted) {
-                                  Navigator.pop(context);
-                                }
-                              },
-                              child: Text(
-                                'EDIT',
-                                style: GoogleFonts.chakraPetch(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
+                                    )
+                                  : Text(
+                                      'EDIT',
+                                      style: GoogleFonts.chakraPetch(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],
@@ -254,47 +348,81 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     );
   }
 
-  /// Text Field with distinct border pill, dark fill, and full width
+  /// Text Field with distinct border pill, dark fill, and inline error feedback
   Widget _buildDialogTextField({
     required TextEditingController controller,
     required String hintText,
     bool obscureText = false,
     Widget? suffixIcon,
+    String? errorText,
+    void Function(String)? onChanged,
   }) {
-    return Container(
-      height: 50,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF090420),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white,
-          width: 1.2,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        style: GoogleFonts.chakraPetch(
-          color: Colors.white,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: GoogleFonts.chakraPetch(
-            color: Colors.white70,
-            fontSize: 15,
+    final bool hasError = errorText != null && errorText.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 50,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFF090420),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasError ? const Color(0xFFFF3B30) : Colors.white,
+              width: hasError ? 1.6 : 1.2,
+            ),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          suffixIcon: suffixIcon,
+          child: TextField(
+            controller: controller,
+            obscureText: obscureText,
+            onChanged: onChanged,
+            style: GoogleFonts.chakraPetch(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: GoogleFonts.chakraPetch(
+                color: Colors.white70,
+                fontSize: 15,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              border: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              suffixIcon: suffixIcon,
+            ),
+          ),
         ),
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 14, top: 5),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFFF8080),
+                  size: 14,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    errorText,
+                    style: GoogleFonts.chakraPetch(
+                      color: const Color(0xFFFF8080),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 

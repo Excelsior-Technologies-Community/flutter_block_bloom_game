@@ -376,24 +376,27 @@ class _GlossyGameButtonState extends State<GlossyGameButton> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (widget.icon != null) ...[
-                            widget.icon!,
-                            const SizedBox(width: 10),
-                          ],
-                          Text(
-                            widget.text,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: widget.fontSize,
-                              fontWeight: FontWeight.w700,
-                              color: widget.textColor,
-                              letterSpacing: 0.8,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.icon != null) ...[
+                              widget.icon!,
+                              const SizedBox(width: 10),
+                            ],
+                            Text(
+                              widget.text,
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: widget.fontSize,
+                                fontWeight: FontWeight.w700,
+                                color: widget.textColor,
+                                letterSpacing: 0.8,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

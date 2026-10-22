@@ -51,149 +51,195 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
           // Main Foreground Content
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                children: [
-                  const Spacer(flex: 3),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double availableHeight = constraints.maxHeight;
+                final bool isVeryCompact = availableHeight < 620;
+                final bool isCompact = availableHeight < 740;
 
-                  // Center Logo (home_icon.png)
-                  Center(
-                    child: SizedBox(
-                      width: math.min(size.width * 0.80, 310),
-                      child: Image.asset(
-                        'assets/home_icon.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Text(
-                          'BLOCK BLOOM',
-                          style: TextStyle(
-                            fontFamily: 'BebasNeue',
-                            fontSize: 48,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                final double buttonHeight =
+                    isVeryCompact ? 44.0 : (isCompact ? 48.0 : 54.0);
+                final double buttonGap =
+                    isVeryCompact ? 8.0 : (isCompact ? 10.0 : 12.0);
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: availableHeight),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: isVeryCompact ? 8 : 14,
+                        ),
+                        child: Column(
+                          children: [
+                            const Spacer(flex: 2),
+
+                            // Center Logo (home_icon.png)
+                            Center(
+                              child: SizedBox(
+                                width: math.min(size.width * 0.80, 310),
+                                child: Image.asset(
+                                  'assets/home_icon.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Text(
+                                    'BLOCK BLOOM',
+                                    style: TextStyle(
+                                      fontFamily: 'BebasNeue',
+                                      fontSize: 48,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: isVeryCompact ? 6 : 10),
+
+                            // Subtitle Text
+                            Text(
+                              isVeryCompact
+                                  ? 'Bloom your garden, one block at a time.'
+                                  : 'Bloom your garden,\none block at a time.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: isVeryCompact ? 13 : 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.92),
+                                height: 1.25,
+                                shadows: const [
+                                  Shadow(
+                                    color: Colors.black87,
+                                    blurRadius: 10,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const Spacer(flex: 3),
+
+                            // Centered Glossy Game Buttons Stack
+                            SizedBox(
+                              width: math.min(size.width * 0.85, 320),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GlossyGameButton.play(
+                                    height: buttonHeight,
+                                    onPressed: state.isLoading
+                                        ? null
+                                        : () async {
+                                            await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const LevelSelectView(),
+                                              ),
+                                            );
+                                            ref
+                                                .read(homeViewModelProvider.notifier)
+                                                .loadProgress();
+                                          },
+                                  ),
+
+                                  SizedBox(height: buttonGap),
+
+                                  GlossyGameButton.dailyGarden(
+                                    height: buttonHeight,
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const DailyGardenIntroView(),
+                                        ),
+                                      );
+                                      ref
+                                          .read(homeViewModelProvider.notifier)
+                                          .loadProgress();
+                                    },
+                                  ),
+
+                                  SizedBox(height: buttonGap),
+
+                                  GlossyGameButton.garden(
+                                    height: buttonHeight,
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const GardenView(),
+                                        ),
+                                      );
+                                      ref
+                                          .read(homeViewModelProvider.notifier)
+                                          .loadProgress();
+                                    },
+                                  ),
+
+                                  SizedBox(height: buttonGap),
+
+                                  GlossyGameButton.trophy(
+                                    height: buttonHeight,
+                                    onPressed: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const LeaderboardView(),
+                                        ),
+                                      );
+                                      ref
+                                          .read(homeViewModelProvider.notifier)
+                                          .loadProgress();
+                                    },
+                                  ),
+
+                                  SizedBox(height: buttonGap),
+
+                                  GlossyGameButton.settings(
+                                    height: buttonHeight,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const SettingsView(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                  SizedBox(height: buttonGap),
+
+                                  GlossyGameButton.profile(
+                                    height: buttonHeight,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ProfileView(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const Spacer(flex: 2),
+                          ],
                         ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // Subtitle Text
-                  Text(
-                    'Bloom your garden,\none block at a time.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.92),
-                      height: 1.3,
-                      shadows: const [
-                        Shadow(
-                          color: Colors.black87,
-                          blurRadius: 10,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(flex: 4),
-
-                  // Centered Glossy Game Buttons Stack
-                  SizedBox(
-                    width: math.min(size.width * 0.85, 320),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GlossyGameButton.play(
-                          onPressed: state.isLoading
-                              ? null
-                              : () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const LevelSelectView(),
-                                    ),
-                                  );
-                                  ref.read(homeViewModelProvider.notifier).loadProgress();
-                                },
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        GlossyGameButton.dailyGarden(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const DailyGardenIntroView(),
-                              ),
-                            );
-                            ref.read(homeViewModelProvider.notifier).loadProgress();
-                          },
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        GlossyGameButton.garden(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const GardenView(),
-                              ),
-                            );
-                            ref.read(homeViewModelProvider.notifier).loadProgress();
-                          },
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        GlossyGameButton.trophy(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LeaderboardView(),
-                              ),
-                            );
-                            ref.read(homeViewModelProvider.notifier).loadProgress();
-                          },
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        GlossyGameButton.settings(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SettingsView(),
-                              ),
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        GlossyGameButton.profile(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProfileView(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(flex: 3),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

@@ -154,41 +154,44 @@ class _GreenGameButtonState extends State<GreenGameButton> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.isLoading) ...[
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.isLoading) ...[
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else if (widget.icon != null) ...[
+                            widget.icon!,
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            widget.text.toUpperCase(),
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: widget.fontSize,
+                              fontWeight: FontWeight.w800,
+                              color: widget.textColor,
+                              letterSpacing: 1.0,
+                              shadows: const [
+                                Shadow(
+                                  color: Colors.black45,
+                                  offset: Offset(0, 1.5),
+                                  blurRadius: 2,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                        ] else if (widget.icon != null) ...[
-                          widget.icon!,
-                          const SizedBox(width: 6),
                         ],
-                        Text(
-                          widget.text.toUpperCase(),
-                          style: GoogleFonts.chakraPetch(
-                            fontSize: widget.fontSize,
-                            fontWeight: FontWeight.w800,
-                            color: widget.textColor,
-                            letterSpacing: 1.0,
-                            shadows: const [
-                              Shadow(
-                                color: Colors.black45,
-                                offset: Offset(0, 1.5),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
