@@ -212,10 +212,10 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       ),
     );
 
-    // Avatar path moving animation controller (when progressing between levels)
+    // Avatar path moving animation controller (slow, smooth, leisurely transition)
     _moveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 3200),
     );
 
     _moveAnimation = CurvedAnimation(
@@ -416,12 +416,13 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
 
     final double currentOffset = _scrollController.offset;
     final double distance = (currentOffset - targetOffset).abs();
-    final int durationMs = (1500 + (distance * 0.5)).round().clamp(1200, 4000);
+    // Smooth, slow-motion camera gliding that matches the avatar hop
+    final int durationMs = (3000 + (distance * 1.0)).round().clamp(3000, 5500);
 
     _scrollController.animateTo(
       targetOffset,
       duration: Duration(milliseconds: durationMs),
-      curve: Curves.easeInOutSine,
+      curve: Curves.easeInOutCubic,
     );
   }
 
@@ -841,8 +842,8 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
 
       if (result == 'next_level') {
         final nextLevelNum = levelNum + 1;
-        // Wait for map level redirection avatar animation (1.4s) to complete
-        await Future.delayed(const Duration(milliseconds: 1400));
+        // Wait for slow-motion map avatar hop & camera pan (3.5s) to complete
+        await Future.delayed(const Duration(milliseconds: 3500));
         if (mounted) {
           final updatedUnlocked =
               ref.read(homeViewModelProvider).progress?.unlockedLevels ?? 1;
