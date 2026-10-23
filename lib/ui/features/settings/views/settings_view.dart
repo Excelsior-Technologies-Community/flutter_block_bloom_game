@@ -6,6 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
 import 'package:block_bloom/ui/features/auth/views/auth_view.dart';
+import 'package:block_bloom/ui/features/terms/views/terms_view.dart';
+import 'package:block_bloom/ui/features/settings/views/privacy_policy_view.dart';
+import 'package:block_bloom/ui/features/settings/views/how_to_play_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -357,22 +360,162 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                       },
                                     ),
 
-                                    const SizedBox(height: 28),
+                                    const SizedBox(height: 22),
 
-                                    // ABOUT APP Button Link
+                                    // HOW TO PLAY Action Card
                                     GestureDetector(
-                                      onTap: () => _showAboutDialog(context),
-                                      child: Text(
-                                        'ABOUT APP',
-                                        style: GoogleFonts.chakraPetch(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF2096E7),
-                                          decoration: TextDecoration.underline,
-                                          decorationColor: const Color(0xFF2096E7),
-                                          letterSpacing: 0.5,
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        AudioService.instance.playClickSound();
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const HowToPlayView(),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              const Color(0xFF065F46).withValues(alpha: 0.85),
+                                              const Color(0xFF001834),
+                                            ],
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: const Color(0xFFFFC800),
+                                            width: 1.2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.35),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
+                                            ),
+                                            BoxShadow(
+                                              color: const Color(0xFFFFC800).withValues(alpha: 0.15),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.sports_esports_rounded,
+                                              color: Color(0xFFFFC800),
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'HOW TO PLAY',
+                                              style: GoogleFonts.chakraPetch(
+                                                fontSize: 14.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                                letterSpacing: 0.8,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Icon(
+                                              Icons.arrow_forward_ios_rounded,
+                                              color: Color(0xFFFFC800),
+                                              size: 13,
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                    ),
+
+                                    const SizedBox(height: 20),
+
+                                    // ABOUT APP • TERMS • PRIVACY POLICY Links
+                                    Wrap(
+                                      alignment: WrapAlignment.center,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () => _showAboutDialog(context),
+                                          child: Text(
+                                            'ABOUT APP',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF2096E7),
+                                              decoration: TextDecoration.underline,
+                                              decorationColor: const Color(0xFF2096E7),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '•',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.4),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            AudioService.instance.playClickSound();
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => const TermsAndConditionsView(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'TERMS',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF2096E7),
+                                              decoration: TextDecoration.underline,
+                                              decorationColor: const Color(0xFF2096E7),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          '•',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.4),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            AudioService.instance.playClickSound();
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => const PrivacyPolicyView(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'PRIVACY POLICY',
+                                            style: GoogleFonts.chakraPetch(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(0xFF2096E7),
+                                              decoration: TextDecoration.underline,
+                                              decorationColor: const Color(0xFF2096E7),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

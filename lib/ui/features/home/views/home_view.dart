@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
+import 'package:flutter/services.dart';
+import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/features/level_select/views/level_select_view.dart';
 import 'package:block_bloom/ui/features/garden/views/garden_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
 import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
 import 'package:block_bloom/ui/features/profile/views/profile_view.dart';
+import 'package:block_bloom/ui/features/terms/views/terms_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -233,6 +236,63 @@ class _HomeViewState extends ConsumerState<HomeView> {
                             ),
 
                             const Spacer(flex: 2),
+
+                            // Minimal Terms & Conditions Link at bottom
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                AudioService.instance.playClickSound();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TermsAndConditionsView(),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.28),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.16),
+                                    width: 1.0,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.35),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.description_outlined,
+                                      size: 14,
+                                      color: const Color(0xFFFFC610).withValues(alpha: 0.95),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Terms & Conditions',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: isVeryCompact ? 12 : 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white.withValues(alpha: 0.92),
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isVeryCompact ? 2 : 6),
                           ],
                         ),
                       ),
