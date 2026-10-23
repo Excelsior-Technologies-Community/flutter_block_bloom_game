@@ -569,82 +569,114 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
-  // Custom Gold Slider with Flower Thumb matching design
+  // Custom Gold Slider with Flower Thumb matching Figma design (224px x 7px)
+  // Left side: #6D4201, Right side: #FFFFFF -> #F9CC70 gradient, Border: 0.75px 5-stop gold
   Widget _buildGoldSlider({
     required double value,
     required ValueChanged<double> onChanged,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final trackWidth = constraints.maxWidth;
-        const thumbSize = 22.0;
-        const thumbRadius = thumbSize / 2;
-        final availableWidth = trackWidth - thumbSize;
-        final thumbPosition = thumbRadius + (value * availableWidth);
+        const double figmaTrackWidth = 224.0;
+        const double trackHeight = 7.0;
+        const double thumbSize = 28.0;
+        const double thumbRadius = thumbSize / 2;
+        const double sliderHeight = 36.0;
+
+        final maxWidth = constraints.maxWidth;
+        // Exact 224px track width from Figma, capped only if screen width is smaller than track + thumb
+        final trackWidth = math.min(figmaTrackWidth, maxWidth - thumbSize);
+        final trackLeft = (maxWidth - trackWidth) / 2;
+        final fillWidth = (value * trackWidth).clamp(0.0, trackWidth);
+        final thumbCenter = trackLeft + fillWidth;
+
+        void updateValue(Offset localPosition) {
+          final dxOnTrack = localPosition.dx - trackLeft;
+          final newValue = (dxOnTrack / trackWidth).clamp(0.0, 1.0);
+          if ((newValue - value).abs() > 0.001) {
+            onChanged(newValue);
+          }
+        }
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onHorizontalDragUpdate: (details) {
-            final renderBox = context.findRenderObject() as RenderBox;
-            final localPos = renderBox.globalToLocal(details.globalPosition);
-            final newValue = ((localPos.dx - thumbRadius) / availableWidth).clamp(0.0, 1.0);
-            onChanged(newValue);
-          },
-          onTapDown: (details) {
-            final renderBox = context.findRenderObject() as RenderBox;
-            final localPos = renderBox.globalToLocal(details.globalPosition);
-            final newValue = ((localPos.dx - thumbRadius) / availableWidth).clamp(0.0, 1.0);
-            onChanged(newValue);
-          },
+          onHorizontalDragStart: (details) => updateValue(details.localPosition),
+          onHorizontalDragUpdate: (details) => updateValue(details.localPosition),
+          onTapDown: (details) => updateValue(details.localPosition),
           child: SizedBox(
-            height: 32,
+            height: sliderHeight,
             width: double.infinity,
             child: Stack(
+              clipBehavior: Clip.none,
               alignment: Alignment.centerLeft,
               children: [
-                // Metallic Gold Gradient Track Bar (matching exact design in image)
-                Container(
-                  height: 8,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color(0xFF6B3E05),
-                        Color(0xFF9E6508),
-                        Color(0xFFDCA427),
-                        Color(0xFFFFDF6E),
-                        Color(0xFFFFF6B2),
-                      ],
+                // 224px x 7px Capsule Track Container centered horizontally
+                Positioned(
+                  left: trackLeft,
+                  top: (sliderHeight - trackHeight) / 2,
+                  width: trackWidth,
+                  height: trackHeight,
+                  child: CustomPaint(
+                    foregroundPainter: const _GoldSliderTrackBorderPainter(
+                      strokeWidth: 0.75,
+                      radius: 204.0,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFFD54F).withValues(alpha: 0.35),
-                        blurRadius: 5,
-                        spreadRadius: 0.5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(204.0),
+                      child: Stack(
+                        children: [
+                          // Base/Right side Track (Rectangle 43 in Figma: #FFFFFF -> #F9CC70 gradient)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color(0xFFFFFFFF),
+                                    Color(0xFFF9CC70),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Left side Active Track (Rectangle 44 in Figma: #6D4201 solid)
+                          // Dynamically tracks the flower scroll position
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: fillWidth,
+                            child: Container(
+                              color: const Color(0xFF6D4201),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
 
-                // Thumb Flower (🌸 sitting directly on the bar with no circular badge)
+                // Thumb Flower (🌸 sitting directly centered over the left/right division)
                 Positioned(
-                  left: thumbPosition - thumbRadius,
-                  child: Image.asset(
-                    'assets/game_flower.png',
-                    width: thumbSize,
-                    height: thumbSize,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Image.asset(
-                      'assets/small_flower.png',
+                  left: thumbCenter - thumbRadius,
+                  top: (sliderHeight - thumbSize) / 2,
+                  child: IgnorePointer(
+                    child: Image.asset(
+                      'assets/game_flower.png',
                       width: thumbSize,
                       height: thumbSize,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Text(
-                        '🌸',
-                        style: TextStyle(fontSize: 16),
+                      errorBuilder: (context, error, stackTrace) => Image.asset(
+                        'assets/small_flower.png',
+                        width: thumbSize,
+                        height: thumbSize,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Text(
+                          '🌸',
+                          style: TextStyle(fontSize: 18),
+                        ),
                       ),
                     ),
                   ),
@@ -758,5 +790,49 @@ class _FiveStopGoldBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FiveStopGoldBorderPainter oldDelegate) =>
+      oldDelegate.strokeWidth != strokeWidth || oldDelegate.radius != radius;
+}
+
+/// Custom painter for the 0.75px 5-stop gold gradient track border matching Figma Rectangle 43
+class _GoldSliderTrackBorderPainter extends CustomPainter {
+  final double strokeWidth;
+  final double radius;
+
+  const _GoldSliderTrackBorderPainter({
+    this.strokeWidth = 0.75,
+    this.radius = 204.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(strokeWidth / 2),
+      Radius.circular(radius),
+    );
+
+    const gradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        Color(0xFFFFC800),
+        Color(0xFF814D00),
+        Color(0xFF884000),
+        Color(0xFF814D00),
+        Color(0xFFFFC800),
+      ],
+      stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+    );
+
+    final paint = Paint()
+      ..shader = gradient.createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GoldSliderTrackBorderPainter oldDelegate) =>
       oldDelegate.strokeWidth != strokeWidth || oldDelegate.radius != radius;
 }

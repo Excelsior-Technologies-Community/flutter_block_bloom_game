@@ -12,6 +12,7 @@ import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart'
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
 import 'package:block_bloom/ui/features/profile/views/profile_view.dart';
 import 'package:block_bloom/ui/features/terms/views/terms_view.dart';
+import 'package:block_bloom/ui/features/settings/views/privacy_policy_view.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -237,59 +238,127 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
                             const Spacer(flex: 2),
 
-                            // Minimal Terms & Conditions Link at bottom
-                            GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                AudioService.instance.playClickSound();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const TermsAndConditionsView(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.28),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.16),
-                                    width: 1.0,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.35),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.description_outlined,
-                                      size: 14,
-                                      color: const Color(0xFFFFC610).withValues(alpha: 0.95),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Terms & Conditions',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: isVeryCompact ? 12 : 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white.withValues(alpha: 0.92),
-                                        letterSpacing: 0.3,
+                            // Minimal Terms & Conditions and Privacy Policy Links at bottom
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 1. Terms & Conditions Button
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      AudioService.instance.playClickSound();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const TermsAndConditionsView(),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isVeryCompact ? 10 : 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.28),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.16),
+                                          width: 1.0,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.description_outlined,
+                                            size: 13,
+                                            color: const Color(0xFFFFC610).withValues(alpha: 0.95),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Terms & Conditions',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: isVeryCompact ? 11 : 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white.withValues(alpha: 0.92),
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+
+                                  const SizedBox(width: 8),
+
+                                  // 2. Privacy Policy Button (to the right of terms)
+                                  GestureDetector(
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      AudioService.instance.playClickSound();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PrivacyPolicyView(),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isVeryCompact ? 10 : 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.28),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.16),
+                                          width: 1.0,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.35),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.verified_user_outlined,
+                                            size: 13,
+                                            color: const Color(0xFFFFC610).withValues(alpha: 0.95),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Privacy Policy',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: isVeryCompact ? 11 : 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white.withValues(alpha: 0.92),
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             SizedBox(height: isVeryCompact ? 2 : 6),
