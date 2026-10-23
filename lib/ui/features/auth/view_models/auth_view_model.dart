@@ -81,6 +81,9 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
       );
       state = state.copyWith(user: user, isLoading: false);
       return true;
+    } on UserDeletedException {
+      state = state.copyWith(isLoading: false, error: 'ACCOUNT_DELETED');
+      return false;
     } catch (e) {
       final message = e.toString().replaceAll('Exception: ', '');
       state = state.copyWith(isLoading: false, error: message);
@@ -116,6 +119,9 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
       final user = await _authService.signInWithGoogle();
       state = state.copyWith(user: user, isLoading: false);
       return true;
+    } on UserDeletedException {
+      state = state.copyWith(isLoading: false, error: 'ACCOUNT_DELETED');
+      return false;
     } catch (e) {
       final message = e.toString().replaceAll('Exception: ', '');
       if (!message.contains('canceled')) {
@@ -203,6 +209,12 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
     await _authService.signOut();
+    state = state.copyWith(clearUser: true, isLoading: false);
+  }
+
+  Future<void> deleteAccount() async {
+    state = state.copyWith(isLoading: true);
+    await _authService.deleteAccount();
     state = state.copyWith(clearUser: true, isLoading: false);
   }
 

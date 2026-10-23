@@ -112,6 +112,159 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
+  // Elegant Gold Shimmer Divider
+  Widget _buildDivider() {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            const Color(0xFFFFC800).withValues(alpha: 0.45),
+            const Color(0xFFFFC800).withValues(alpha: 0.8),
+            const Color(0xFFFFC800).withValues(alpha: 0.45),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+        ),
+      ),
+    );
+  }
+
+  // Confirmation Dialog for Account Deletion
+  void _showDeleteAccountDialog(BuildContext context) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            decoration: BoxDecoration(
+              color: const Color(0xFF001834),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFFF3B30), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: const Color(0xFFFF3B30).withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF420914),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFF3B30), width: 1.2),
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFFF8080),
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'DELETE ACCOUNT?',
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'This action cannot be undone. All your garden blooms, scores, and saved progress will be permanently erased.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        onPressed: () {
+                          AudioService.instance.playClickSound();
+                          Navigator.pop(dialogContext);
+                        },
+                        child: Text(
+                          'CANCEL',
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF3B30),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          elevation: 4,
+                        ),
+                        onPressed: () async {
+                          AudioService.instance.playClickSound();
+                          Navigator.pop(dialogContext);
+                          await ref.read(authViewModelProvider.notifier).deleteAccount();
+                          if (context.mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (context) => const AuthView()),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        child: Text(
+                          'DELETE',
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -136,48 +289,30 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ),
 
           // Main Screen Content
-          Positioned.fill(
-            child: SafeArea(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Top Navigation Bar
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_rounded,
-                              color: Color(0xFFFFC610),
-                              size: 30,
-                            ),
-                            onPressed: () {
-                              HapticFeedback.lightImpact();
-                              Navigator.pop(context);
-                            },
-                          ),
+          SafeArea(
+            child: Stack(
+              children: [
+                // Centered Screen Content (SETTINGS Title + Card + Version 1.1)
+                Center(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Title: Arched SETTINGS with side flowers matching reference image
+                        const FloralHeaderTitle(
+                          title: 'SETTINGS',
+                          fontSize: 34.0,
+                          flowerSize: 42.0,
+                          curveAmount: 16.0,
+                          verticalOffset: -22.0,
+                          letterSpacing: 2.0,
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
-
-                      // Title: Arched SETTINGS with side flowers
-                      const FloralHeaderTitle(
-                        title: 'SETTINGS',
-                        fontSize: 34.0,
-                        flowerSize: 42.0,
-                        curveAmount: 16.0,
-                        verticalOffset: -22.0,
-                        letterSpacing: 2.0,
-                      ),
-
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
                       // Central Settings Card Container matching Leaderboard card back exactly
                       Center(
@@ -294,109 +429,104 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                       ),
                                     ),
 
-                                    const SizedBox(height: 26),
+                                    // --- COMMENTED OUT: ACCOUNT & USER / GUEST GARDENER VIEW (TEMPORARILY DISABLED AS REQUESTED) ---
+                                    // const SizedBox(height: 20),
+                                    // SizedBox(
+                                    //   height: 36,
+                                    //   child: Row(
+                                    //     crossAxisAlignment: CrossAxisAlignment.center,
+                                    //     children: [
+                                    //       _buildSectionHeader('ACCOUNT', fontSize: 22),
+                                    //       const Spacer(),
+                                    //       Flexible(
+                                    //         child: Builder(
+                                    //           builder: (context) {
+                                    //             final authState = ref.watch(authViewModelProvider);
+                                    //             final user = authState.user;
+                                    //             return Text(
+                                    //               user?.readableName ?? 'Guest Gardener',
+                                    //               style: GoogleFonts.chakraPetch(
+                                    //                 fontSize: 15,
+                                    //                 fontWeight: FontWeight.bold,
+                                    //                 color: const Color(0xFFFFC800),
+                                    //                 letterSpacing: 0.4,
+                                    //               ),
+                                    //               maxLines: 1,
+                                    //               overflow: TextOverflow.ellipsis,
+                                    //               textAlign: TextAlign.end,
+                                    //             );
+                                    //           },
+                                    //         ),
+                                    //       ),
+                                    //     ],
+                                    //   ),
+                                    // ),
+                                    // Builder(
+                                    //   builder: (context) {
+                                    //     final authState = ref.watch(authViewModelProvider);
+                                    //     final user = authState.user;
+                                    //     return Container(
+                                    //       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    //       decoration: BoxDecoration(
+                                    //         color: const Color(0xFF000B1A),
+                                    //         borderRadius: BorderRadius.circular(14),
+                                    //         border: Border.all(
+                                    //           color: const Color(0xFF103975),
+                                    //           width: 1.0,
+                                    //         ),
+                                    //       ),
+                                    //       child: Row(
+                                    //         children: [
+                                    //           CircleAvatar(
+                                    //             radius: 17,
+                                    //             backgroundColor: const Color(0xFFFFC800),
+                                    //             child: Text(
+                                    //               user?.readableName.isNotEmpty == true
+                                    //                   ? user!.readableName[0].toUpperCase()
+                                    //                   : '🌸',
+                                    //               style: GoogleFonts.chakraPetch(
+                                    //                 fontWeight: FontWeight.bold,
+                                    //                 color: const Color(0xFF001834),
+                                    //                 fontSize: 15,
+                                    //               ),
+                                    //             ),
+                                    //           ),
+                                    //           const SizedBox(width: 12),
+                                    //           Expanded(
+                                    //             child: Column(
+                                    //               crossAxisAlignment: CrossAxisAlignment.start,
+                                    //               children: [
+                                    //                 Text(
+                                    //                   user?.readableName ?? 'Guest Gardener',
+                                    //                   style: GoogleFonts.chakraPetch(
+                                    //                     fontSize: 13.5,
+                                    //                     fontWeight: FontWeight.bold,
+                                    //                     color: Colors.white,
+                                    //                   ),
+                                    //                   maxLines: 1,
+                                    //                   overflow: TextOverflow.ellipsis,
+                                    //                 ),
+                                    //                 if (user?.email != null)
+                                    //                   Text(
+                                    //                     user!.email!,
+                                    //                     style: GoogleFonts.chakraPetch(
+                                    //                       fontSize: 11,
+                                    //                       color: Colors.white60,
+                                    //                     ),
+                                    //                     maxLines: 1,
+                                    //                     overflow: TextOverflow.ellipsis,
+                                    //                   ),
+                                    //               ],
+                                    //             ),
+                                    //           ),
+                                    //         ],
+                                    //       ),
+                                    //     );
+                                    //   },
+                                    // ),
 
-                                    // USER ACCOUNT Section
-                                    _buildSectionHeader('ACCOUNT'),
-                                    const SizedBox(height: 10),
-                                    Builder(
-                                      builder: (context) {
-                                        final authState = ref.watch(authViewModelProvider);
-                                        final user = authState.user;
-                                        return Column(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF000B1A),
-                                                borderRadius: BorderRadius.circular(14),
-                                                border: Border.all(
-                                                  color: const Color(0xFF103975),
-                                                  width: 1.0,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  CircleAvatar(
-                                                    radius: 16,
-                                                    backgroundColor: const Color(0xFFFFC800),
-                                                    child: Text(
-                                                      user?.readableName.isNotEmpty == true
-                                                          ? user!.readableName[0].toUpperCase()
-                                                          : '🌸',
-                                                      style: GoogleFonts.chakraPetch(
-                                                        fontWeight: FontWeight.bold,
-                                                        color: const Color(0xFF001834),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          user?.readableName ?? 'Guest Gardener',
-                                                          style: GoogleFonts.chakraPetch(
-                                                            fontSize: 13,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: Colors.white,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                        if (user?.email != null)
-                                                          Text(
-                                                            user!.email!,
-                                                            style: GoogleFonts.chakraPetch(
-                                                              fontSize: 11,
-                                                              color: Colors.white60,
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            ElevatedButton.icon(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF420914),
-                                                foregroundColor: const Color(0xFFFF8080),
-                                                side: const BorderSide(color: Color(0xFFFF3B30), width: 1.2),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(16),
-                                                ),
-                                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                              ),
-                                              icon: const Icon(Icons.logout_rounded, size: 18),
-                                              label: Text(
-                                                user?.isGuest == true ? 'LOG IN / SIGN UP' : 'LOG OUT',
-                                                style: GoogleFonts.chakraPetch(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              onPressed: () async {
-                                                AudioService.instance.playClickSound();
-                                                await ref.read(authViewModelProvider.notifier).logout();
-                                                if (context.mounted) {
-                                                  Navigator.of(context).pushAndRemoveUntil(
-                                                    MaterialPageRoute(builder: (context) => const AuthView()),
-                                                    (route) => false,
-                                                  );
-                                                }
-                                              },
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-
-                                    const SizedBox(height: 22),
+                                    // Elegant Gold Shimmer Divider
+                                    _buildDivider(),
 
                                     // HOW TO PLAY Action Card
                                     GestureDetector(
@@ -468,7 +598,91 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                       ),
                                     ),
 
-                                    const SizedBox(height: 20),
+                                    // Elegant Gold Shimmer Divider
+                                    _buildDivider(),
+
+                                    // LOGOUT & DELETE Buttons Row
+                                    Builder(
+                                      builder: (context) {
+                                        final authState = ref.watch(authViewModelProvider);
+                                        final user = authState.user;
+                                        return Row(
+                                          children: [
+                                            // LOG OUT / LOG IN Button
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF420914),
+                                                  foregroundColor: const Color(0xFFFF8080),
+                                                  side: const BorderSide(color: Color(0xFFFF3B30), width: 1.2),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                  ),
+                                                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                                                  elevation: 4,
+                                                  shadowColor: Colors.black.withValues(alpha: 0.5),
+                                                ),
+                                                icon: const Icon(Icons.logout_rounded, size: 16),
+                                                label: Text(
+                                                  user?.isGuest == true ? 'LOG IN' : 'LOG OUT',
+                                                  style: GoogleFonts.chakraPetch(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                onPressed: () async {
+                                                  AudioService.instance.playClickSound();
+                                                  await ref.read(authViewModelProvider.notifier).logout();
+                                                  if (context.mounted) {
+                                                    Navigator.of(context).pushAndRemoveUntil(
+                                                      MaterialPageRoute(builder: (context) => const AuthView()),
+                                                      (route) => false,
+                                                    );
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            // DELETE Button
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: const Color(0xFF2E090E),
+                                                  foregroundColor: const Color(0xFFFF6B6B),
+                                                  side: const BorderSide(color: Color(0xFFD32F2F), width: 1.2),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(14),
+                                                  ),
+                                                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 8),
+                                                  elevation: 4,
+                                                  shadowColor: Colors.black.withValues(alpha: 0.5),
+                                                ),
+                                                icon: const Icon(Icons.delete_forever_rounded, size: 16),
+                                                label: Text(
+                                                  'DELETE',
+                                                  style: GoogleFonts.chakraPetch(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                onPressed: () {
+                                                  AudioService.instance.playClickSound();
+                                                  _showDeleteAccountDialog(context);
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+
+                                    const SizedBox(height: 18),
 
                                     // ABOUT APP • TERMS • PRIVACY POLICY Links
                                     Wrap(
@@ -482,7 +696,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                           child: Text(
                                             'ABOUT APP',
                                             style: GoogleFonts.chakraPetch(
-                                              fontSize: 14,
+                                              fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
                                               color: const Color(0xFF2096E7),
                                               decoration: TextDecoration.underline,
@@ -512,7 +726,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                           child: Text(
                                             'TERMS',
                                             style: GoogleFonts.chakraPetch(
-                                              fontSize: 14,
+                                              fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
                                               color: const Color(0xFF2096E7),
                                               decoration: TextDecoration.underline,
@@ -542,7 +756,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                           child: Text(
                                             'PRIVACY POLICY',
                                             style: GoogleFonts.chakraPetch(
-                                              fontSize: 14,
+                                              fontSize: 13.5,
                                               fontWeight: FontWeight.w600,
                                               color: const Color(0xFF2096E7),
                                               decoration: TextDecoration.underline,
@@ -578,11 +792,34 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   ),
                 ),
               ),
-            ),
+
+              // Fixed Top Navigation (Back button at top-left matching reference image)
+              Positioned(
+                top: 12,
+                left: 16,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    AudioService.instance.playClickSound();
+                    Navigator.pop(context);
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(
+                      Icons.arrow_back_rounded,
+                      color: Color(0xFFFFC610),
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 
   // Section Header with Gold Gradient Text
@@ -725,7 +962,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
-  // Custom Gold Dropdown for Haptic Intensity Levels (Slow, Middle, High, Too High)
+  // Custom Gold Dropdown for Haptic Intensity Levels (Slow, Middle, High, Extreme)
   Widget _buildHapticDropdown() {
     return Container(
       height: 30,

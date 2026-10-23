@@ -122,6 +122,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
 
     for (final doc in docs) {
       final data = doc.data();
+      if (data['isDeleted'] == true) continue;
       final id = doc.id;
       final isUser = currentUserId != null && currentUserId.isNotEmpty && (id == currentUserId || data['uid'] == currentUserId);
 

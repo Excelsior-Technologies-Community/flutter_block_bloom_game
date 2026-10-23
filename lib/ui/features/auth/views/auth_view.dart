@@ -140,7 +140,14 @@ class _AuthViewState extends ConsumerState<AuthView> {
         _passwordController.text.trim(),
         rememberMe: _rememberMe,
       );
-      if (success) _onSuccessNavigate();
+      if (success) {
+        _onSuccessNavigate();
+      } else if (mounted) {
+        final authError = ref.read(authViewModelProvider).error;
+        if (authError == 'ACCOUNT_DELETED') {
+          _showAccountDeletedDialog(context);
+        }
+      }
     }
   }
 
@@ -149,7 +156,14 @@ class _AuthViewState extends ConsumerState<AuthView> {
     AudioService.instance.playClickSound();
     final authVm = ref.read(authViewModelProvider.notifier);
     final success = await authVm.loginWithGoogle();
-    if (success) _onSuccessNavigate();
+    if (success) {
+      _onSuccessNavigate();
+    } else if (mounted) {
+      final authError = ref.read(authViewModelProvider).error;
+      if (authError == 'ACCOUNT_DELETED') {
+        _showAccountDeletedDialog(context);
+      }
+    }
   }
 
   Future<void> _handleGuestLogin() async {
@@ -158,6 +172,138 @@ class _AuthViewState extends ConsumerState<AuthView> {
     final authVm = ref.read(authViewModelProvider.notifier);
     final success = await authVm.loginAsGuest();
     if (success) _onSuccessNavigate();
+  }
+
+  // --- POPUP DIALOG WHEN USER ATTEMPTS TO LOGIN TO DELETED ACCOUNT ---
+  void _showAccountDeletedDialog(BuildContext context) {
+    HapticFeedback.heavyImpact();
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF001834),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFF3B30), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.75),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: const Color(0xFFFF3B30).withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF380810),
+                    border: Border.all(
+                      color: const Color(0xFFFF3B30),
+                      width: 1.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF3B30).withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.person_off_rounded,
+                    color: Color(0xFFFF6B6B),
+                    size: 30,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ).createShader(bounds),
+                  child: Text(
+                    'ACCOUNT DELETED',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'This account was previously deleted and all user gameplay data has been removed.\n\nYou cannot log in to this account anymore. Please create a new account to continue playing.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.chakraPetch(
+                    fontSize: 13.5,
+                    color: Colors.white.withValues(alpha: 0.88),
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Column(
+                  children: [
+                    GreenGameButton(
+                      text: 'CREATE NEW ACCOUNT',
+                      width: double.infinity,
+                      height: 46,
+                      fontSize: 14.5,
+                      borderRadius: 12,
+                      onPressed: () {
+                        AudioService.instance.playClickSound();
+                        Navigator.pop(dialogContext);
+                        ref.read(authViewModelProvider.notifier).clearError();
+                        setState(() {
+                          _isSignUp = true;
+                          _isForgotPassword = false;
+                          _emailController.clear();
+                          _passwordController.clear();
+                          _confirmPasswordController.clear();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () {
+                        AudioService.instance.playClickSound();
+                        Navigator.pop(dialogContext);
+                        ref.read(authViewModelProvider.notifier).clearError();
+                      },
+                      child: Text(
+                        'CLOSE',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFFFC800),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _handleBackNavigation() {
@@ -994,7 +1140,7 @@ class _AuthViewState extends ConsumerState<AuthView> {
                       const SizedBox(height: 20),
 
                       // Error Message Display
-                      if (authState.error != null) ...[
+                      if (authState.error != null && authState.error != 'ACCOUNT_DELETED') ...[
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

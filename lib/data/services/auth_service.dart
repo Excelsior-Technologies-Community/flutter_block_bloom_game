@@ -10,6 +10,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive/hive.dart';
 import 'package:block_bloom/domain/models/app_user.dart';
 
+class UserDeletedException implements Exception {
+  final String message;
+  const UserDeletedException([this.message = 'This account has been deleted.']);
+  @override
+  String toString() => message;
+}
+
 class AuthService {
   static final AuthService instance = AuthService._internal();
   AuthService._internal();
@@ -41,8 +48,19 @@ class AuthService {
         serverClientId: '900790491091-vp842v2tjbep2g5ael175ih1cg4n59kk.apps.googleusercontent.com',
       );
 
-      _firebaseAuth?.authStateChanges().listen((fbUser) {
+      _firebaseAuth?.authStateChanges().listen((fbUser) async {
         if (fbUser != null) {
+          try {
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).get();
+            if (userDoc.exists && userDoc.data()?['isDeleted'] == true) {
+              await _firebaseAuth?.signOut();
+              await _googleSignIn?.signOut();
+              await _clearLocalUser();
+              _authStreamController.add(null);
+              return;
+            }
+          } catch (_) {}
+
           final user = AppUser(
             uid: fbUser.uid,
             displayName: fbUser.displayName,
@@ -140,6 +158,18 @@ class AuthService {
         );
         final fbUser = credential.user;
         if (fbUser != null) {
+          try {
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).get();
+            if (userDoc.exists && userDoc.data()?['isDeleted'] == true) {
+              await _firebaseAuth!.signOut();
+              await _googleSignIn?.signOut();
+              await _clearLocalUser();
+              throw const UserDeletedException('This account has been deleted.');
+            }
+          } on UserDeletedException {
+            rethrow;
+          } catch (_) {}
+
           final nameClean = (fbUser.displayName != null && fbUser.displayName!.trim().isNotEmpty)
               ? fbUser.displayName!.trim()
               : (fbUser.email != null && fbUser.email!.contains('@') ? fbUser.email!.split('@').first : 'PLAYER');
@@ -169,6 +199,8 @@ class AuthService {
           _authStreamController.add(user);
           return user;
         }
+      } on UserDeletedException {
+        rethrow;
       } catch (e) {
         // When standard Firebase Auth login fails (e.g. because password was reset in-app without logging in,
         // or because account was created via Google / custom sign-up flow):
@@ -205,6 +237,12 @@ class AuthService {
 
             if (query.docs.isNotEmpty) {
               final docData = query.docs.first.data();
+              if (docData['isDeleted'] == true) {
+                await _firebaseAuth?.signOut();
+                await _googleSignIn?.signOut();
+                await _clearLocalUser();
+                throw const UserDeletedException('This account has been deleted.');
+              }
               final storedPass = docData['password'] as String?;
               if (docData['displayName'] != null && (docData['displayName'] as String).isNotEmpty) {
                 userDisplayName = docData['displayName'] as String;
@@ -216,6 +254,8 @@ class AuthService {
                 customAuthPassed = true;
               }
             }
+          } on UserDeletedException {
+            rethrow;
           } catch (_) {}
         }
 
@@ -395,6 +435,18 @@ class AuthService {
         final userCredential = await _firebaseAuth!.signInWithCredential(credential);
         final fbUser = userCredential.user;
         if (fbUser != null) {
+          try {
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).get();
+            if (userDoc.exists && userDoc.data()?['isDeleted'] == true) {
+              await _firebaseAuth!.signOut();
+              await _googleSignIn?.signOut();
+              await _clearLocalUser();
+              throw const UserDeletedException('This account has been deleted.');
+            }
+          } on UserDeletedException {
+            rethrow;
+          } catch (_) {}
+
           final nameClean = fbUser.displayName ?? googleUser.displayName ?? (googleUser.email.contains('@') ? googleUser.email.split('@').first : 'GARDENER');
           final user = AppUser(
             uid: fbUser.uid,
@@ -416,9 +468,12 @@ class AuthService {
           _authStreamController.add(user);
           return user;
         }
+      } on UserDeletedException {
+        rethrow;
       } on fb.FirebaseAuthException catch (e) {
         throw Exception(e.message ?? 'Google Sign-In failed.');
       } catch (e) {
+        if (e is UserDeletedException) rethrow;
         if (e.toString().contains('canceled')) rethrow;
         final user = AppUser(
           uid: 'google_${DateTime.now().millisecondsSinceEpoch}',
@@ -750,4 +805,54 @@ class AuthService {
     await _clearLocalUser();
     _authStreamController.add(null);
   }
+
+  // --- DELETE ACCOUNT ---
+  Future<void> deleteAccount() async {
+    final fbUser = _firebaseAuth?.currentUser;
+    final storedUser = await getStoredUser();
+    final uid = fbUser?.uid ?? storedUser?.uid;
+    final email = fbUser?.email ?? storedUser?.email;
+
+    if (_isFirebaseInitialized && uid != null) {
+      try {
+        // Soft delete: Keep user record in Firestore with isDeleted: true, but erase all user gameplay data
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'uid': uid,
+          if (email != null) 'email': email.trim().toLowerCase(),
+          'isDeleted': true,
+          'deletedAt': FieldValue.serverTimestamp(),
+          // Clear all game scores & progress data
+          'stats': {},
+          'highestScore': 0,
+          'totalScore': 0,
+          'flowers': 0,
+          'currentLevel': 1,
+          'gamesPlayed': 0,
+          'linesCleared': 0,
+        });
+      } catch (_) {}
+    }
+
+    // Per user request: do NOT delete fbUser from FirebaseAuth, only clear their data and sign out
+    try {
+      await _firebaseAuth?.signOut();
+      await _googleSignIn?.signOut();
+    } catch (_) {}
+
+    await _clearLocalUser();
+
+    // Clear local user progress & saved credentials
+    try {
+      if (Hive.isBoxOpen('user_progress_box')) {
+        await Hive.box('user_progress_box').clear();
+      }
+      final box = await Hive.openBox(_userBoxName);
+      await box.delete(_rememberEmailKey);
+      await box.delete(_rememberPasswordKey);
+      await box.delete(_rememberMeKey);
+    } catch (_) {}
+
+    _authStreamController.add(null);
+  }
 }
+

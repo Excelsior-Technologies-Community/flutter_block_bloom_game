@@ -7,12 +7,16 @@ enum HapticLevel {
   slow('Slow'),
   middle('Middle'),
   high('High'),
-  tooHigh('Too High');
+  tooHigh('Extreme');
 
   final String label;
   const HapticLevel(this.label);
 
   static HapticLevel fromString(String val) {
+    final lower = val.toLowerCase().replaceAll(' ', '');
+    if (lower == 'toohigh' || lower == 'extreme' || lower == 'extrim') {
+      return HapticLevel.tooHigh;
+    }
     return HapticLevel.values.firstWhere(
       (e) => e.label.toLowerCase() == val.toLowerCase() || e.name.toLowerCase() == val.toLowerCase(),
       orElse: () => HapticLevel.middle,
