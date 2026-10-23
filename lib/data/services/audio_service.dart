@@ -3,6 +3,23 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+enum HapticLevel {
+  slow('Slow'),
+  middle('Middle'),
+  high('High'),
+  tooHigh('Too High');
+
+  final String label;
+  const HapticLevel(this.label);
+
+  static HapticLevel fromString(String val) {
+    return HapticLevel.values.firstWhere(
+      (e) => e.label.toLowerCase() == val.toLowerCase() || e.name.toLowerCase() == val.toLowerCase(),
+      orElse: () => HapticLevel.middle,
+    );
+  }
+}
+
 class AudioService with WidgetsBindingObserver {
   AudioService._internal();
   static final AudioService instance = AudioService._internal();
@@ -15,6 +32,7 @@ class AudioService with WidgetsBindingObserver {
   double _sfxVolume = 0.8;
   double _bgmVolume = 0.7;
   bool _hapticEnabled = true;
+  HapticLevel _hapticLevel = HapticLevel.middle;
   bool _isBgmPlaying = false;
   bool _wasBgmPlayingBeforeLifecyclePause = false;
   bool _initialized = false;
@@ -22,6 +40,7 @@ class AudioService with WidgetsBindingObserver {
   double get sfxVolume => _sfxVolume;
   double get bgmVolume => _bgmVolume;
   bool get hapticEnabled => _hapticEnabled;
+  HapticLevel get hapticLevel => _hapticLevel;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -37,6 +56,10 @@ class AudioService with WidgetsBindingObserver {
         _sfxVolume = (box.get('sfx_volume', defaultValue: 0.8) as num).toDouble();
         _bgmVolume = (box.get('bgm_volume', defaultValue: 0.7) as num).toDouble();
         _hapticEnabled = (box.get('haptic_enabled', defaultValue: true) as bool);
+        final savedHapticLevel = box.get('haptic_level', defaultValue: 'Middle') as String?;
+        if (savedHapticLevel != null) {
+          _hapticLevel = HapticLevel.fromString(savedHapticLevel);
+        }
       }
     } catch (_) {}
 
@@ -96,7 +119,7 @@ class AudioService with WidgetsBindingObserver {
 
     if (_hapticEnabled) {
       try {
-        HapticFeedback.lightImpact();
+        HapticFeedback.vibrate();
       } catch (_) {}
     }
     if (_sfxVolume <= 0.0) return;
@@ -112,7 +135,26 @@ class AudioService with WidgetsBindingObserver {
   Future<void> playBlockPlaceSound() async {
     if (_hapticEnabled) {
       try {
-        HapticFeedback.mediumImpact();
+        switch (_hapticLevel) {
+          case HapticLevel.slow:
+            HapticFeedback.vibrate();
+            break;
+          case HapticLevel.middle:
+            HapticFeedback.vibrate();
+            break;
+          case HapticLevel.high:
+            HapticFeedback.vibrate();
+            Future.delayed(const Duration(milliseconds: 90), () {
+              HapticFeedback.vibrate();
+            });
+            break;
+          case HapticLevel.tooHigh:
+            HapticFeedback.vibrate();
+            Future.delayed(const Duration(milliseconds: 70), () {
+              HapticFeedback.vibrate();
+            });
+            break;
+        }
       } catch (_) {}
     }
     if (_sfxVolume <= 0.0) return;
@@ -128,7 +170,31 @@ class AudioService with WidgetsBindingObserver {
   Future<void> playClearSound() async {
     if (_hapticEnabled) {
       try {
-        HapticFeedback.heavyImpact();
+        switch (_hapticLevel) {
+          case HapticLevel.slow:
+            HapticFeedback.vibrate();
+            break;
+          case HapticLevel.middle:
+            HapticFeedback.vibrate();
+            Future.delayed(const Duration(milliseconds: 90), () {
+              HapticFeedback.vibrate();
+            });
+            break;
+          case HapticLevel.high:
+            for (int i = 0; i < 3; i++) {
+              Future.delayed(Duration(milliseconds: i * 80), () {
+                HapticFeedback.vibrate();
+              });
+            }
+            break;
+          case HapticLevel.tooHigh:
+            for (int i = 0; i < 4; i++) {
+              Future.delayed(Duration(milliseconds: i * 65), () {
+                HapticFeedback.vibrate();
+              });
+            }
+            break;
+        }
       } catch (_) {}
     }
     if (_sfxVolume <= 0.0) return;
@@ -144,7 +210,32 @@ class AudioService with WidgetsBindingObserver {
   Future<void> playGameOverSound() async {
     if (_hapticEnabled) {
       try {
-        HapticFeedback.heavyImpact();
+        switch (_hapticLevel) {
+          case HapticLevel.slow:
+            HapticFeedback.vibrate();
+            break;
+          case HapticLevel.middle:
+            for (int i = 0; i < 2; i++) {
+              Future.delayed(Duration(milliseconds: i * 90), () {
+                HapticFeedback.vibrate();
+              });
+            }
+            break;
+          case HapticLevel.high:
+            for (int i = 0; i < 3; i++) {
+              Future.delayed(Duration(milliseconds: i * 80), () {
+                HapticFeedback.vibrate();
+              });
+            }
+            break;
+          case HapticLevel.tooHigh:
+            for (int i = 0; i < 4; i++) {
+              Future.delayed(Duration(milliseconds: i * 65), () {
+                HapticFeedback.vibrate();
+              });
+            }
+            break;
+        }
       } catch (_) {}
     }
     if (_sfxVolume <= 0.0) return;
@@ -268,6 +359,54 @@ class AudioService with WidgetsBindingObserver {
   void setHapticEnabled(bool enabled) {
     _hapticEnabled = enabled;
     _persistSetting('haptic_enabled', _hapticEnabled);
+  }
+
+  // Set Haptic Feedback Intensity Level
+  void setHapticLevel(HapticLevel level) {
+    _hapticLevel = level;
+    _hapticEnabled = true;
+    _persistSetting('haptic_level', level.label);
+    _persistSetting('haptic_enabled', true);
+    triggerHaptic(level, true);
+  }
+
+  // Trigger tactile vibration matching the chosen haptic level (distinct feelable pulses for all 4 levels)
+  Future<void> triggerHaptic([HapticLevel? overrideLevel, bool force = false]) async {
+    if (!_hapticEnabled && !force) return;
+    final level = overrideLevel ?? _hapticLevel;
+    try {
+      switch (level) {
+        case HapticLevel.slow:
+          // Level 1: 1 single crisp pulse - gentle tactile feedback
+          await HapticFeedback.heavyImpact();
+          await HapticFeedback.vibrate();
+          break;
+        case HapticLevel.middle:
+          // Level 2: 2 rhythmic pulses - clear medium tactile feedback
+          await HapticFeedback.heavyImpact();
+          await HapticFeedback.vibrate();
+          await Future.delayed(const Duration(milliseconds: 120));
+          await HapticFeedback.heavyImpact();
+          await HapticFeedback.vibrate();
+          break;
+        case HapticLevel.high:
+          // Level 3: 3 strong rhythmic pulses - high tactile feedback
+          for (int i = 0; i < 3; i++) {
+            await HapticFeedback.heavyImpact();
+            await HapticFeedback.vibrate();
+            await Future.delayed(const Duration(milliseconds: 90));
+          }
+          break;
+        case HapticLevel.tooHigh:
+          // Level 4: 5 rapid intense pulses - maximum tactile vibration burst
+          for (int i = 0; i < 5; i++) {
+            await HapticFeedback.heavyImpact();
+            await HapticFeedback.vibrate();
+            await Future.delayed(const Duration(milliseconds: 70));
+          }
+          break;
+      }
+    } catch (_) {}
   }
 
   void _persistSetting(String key, dynamic value) {

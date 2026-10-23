@@ -22,6 +22,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   late double _soundVolume;
   late double _musicVolume;
   late bool _hapticEnabled;
+  late HapticLevel _hapticLevel;
 
   @override
   void initState() {
@@ -29,6 +30,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     _soundVolume = AudioService.instance.sfxVolume;
     _musicVolume = AudioService.instance.bgmVolume;
     _hapticEnabled = AudioService.instance.hapticEnabled;
+    _hapticLevel = AudioService.instance.hapticLevel;
   }
 
   void _showAboutDialog(BuildContext context) {
@@ -220,45 +222,79 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // SOUND Section
-                                    _buildSectionHeader('SOUND'),
-                                    const SizedBox(height: 12),
-                                    _buildGoldSlider(
-                                      value: _soundVolume,
-                                      onChanged: (val) {
-                                        setState(() => _soundVolume = val);
-                                        AudioService.instance.setSfxVolume(val);
-                                      },
+                                    // SOUND Section (Row: Left text, Right scrolling slider)
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 90,
+                                          alignment: Alignment.centerLeft,
+                                          child: _buildSectionHeader('SOUND'),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _buildGoldSlider(
+                                            value: _soundVolume,
+                                            onChanged: (val) {
+                                              setState(() => _soundVolume = val);
+                                              AudioService.instance.setSfxVolume(val);
+                                            },
+                                          ),
+                                        ),
+                                      ],
                                     ),
 
-                                    const SizedBox(height: 28),
+                                    const SizedBox(height: 24),
 
-                                    // MUSIC Section
-                                    _buildSectionHeader('MUSIC'),
-                                    const SizedBox(height: 12),
-                                    _buildGoldSlider(
-                                      value: _musicVolume,
-                                      onChanged: (val) {
-                                        setState(() => _musicVolume = val);
-                                        AudioService.instance.setBgmVolume(val);
-                                      },
+                                    // MUSIC Section (Row: Left text, Right scrolling slider)
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 90,
+                                          alignment: Alignment.centerLeft,
+                                          child: _buildSectionHeader('MUSIC'),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _buildGoldSlider(
+                                            value: _musicVolume,
+                                            onChanged: (val) {
+                                              setState(() => _musicVolume = val);
+                                              AudioService.instance.setBgmVolume(val);
+                                            },
+                                          ),
+                                        ),
+                                      ],
                                     ),
 
-                                    const SizedBox(height: 28),
+                                    const SizedBox(height: 24),
 
-                                    // HAPTIC Section
-                                    _buildSectionHeader('HAPTIC'),
-                                    const SizedBox(height: 12),
-                                    _buildGoldSwitch(
-                                      value: _hapticEnabled,
-                                      onChanged: (val) {
-                                        setState(() => _hapticEnabled = val);
-                                        AudioService.instance.setHapticEnabled(val);
-                                        AudioService.instance.playClickSound();
-                                      },
+                                    // HAPTIC Section (Row: Left text, Middle Dropdown, Right toggle switch)
+                                    SizedBox(
+                                      height: 36,
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          _buildSectionHeader('HAPTIC'),
+                                          const Spacer(),
+                                          _buildHapticDropdown(),
+                                          const SizedBox(width: 10),
+                                          _buildGoldSwitch(
+                                            value: _hapticEnabled,
+                                            onChanged: (val) {
+                                              setState(() => _hapticEnabled = val);
+                                              AudioService.instance.setHapticEnabled(val);
+                                              if (val) {
+                                                AudioService.instance.triggerHaptic(null, true);
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
                                     ),
 
-                                    const SizedBox(height: 28),
+                                    const SizedBox(height: 26),
 
                                     // USER ACCOUNT Section
                                     _buildSectionHeader('ACCOUNT'),
@@ -550,7 +586,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   // Section Header with Gold Gradient Text
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, {double fontSize = 24}) {
     return ShaderMask(
       shaderCallback: (bounds) => const LinearGradient(
         colors: [Color(0xFFFFFFFF), Color(0xFFFFC610)],
@@ -560,7 +596,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       child: Text(
         title,
         style: GoogleFonts.chakraPetch(
-          fontSize: 24,
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: Colors.white,
           letterSpacing: 1.0,
@@ -686,6 +722,68 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ),
         );
       },
+    );
+  }
+
+  // Custom Gold Dropdown for Haptic Intensity Levels (Slow, Middle, High, Too High)
+  Widget _buildHapticDropdown() {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF001428),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFFFC800),
+          width: 1.1,
+        ),
+        boxShadow: _hapticEnabled
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFFFC800).withValues(alpha: 0.18),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ]
+            : null,
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<HapticLevel>(
+          value: _hapticLevel,
+          isDense: true,
+          dropdownColor: const Color(0xFF001834),
+          borderRadius: BorderRadius.circular(10),
+          icon: const Icon(
+            Icons.arrow_drop_down_rounded,
+            color: Color(0xFFFFC800),
+            size: 20,
+          ),
+          onChanged: (HapticLevel? newLevel) {
+            if (newLevel != null) {
+              setState(() {
+                _hapticLevel = newLevel;
+                _hapticEnabled = true;
+              });
+              AudioService.instance.setHapticLevel(newLevel);
+            }
+          },
+          items: HapticLevel.values.map((HapticLevel level) {
+            final isSelected = level == _hapticLevel;
+            return DropdownMenuItem<HapticLevel>(
+              value: level,
+              child: Text(
+                level.label,
+                style: GoogleFonts.chakraPetch(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? const Color(0xFFFFC800) : Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
