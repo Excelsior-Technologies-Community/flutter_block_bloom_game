@@ -7,6 +7,7 @@ import 'package:block_bloom/domain/models/user_progress.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
 import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/domain/models/board_template.dart';
 
 /// Daily Garden Game Over Screen (Screen 3 from design)
 /// Shows arched "GAME OVER" title, TODAY'S TOP 10 Leaderboard card with
@@ -269,6 +270,41 @@ class _DailyGardenGameOverViewState extends ConsumerState<DailyGardenGameOverVie
                                 padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                                 child: Column(
                                   children: [
+                                    // Today's Arena Badge
+                                    Builder(
+                                      builder: (context) {
+                                        final todayTemplate = BoardTemplate.getDailyTemplate(DateTime.now());
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF00142A).withValues(alpha: 0.8),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: const Color(0xFFFFC800).withValues(alpha: 0.6),
+                                              width: 1.0,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(todayTemplate.emoji, style: const TextStyle(fontSize: 12)),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                todayTemplate.name.toUpperCase(),
+                                                style: GoogleFonts.chakraPetch(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFFFFD54F),
+                                                  letterSpacing: 0.8,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+
                                     // YOUR SCORE Header
                                     ShaderMask(
                                       shaderCallback: (bounds) => const LinearGradient(

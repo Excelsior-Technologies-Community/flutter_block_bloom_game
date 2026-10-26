@@ -205,7 +205,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   void loadDailyLevel() {
     state = state.copyWith(isLoading: true);
     try {
-      final now = DateTime.now().toUtc();
+      final now = DateTime.now();
       final level = levelGenerator.generateDaily(now);
       _setupLevel(level, isRandom: false, isDaily: true);
     } catch (e) {

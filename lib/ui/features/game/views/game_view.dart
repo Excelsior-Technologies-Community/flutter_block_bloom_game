@@ -16,6 +16,7 @@ import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/features/game/widgets/pause_dialog.dart';
 import 'package:block_bloom/ui/features/game/widgets/game_over_dialog.dart';
+import 'package:block_bloom/domain/models/board_template.dart';
 import 'package:block_bloom/ui/features/game/widgets/contoured_board_frame.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_game_over_view.dart';
 
@@ -312,6 +313,9 @@ class _GameViewState extends ConsumerState<GameView> {
                     children: [
                       // Header / Top Navigation Bar
                       _buildTopBar(context, state),
+
+                      if (widget.isDaily && state.level?.template != null)
+                        _buildDailyTemplatePill(state.level!.template!),
 
                       // Power Threshold Bar (Optional Booster info)
                       _buildGardenPowerBar(state),
@@ -838,6 +842,60 @@ class _GameViewState extends ConsumerState<GameView> {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyTemplatePill(BoardTemplate template) {
+    return Container(
+      margin: const EdgeInsets.only(top: 2, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF001834).withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFC800).withValues(alpha: 0.85),
+          width: 1.1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black38,
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(template.emoji, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 6),
+          Text(
+            template.name.toUpperCase(),
+            style: GoogleFonts.chakraPetch(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFFFD54F),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF003675),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '1.5x BOOST',
+              style: GoogleFonts.chakraPetch(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF6EE7B7),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -61,7 +61,8 @@ class LevelGenerator {
   GameLevel generateDaily(DateTime date) {
     final seed = date.year * 10000 + date.month * 100 + date.day;
     final random = Random(seed);
-    return _generateLevelWithSeed(-99, 8, random);
+    final template = BoardTemplate.getDailyTemplate(date);
+    return _generateLevelWithSeed(-99, template.rows, random, template: template);
   }
 
   /// Calculates target completion score based on level progression & matrix size.

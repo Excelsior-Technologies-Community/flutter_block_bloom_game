@@ -667,4 +667,643 @@ class BoardTemplate {
     final index = (levelNumber - 1) % _levelTemplates100.length;
     return _levelTemplates100[index];
   }
+
+  // =========================================================================
+  // 31 HANDCRAFTED DAILY GARDEN ARENA TEMPLATES
+  // Designed specifically for Daily Garden mode: spacious, high-scoring
+  // layouts with open centers, floral/nature contours, and huge combo potential!
+  // =========================================================================
+
+  // Day 1: Lotus Blossom 🪷
+  static const BoardTemplate dailyLotus = BoardTemplate(
+    id: 'daily_lotus',
+    name: 'Lotus Blossom',
+    emoji: '🪷',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 2: Sunflower Arena 🌻
+  static const BoardTemplate dailySunflower = BoardTemplate(
+    id: 'daily_sunflower',
+    name: 'Sunflower Arena',
+    emoji: '🌻',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 3: Lucky Four-Leaf 🍀
+  static const BoardTemplate dailyFourLeaf = BoardTemplate(
+    id: 'daily_four_leaf',
+    name: 'Lucky Four-Leaf',
+    emoji: '🍀',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 4: Royal Orchid 🌺
+  static const BoardTemplate dailyOrchid = BoardTemplate(
+    id: 'daily_orchid',
+    name: 'Royal Orchid',
+    emoji: '🌺',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 5: Garden Butterfly 🦋
+  static const BoardTemplate dailyButterfly = BoardTemplate(
+    id: 'daily_butterfly',
+    name: 'Garden Butterfly',
+    emoji: '🦋',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+    ],
+  );
+
+  // Day 6: Blossom Star 🌟
+  static const BoardTemplate dailyBlossomStar = BoardTemplate(
+    id: 'daily_blossom_star',
+    name: 'Blossom Star',
+    emoji: '🌟',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '...XX...',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '...XX...',
+    ],
+  );
+
+  // Day 7: Rose Chalice 🌹
+  static const BoardTemplate dailyRoseChalice = BoardTemplate(
+    id: 'daily_rose_chalice',
+    name: 'Rose Chalice',
+    emoji: '🌹',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XX.XX.XX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '.XXXXXX.',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 8: Zen Water Lily 🪷
+  static const BoardTemplate dailyZenLily = BoardTemplate(
+    id: 'daily_zen_lily',
+    name: 'Zen Water Lily',
+    emoji: '🪷',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 9: Imperial Crown 👑
+  static const BoardTemplate dailyImperialCrown = BoardTemplate(
+    id: 'daily_imperial_crown',
+    name: 'Imperial Crown',
+    emoji: '👑',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'X..XX..X',
+      'XX.XX.XX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 10: Tree of Life 🌳
+  static const BoardTemplate dailyTreeOfLife = BoardTemplate(
+    id: 'daily_tree_of_life',
+    name: 'Tree of Life',
+    emoji: '🌳',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '..XXXX..',
+      '..XXXX..',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 11: Flora Diamond 💠
+  static const BoardTemplate dailyFloraDiamond = BoardTemplate(
+    id: 'daily_flora_diamond',
+    name: 'Flora Diamond',
+    emoji: '💠',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 12: Morning Dew 💧
+  static const BoardTemplate dailyDewDrop = BoardTemplate(
+    id: 'daily_dew_drop',
+    name: 'Morning Dew',
+    emoji: '💧',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '...XX...',
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 13: Garden Gate ⛩️
+  static const BoardTemplate dailyGardenGate = BoardTemplate(
+    id: 'daily_garden_gate',
+    name: 'Garden Gate',
+    emoji: '⛩️',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXX..XXX',
+      'XXX..XXX',
+      'XXX..XXX',
+      'XXX..XXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+    ],
+  );
+
+  // Day 14: Sweet Lavender 🪻
+  static const BoardTemplate dailyLavender = BoardTemplate(
+    id: 'daily_lavender',
+    name: 'Sweet Lavender',
+    emoji: '🪻',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 15: Honeycomb Glade 🐝
+  static const BoardTemplate dailyHoneycomb = BoardTemplate(
+    id: 'daily_honeycomb',
+    name: 'Honeycomb Glade',
+    emoji: '🐝',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 16: Sunburst Arena ☀️
+  static const BoardTemplate dailySunburst = BoardTemplate(
+    id: 'daily_sunburst',
+    name: 'Sunburst Arena',
+    emoji: '☀️',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'X.XXXX.X',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'X.XXXX.X',
+    ],
+  );
+
+  // Day 17: Peacock Fan 🦚
+  static const BoardTemplate dailyPeacock = BoardTemplate(
+    id: 'daily_peacock',
+    name: 'Peacock Fan',
+    emoji: '🦚',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '.XXXXXX.',
+      '..XXXX..',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 18: Garden Fountain ⛲
+  static const BoardTemplate dailyFountain = BoardTemplate(
+    id: 'daily_fountain',
+    name: 'Garden Fountain',
+    emoji: '⛲',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXX..',
+      '..XXXX..',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 19: Magnolia Bloom 🌸
+  static const BoardTemplate dailyMagnolia = BoardTemplate(
+    id: 'daily_magnolia',
+    name: 'Magnolia Bloom',
+    emoji: '🌸',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XX....XX',
+      'XX....XX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 20: Celestial Crescent 🌙
+  static const BoardTemplate dailyCrescent = BoardTemplate(
+    id: 'daily_crescent',
+    name: 'Celestial Crescent',
+    emoji: '🌙',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '..XXXXXX',
+      '.XXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXX.',
+      'XXXXXXX.',
+      'XXXXXXXX',
+      '.XXXXXXX',
+      '..XXXXXX',
+    ],
+  );
+
+  // Day 21: Twin Sprout 🌱
+  static const BoardTemplate dailyTwinSprout = BoardTemplate(
+    id: 'daily_twin_sprout',
+    name: 'Twin Sprout',
+    emoji: '🌱',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XX....XX',
+      'XXX..XXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 22: Dahlia Crest 🏵️
+  static const BoardTemplate dailyDahlia = BoardTemplate(
+    id: 'daily_dahlia',
+    name: 'Dahlia Crest',
+    emoji: '🏵️',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XX..XX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XX..XX.',
+    ],
+  );
+
+  // Day 23: Ivy Cross 🌿
+  static const BoardTemplate dailyIvyCross = BoardTemplate(
+    id: 'daily_ivy_cross',
+    name: 'Ivy Cross',
+    emoji: '🌿',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XXXXXX.',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 24: Tulip Chalice 🌷
+  static const BoardTemplate dailyTulipChalice = BoardTemplate(
+    id: 'daily_tulip_chalice',
+    name: 'Tulip Chalice',
+    emoji: '🌷',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XX.XX.XX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 25: Garden Ribbon 🎀
+  static const BoardTemplate dailyGardenRibbon = BoardTemplate(
+    id: 'daily_garden_ribbon',
+    name: 'Garden Ribbon',
+    emoji: '🎀',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      'XXX..XXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXX..XXX',
+      'XXXXXXXX',
+    ],
+  );
+
+  // Day 26: Starlight Bloom ✨
+  static const BoardTemplate dailyStarlightBloom = BoardTemplate(
+    id: 'daily_starlight_bloom',
+    name: 'Starlight Bloom',
+    emoji: '✨',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.X.XX.X.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.X.XX.X.',
+    ],
+  );
+
+  // Day 27: Garden Shield 🛡️
+  static const BoardTemplate dailyGardenShield = BoardTemplate(
+    id: 'daily_garden_shield',
+    name: 'Garden Shield',
+    emoji: '🛡️',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      '..XXXX..',
+      '..XXXX..',
+    ],
+  );
+
+  // Day 28: Dragonfly Glade 🌾
+  static const BoardTemplate dailyDragonfly = BoardTemplate(
+    id: 'daily_dragonfly',
+    name: 'Dragonfly Glade',
+    emoji: '🌾',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXXXX',
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+      'XXXXXXXX',
+    ],
+  );
+
+  // Day 29: Daisy Wheel 🌼
+  static const BoardTemplate dailyDaisyWheel = BoardTemplate(
+    id: 'daily_daisy_wheel',
+    name: 'Daisy Wheel',
+    emoji: '🌼',
+    rows: 8,
+    cols: 8,
+    layout: [
+      '.XXXXXX.',
+      'XXXXXXXX',
+      'XX.XX.XX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XX.XX.XX',
+      'XXXXXXXX',
+      '.XXXXXX.',
+    ],
+  );
+
+  // Day 30: Celestial Galaxy 🌌
+  static const BoardTemplate dailyGalaxy = BoardTemplate(
+    id: 'daily_galaxy',
+    name: 'Celestial Galaxy',
+    emoji: '🌌',
+    rows: 8,
+    cols: 8,
+    layout: [
+      'XXXXXX..',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      '..XXXXXX',
+    ],
+  );
+
+  // Day 31: Eden Paradise 🌴
+  static const BoardTemplate dailyEdenParadise = BoardTemplate(
+    id: 'daily_eden_paradise',
+    name: 'Eden Paradise',
+    emoji: '🌴',
+    rows: 8,
+    cols: 8,
+    isStandardSquare: true,
+    layout: [
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+      'XXXXXXXX',
+    ],
+  );
+
+  // Complete List of All 31 Daily Garden Templates
+  static const List<BoardTemplate> dailyTemplates = [
+    dailyLotus,           // Day 1: Lotus Blossom 🪷
+    dailySunflower,       // Day 2: Sunflower Arena 🌻
+    dailyFourLeaf,        // Day 3: Lucky Four-Leaf 🍀
+    dailyOrchid,          // Day 4: Royal Orchid 🌺
+    dailyButterfly,       // Day 5: Garden Butterfly 🦋
+    dailyBlossomStar,     // Day 6: Blossom Star 🌟
+    dailyRoseChalice,     // Day 7: Rose Chalice 🌹
+    dailyZenLily,         // Day 8: Zen Water Lily 🪷
+    dailyImperialCrown,   // Day 9: Imperial Crown 👑
+    dailyTreeOfLife,      // Day 10: Tree of Life 🌳
+    dailyFloraDiamond,    // Day 11: Flora Diamond 💠
+    dailyDewDrop,         // Day 12: Morning Dew 💧
+    dailyGardenGate,      // Day 13: Garden Gate ⛩️
+    dailyLavender,        // Day 14: Sweet Lavender 🪻
+    dailyHoneycomb,       // Day 15: Honeycomb Glade 🐝
+    dailySunburst,        // Day 16: Sunburst Arena ☀️
+    dailyPeacock,         // Day 17: Peacock Fan 🦚
+    dailyFountain,        // Day 18: Garden Fountain ⛲
+    dailyMagnolia,        // Day 19: Magnolia Bloom 🌸
+    dailyCrescent,        // Day 20: Celestial Crescent 🌙
+    dailyTwinSprout,      // Day 21: Twin Sprout 🌱
+    dailyDahlia,          // Day 22: Dahlia Crest 🏵️
+    dailyIvyCross,        // Day 23: Ivy Cross 🌿
+    dailyTulipChalice,    // Day 24: Tulip Chalice 🌷
+    dailyGardenRibbon,    // Day 25: Garden Ribbon 🎀
+    dailyStarlightBloom,  // Day 26: Starlight Bloom ✨ (Today!)
+    dailyGardenShield,    // Day 27: Garden Shield 🛡️
+    dailyDragonfly,       // Day 28: Dragonfly Glade 🌾
+    dailyDaisyWheel,      // Day 29: Daisy Wheel 🌼
+    dailyGalaxy,          // Day 30: Celestial Galaxy 🌌
+    dailyEdenParadise,    // Day 31: Eden Paradise 🌴
+  ];
+
+  /// Returns the designated Daily Garden template for any date.
+  /// Maps each day of the month (1-31) to its handcrafted high-scoring garden arena.
+  static BoardTemplate getDailyTemplate(DateTime date) {
+    final dayIndex = (date.day - 1) % dailyTemplates.length;
+    return dailyTemplates[dayIndex];
+  }
 }
+

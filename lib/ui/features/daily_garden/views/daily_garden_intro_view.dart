@@ -9,6 +9,8 @@ import 'package:block_bloom/ui/core/widgets/green_game_button.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_game_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_game_over_view.dart';
 import 'package:block_bloom/ui/providers.dart';
+import 'package:block_bloom/domain/models/board_template.dart';
+import 'package:block_bloom/ui/features/game/widgets/contoured_board_frame.dart';
 
 /// Daily Garden Intro Screen (Screen 1 from design)
 /// Features night garden starry background, arched "DAILY GARDEN" title,
@@ -31,6 +33,7 @@ class DailyGardenIntroView extends ConsumerWidget {
     final dateString = _getFormattedDate();
     final progressRepo = ref.watch(progressRepositoryProvider);
     final todayStr = progressRepo.getTodayDateString();
+    final todayTemplate = BoardTemplate.getDailyTemplate(DateTime.now());
 
     return FutureBuilder<UserProgress>(
       future: progressRepo.getProgress(),
@@ -233,41 +236,95 @@ class DailyGardenIntroView extends ConsumerWidget {
                                           ),
                                         ),
 
-                                        const SizedBox(height: 14),
+                                        const SizedBox(height: 8),
 
-                                        // 8x8 Grid Preview Board
+                                        // Today's Arena Template Badge
                                         Container(
-                                          padding: const EdgeInsets.all(8),
+                                          margin: const EdgeInsets.symmetric(vertical: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF001834),
-                                            borderRadius: BorderRadius.circular(16),
+                                            color: const Color(0xFF00142A).withValues(alpha: 0.9),
+                                            borderRadius: BorderRadius.circular(12),
                                             border: Border.all(
-                                              color: const Color(0xFF003366),
-                                              width: 1.5,
+                                              color: const Color(0xFFFFC800),
+                                              width: 1.2,
                                             ),
                                             boxShadow: const [
                                               BoxShadow(
                                                 color: Color(0x66000000),
-                                                blurRadius: 8,
-                                                offset: Offset(0, 3),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
                                               ),
                                             ],
                                           ),
-                                          child: AspectRatio(
-                                            aspectRatio: 1.0,
-                                            child: GridView.builder(
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount: 8,
-                                                mainAxisSpacing: 3,
-                                                crossAxisSpacing: 3,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(todayTemplate.emoji, style: const TextStyle(fontSize: 16)),
+                                              const SizedBox(width: 7),
+                                              Text(
+                                                todayTemplate.name.toUpperCase(),
+                                                style: GoogleFonts.chakraPetch(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: const Color(0xFFFFD54F),
+                                                  letterSpacing: 0.8,
+                                                ),
                                               ),
-                                              itemCount: 64,
-                                              itemBuilder: (context, index) {
-                                                final row = index ~/ 8;
-                                                final col = index % 8;
-                                                return _buildPresetGridCell(row, col);
-                                              },
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF003366),
+                                                  borderRadius: BorderRadius.circular(5),
+                                                ),
+                                                child: Text(
+                                                  '${todayTemplate.totalPlayableCells} TILES',
+                                                  style: GoogleFonts.chakraPetch(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: const Color(0xFF6EE7B7),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 10),
+
+                                        // Contoured Preview Board hugging today's template silhouette
+                                        AspectRatio(
+                                          aspectRatio: 1.0,
+                                          child: ContouredBoardFrame(
+                                            template: todayTemplate,
+                                            gridSize: todayTemplate.rows,
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(11),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF003675),
+                                                  borderRadius: BorderRadius.circular(11),
+                                                ),
+                                                padding: const EdgeInsets.all(2.5),
+                                                child: GridView.builder(
+                                                  physics: const NeverScrollableScrollPhysics(),
+                                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                                    crossAxisCount: todayTemplate.rows,
+                                                    mainAxisSpacing: 3,
+                                                    crossAxisSpacing: 3,
+                                                  ),
+                                                  itemCount: todayTemplate.rows * todayTemplate.cols,
+                                                  itemBuilder: (context, index) {
+                                                    final row = index ~/ todayTemplate.cols;
+                                                    final col = index % todayTemplate.cols;
+                                                    if (!todayTemplate.isPlayable(row, col)) {
+                                                      return const SizedBox.shrink();
+                                                    }
+                                                    return _buildDailyPreviewGridCell(todayTemplate, row, col);
+                                                  },
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -417,10 +474,12 @@ class DailyGardenIntroView extends ConsumerWidget {
     );
   }
 
-  /// 8x8 Grid Cell builder with 3D gem block styling matching design screenshot 1
-  Widget _buildPresetGridCell(int row, int col) {
-    // 1. Cyan / Ice-Blue 2x2 at top left (rows 0..1, cols 0..1)
-    if ((row == 0 || row == 1) && (col == 0 || col == 1)) {
+  /// Dynamic Grid Cell builder for Today's Template with glowing 3D gems
+  Widget _buildDailyPreviewGridCell(BoardTemplate template, int row, int col) {
+    final cellKey = (row * 7 + col * 13) % 17;
+
+    // 1. Cyan / Ice-Blue Gem
+    if (cellKey == 1 || cellKey == 5) {
       return _build3DGemBlock(
         gradientColors: const [Color(0xFF81D4FA), Color(0xFF29B6F6), Color(0xFF0288D1)],
         borderColor: const Color(0xFFB3E5FC),
@@ -428,17 +487,8 @@ class DailyGardenIntroView extends ConsumerWidget {
         iconColor: const Color(0x66FFFFFF),
       );
     }
-    // 2. Turquoise / Teal Star 1x2 (rows 0..1, col 2)
-    if ((row == 0 || row == 1) && col == 2) {
-      return _build3DGemBlock(
-        gradientColors: const [Color(0xFF80CBC4), Color(0xFF26A69A), Color(0xFF004D40)],
-        borderColor: const Color(0xFFE0F2F1),
-        icon: Icons.auto_awesome,
-        iconColor: const Color(0x88FFFFFF),
-      );
-    }
-    // 3. Bright Green Leaf/Gem 1x3 at top right (rows 0..2, col 7)
-    if ((row == 0 || row == 1 || row == 2) && col == 7) {
+    // 2. Emerald Green Sprout
+    if (cellKey == 2 || cellKey == 9) {
       return _build3DGemBlock(
         gradientColors: const [Color(0xFFAED581), Color(0xFF66BB6A), Color(0xFF2E7D32)],
         borderColor: const Color(0xFFDCEDC8),
@@ -446,32 +496,32 @@ class DailyGardenIntroView extends ConsumerWidget {
         iconColor: const Color(0x77FFFFFF),
       );
     }
-    // 4. Red Cracked Crystal 2x2 at middle right (rows 3..4, cols 5..6)
-    if ((row == 3 || row == 4) && (col == 5 || col == 6)) {
+    // 3. Amber / Sunflower Gem
+    if (cellKey == 3 || cellKey == 12) {
       return _build3DGemBlock(
-        gradientColors: const [Color(0xFFFF8A65), Color(0xFFEF5350), Color(0xFFB71C1C)],
-        borderColor: const Color(0xFFFFCCBC),
-        icon: Icons.grain_rounded,
-        iconColor: const Color(0x77FFFFFF),
+        gradientColors: const [Color(0xFFFFE082), Color(0xFFFFB300), Color(0xFFE65100)],
+        borderColor: const Color(0xFFFFF8E1),
+        icon: Icons.wb_sunny_rounded,
+        iconColor: const Color(0x88FFFFFF),
       );
     }
-    // 5. Pink Light Reflection Gem 1x2 at bottom right (row 6, cols 6..7)
-    if (row == 6 && (col == 6 || col == 7)) {
+    // 4. Pink Rose Crystal
+    if (cellKey == 7) {
       return _build3DGemBlock(
         gradientColors: const [Color(0xFFF48FB1), Color(0xFFEC407A), Color(0xFF880E4F)],
         borderColor: const Color(0xFFFCE4EC),
-        icon: Icons.wb_twilight_rounded,
+        icon: Icons.auto_awesome,
         iconColor: const Color(0x88FFFFFF),
       );
     }
 
-    // Empty dark navy grid cell
+    // Playable empty grid cell
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF000F24),
+        color: const Color(0xFF001F47),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: const Color(0xFF001A38),
+          color: const Color(0xFF004080).withValues(alpha: 0.6),
           width: 0.8,
         ),
       ),
