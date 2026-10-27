@@ -2462,7 +2462,7 @@ class LevelCompletedOverlay extends ConsumerWidget {
                                     width: 28,
                                     height: 28,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Text(
+                                    errorBuilder: (_, _, _) => const Text(
                                       '🌸',
                                       style: TextStyle(fontSize: 22),
                                     ),
@@ -2519,7 +2519,7 @@ class LevelCompletedOverlay extends ConsumerWidget {
                                     width: 28,
                                     height: 28,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Text(
+                                    errorBuilder: (_, _, _) => const Text(
                                       '🌱',
                                       style: TextStyle(fontSize: 22),
                                     ),
@@ -2576,7 +2576,7 @@ class LevelCompletedOverlay extends ConsumerWidget {
                                     width: 28,
                                     height: 28,
                                     fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Text(
+                                    errorBuilder: (_, _, _) => const Text(
                                       '⭐',
                                       style: TextStyle(fontSize: 22),
                                     ),
@@ -2761,7 +2761,7 @@ class LevelCompleteHeaderTitle extends StatelessWidget {
                   width: 38,
                   height: 38,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Text('🌸', style: TextStyle(fontSize: 26)),
+                  errorBuilder: (_, _, _) => const Text('🌸', style: TextStyle(fontSize: 26)),
                 ),
               ),
             ),
@@ -2784,7 +2784,7 @@ class LevelCompleteHeaderTitle extends StatelessWidget {
                     width: 38,
                     height: 38,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Text('🌸', style: TextStyle(fontSize: 26)),
+                    errorBuilder: (_, _, _) => const Text('🌸', style: TextStyle(fontSize: 26)),
                   ),
                 ),
               ),

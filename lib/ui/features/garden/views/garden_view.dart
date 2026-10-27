@@ -18,14 +18,15 @@ import 'package:block_bloom/domain/models/user_progress.dart';
 /// VIEW GARDEN FULLSCREEN button (navigates to Screen 2: GardenFullscreenView),
 /// and custom bottom GardenNavBar (75x68px tabs matching exact Figma specs).
 class GardenView extends ConsumerStatefulWidget {
-  const GardenView({super.key});
+  final int initialTabIndex;
+  const GardenView({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<GardenView> createState() => _GardenViewState();
 }
 
 class _GardenViewState extends ConsumerState<GardenView> {
-  int _selectedTabIndex = 0; // Default: 0 = OVERVIEW
+  late int _selectedTabIndex;
 
   static const List<Map<String, dynamic>> gardenStages = [
     {
@@ -87,6 +88,7 @@ class _GardenViewState extends ConsumerState<GardenView> {
   @override
   void initState() {
     super.initState();
+    _selectedTabIndex = widget.initialTabIndex;
     Future.microtask(() => ref.read(homeViewModelProvider.notifier).loadProgress());
   }
 

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
 import 'package:flutter/services.dart';
@@ -8,11 +9,11 @@ import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/features/level_select/views/level_select_view.dart';
 import 'package:block_bloom/ui/features/garden/views/garden_view.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
-import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
 import 'package:block_bloom/ui/features/settings/views/settings_view.dart';
 import 'package:block_bloom/ui/features/profile/views/profile_view.dart';
-import 'package:block_bloom/ui/features/terms/views/terms_view.dart';
-import 'package:block_bloom/ui/features/settings/views/privacy_policy_view.dart';
+import 'package:block_bloom/ui/core/widgets/animated_glossy_play_button.dart';
+import 'package:block_bloom/ui/core/widgets/glossy_round_game_button.dart';
+import 'package:block_bloom/ui/features/home/widgets/compact_top3_leaderboard_card.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -37,11 +38,12 @@ class _HomeViewState extends ConsumerState<HomeView> {
     return Scaffold(
       body: Stack(
         children: [
-          // Fullscreen Night Garden Background Image
+          // 1. Fullscreen Night Garden Background Image with Perfect Fit
           Positioned.fill(
             child: Image.asset(
               'assets/splash_img.png',
               fit: BoxFit.cover,
+              alignment: Alignment.center,
               width: double.infinity,
               height: double.infinity,
               errorBuilder: (context, error, stackTrace) => Container(
@@ -50,332 +52,329 @@ class _HomeViewState extends ConsumerState<HomeView> {
             ),
           ),
 
-          // Ambient Floating Petal Particles Background
+          // 2. Subtle Dark Vignette Gradient Overlay to enhance UI contrast & depth
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.35),
+                    Colors.black.withValues(alpha: 0.12),
+                    Colors.black.withValues(alpha: 0.50),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Ambient Floating Petal Particles Background
           const Positioned.fill(child: PetalParticleField()),
 
-          // Main Foreground Content
+          // 4. Main Foreground Content
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double availableHeight = constraints.maxHeight;
-                final bool isVeryCompact = availableHeight < 620;
-                final bool isCompact = availableHeight < 740;
+            child: Column(
+              children: [
+                // Top Header Row: Settings (Left) & Profile (Right) - Icons Only with Proper Spacing & Indentation
+                _buildTopHeaderRow(context),
 
-                final double buttonHeight =
-                    isVeryCompact ? 44.0 : (isCompact ? 48.0 : 54.0);
-                final double buttonGap =
-                    isVeryCompact ? 8.0 : (isCompact ? 10.0 : 12.0);
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: availableHeight),
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: isVeryCompact ? 8 : 14,
-                        ),
-                        child: Column(
-                          children: [
-                            const Spacer(flex: 2),
+                // Expanded Center Content (Logo, Subtitle, 4 Main Game Buttons, Footer Links)
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double availableHeight = constraints.maxHeight;
+                      final bool isVeryCompact = availableHeight < 560;
+                      final bool isCompact = availableHeight < 680;
 
-                            // Center Logo (home_icon.png)
-                            Center(
-                              child: SizedBox(
-                                width: math.min(size.width * 0.80, 310),
-                                child: Image.asset(
-                                  'assets/home_icon.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Text(
-                                    'BLOCK BLOOM',
-                                    style: TextStyle(
-                                      fontFamily: 'BebasNeue',
-                                      fontSize: 48,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                      final double buttonHeight =
+                          isVeryCompact ? 46.0 : (isCompact ? 50.0 : 54.0);
+
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: availableHeight),
+                          child: IntrinsicHeight(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: isVeryCompact ? 4 : 8,
+                              ),
+                              child: Column(
+                                children: [
+                                  const Spacer(flex: 2),
+
+                                  // Center Logo (home_icon.png) - Adjusted for optimal proportions
+                                  Center(
+                                    child: SizedBox(
+                                      width: math.min(size.width * 0.78, 280),
+                                      child: Image.asset(
+                                        'assets/home_icon.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                            const Text(
+                                          'BLOCK BLOOM',
+                                          style: TextStyle(
+                                            fontFamily: 'BebasNeue',
+                                            fontSize: 48,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
 
-                            SizedBox(height: isVeryCompact ? 6 : 10),
+                                  SizedBox(height: isVeryCompact ? 6 : 10),
 
-                            // Subtitle Text
-                            Text(
-                              isVeryCompact
-                                  ? 'Bloom your garden, one block at a time.'
-                                  : 'Bloom your garden,\none block at a time.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: isVeryCompact ? 13 : 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.92),
-                                height: 1.25,
-                                shadows: const [
-                                  Shadow(
-                                    color: Colors.black87,
-                                    blurRadius: 10,
-                                    offset: Offset(0, 2),
+                                  // Subtitle Text
+                                  Text(
+                                    isVeryCompact
+                                        ? 'Bloom your garden, one block at a time.'
+                                        : 'Bloom your garden,\none block at a time.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.chakraPetch(
+                                      fontSize: isVeryCompact ? 13 : 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white.withValues(alpha: 0.92),
+                                      height: 1.25,
+                                      shadows: const [
+                                        Shadow(
+                                          color: Colors.black87,
+                                          blurRadius: 10,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
 
-                            const Spacer(flex: 3),
+                                  SizedBox(height: isVeryCompact ? 10 : 16),
 
-                            // Centered Glossy Game Buttons Stack
-                            SizedBox(
-                              width: math.min(size.width * 0.85, 320),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  GlossyGameButton.play(
-                                    height: buttonHeight,
-                                    onPressed: state.isLoading
-                                        ? null
-                                        : () async {
+                                  // Featured Daily Garden Button directly down from "Bloom your garden" line
+                                  SizedBox(
+                                    width: math.min(size.width * 0.85, 320),
+                                    child: GlossyGameButton.dailyGarden(
+                                      height: buttonHeight,
+                                      onPressed: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const DailyGardenIntroView(),
+                                          ),
+                                        );
+                                        ref
+                                            .read(homeViewModelProvider.notifier)
+                                            .loadProgress();
+                                      },
+                                    ),
+                                  ),
+
+                                  SizedBox(height: isVeryCompact ? 8 : 12),
+
+                                  // Compact Top 3 Leaderboard Podium Card (Directly down the Daily Garden button)
+                                  SizedBox(
+                                    width: math.min(size.width * 0.85, 320),
+                                    child: const CompactTop3LeaderboardCard(),
+                                  ),
+
+                                  const Spacer(flex: 1),
+
+                                  // Centered Animated Glossy Play Button (styled like reference image)
+                                  Center(
+                                    child: AnimatedGlossyPlayButton(
+                                      height: isVeryCompact ? 72.0 : (isCompact ? 78.0 : 84.0),
+                                      width: math.min(size.width * 0.84, 310.0),
+                                      onPressed: state.isLoading
+                                          ? null
+                                          : () async {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const LevelSelectView(),
+                                                ),
+                                              );
+                                              ref
+                                                  .read(homeViewModelProvider.notifier)
+                                                  .loadProgress();
+                                            },
+                                    ),
+                                  ),
+
+                                  const Spacer(flex: 1),
+
+                                  // Bottom Action Row: Left Down Shop Icon & Right Side Garden Img Icon
+                                  SizedBox(
+                                    width: math.min(size.width * 0.85, 320.0),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // Left Down: Shop Icon (Circular Glossy Green Button matching image)
+                                        GlossyRoundGameButton.shop(
+                                          size: isVeryCompact ? 54.0 : (isCompact ? 58.0 : 62.0),
+                                          onPressed: () async {
                                             await Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) =>
-                                                    const LevelSelectView(),
+                                                    const GardenView(initialTabIndex: 1), // Shop / Decorate
                                               ),
                                             );
                                             ref
                                                 .read(homeViewModelProvider.notifier)
                                                 .loadProgress();
                                           },
-                                  ),
-
-                                  SizedBox(height: buttonGap),
-
-                                  GlossyGameButton.dailyGarden(
-                                    height: buttonHeight,
-                                    onPressed: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const DailyGardenIntroView(),
                                         ),
-                                      );
-                                      ref
-                                          .read(homeViewModelProvider.notifier)
-                                          .loadProgress();
-                                    },
-                                  ),
 
-                                  SizedBox(height: buttonGap),
-
-                                  GlossyGameButton.garden(
-                                    height: buttonHeight,
-                                    onPressed: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const GardenView(),
+                                        // Right Side: Garden Img Icon (Circular Glossy Green Button with garden image)
+                                        GlossyRoundGameButton.garden(
+                                          size: isVeryCompact ? 54.0 : (isCompact ? 58.0 : 62.0),
+                                          onPressed: () async {
+                                            await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const GardenView(initialTabIndex: 0), // Main Garden
+                                              ),
+                                            );
+                                            ref
+                                                .read(homeViewModelProvider.notifier)
+                                                .loadProgress();
+                                          },
                                         ),
-                                      );
-                                      ref
-                                          .read(homeViewModelProvider.notifier)
-                                          .loadProgress();
-                                    },
-                                  ),
-
-                                  SizedBox(height: buttonGap),
-
-                                  GlossyGameButton.trophy(
-                                    height: buttonHeight,
-                                    onPressed: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const LeaderboardView(),
-                                        ),
-                                      );
-                                      ref
-                                          .read(homeViewModelProvider.notifier)
-                                          .loadProgress();
-                                    },
-                                  ),
-
-                                  SizedBox(height: buttonGap),
-
-                                  GlossyGameButton.settings(
-                                    height: buttonHeight,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const SettingsView(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-
-                                  SizedBox(height: buttonGap),
-
-                                  GlossyGameButton.profile(
-                                    height: buttonHeight,
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const ProfileView(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const Spacer(flex: 2),
-
-                            // Minimal Terms & Conditions and Privacy Policy Links at bottom
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // 1. Terms & Conditions Button
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      AudioService.instance.playClickSound();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const TermsAndConditionsView(),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: isVeryCompact ? 10 : 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.28),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.16),
-                                          width: 1.0,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.35),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.description_outlined,
-                                            size: 13,
-                                            color: const Color(0xFFFFC610).withValues(alpha: 0.95),
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Terms & Conditions',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: isVeryCompact ? 11 : 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white.withValues(alpha: 0.92),
-                                              letterSpacing: 0.2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      ],
                                     ),
                                   ),
 
-                                  const SizedBox(width: 8),
-
-                                  // 2. Privacy Policy Button (to the right of terms)
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      AudioService.instance.playClickSound();
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const PrivacyPolicyView(),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: isVeryCompact ? 10 : 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.28),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.16),
-                                          width: 1.0,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.35),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.verified_user_outlined,
-                                            size: 13,
-                                            color: const Color(0xFFFFC610).withValues(alpha: 0.95),
-                                          ),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Privacy Policy',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: isVeryCompact ? 11 : 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white.withValues(alpha: 0.92),
-                                              letterSpacing: 0.2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                                  SizedBox(height: isVeryCompact ? 6 : 14),
                                 ],
                               ),
                             ),
-                            SizedBox(height: isVeryCompact ? 2 : 6),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  /// Top Action Bar: Settings on Left & Profile on Right (Balanced Corner Layout)
+  Widget _buildTopHeaderRow(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Settings Icon Button (Top-Left) - Exact icon image as set previously in button
+          _TopBarIconButton(
+            tooltip: 'Settings',
+            icon: SvgPicture.asset(
+              'assets/settings_icon.svg',
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
+              placeholderBuilder: (context) => const Icon(
+                Icons.settings_outlined,
+                color: Color(0xFF725726),
+                size: 26,
+              ),
+            ),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              AudioService.instance.playClickSound();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsView(),
+                ),
+              );
+            },
+          ),
+
+          // Profile Icon Button (Top-Right) - Exact icon image as set previously in button
+          _TopBarIconButton(
+            tooltip: 'Profile',
+            icon: SvgPicture.asset(
+              'assets/profile.svg',
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+              placeholderBuilder: (context) => const Icon(
+                Icons.account_circle,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              AudioService.instance.playClickSound();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileView(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+/// Clean tactile Icon Button displaying the exact icon image as set previously in the button
+class _TopBarIconButton extends StatefulWidget {
+  final Widget icon;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  const _TopBarIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  @override
+  State<_TopBarIconButton> createState() => _TopBarIconButtonState();
+}
+
+class _TopBarIconButtonState extends State<_TopBarIconButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedScale(
+          scale: _isPressed ? 0.85 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            child: widget.icon,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class PetalParticleField extends StatefulWidget {
   const PetalParticleField({super.key});
