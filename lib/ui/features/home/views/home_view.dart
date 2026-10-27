@@ -33,7 +33,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeViewModelProvider);
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
@@ -90,6 +89,19 @@ class _HomeViewState extends ConsumerState<HomeView> {
                       final double buttonHeight =
                           isVeryCompact ? 46.0 : (isCompact ? 50.0 : 54.0);
 
+                      final double horizontalPadding = isVeryCompact ? 16.0 : 20.0;
+                      final double contentMaxWidth =
+                          constraints.maxWidth - (horizontalPadding * 2);
+                      final double bottomRowGap = isVeryCompact ? 8.0 : 10.0;
+                      final double roundBtnSize =
+                          isVeryCompact ? 46.0 : (isCompact ? 50.0 : 52.0);
+                      final double playBtnWidth = (contentMaxWidth -
+                              (roundBtnSize * 2) -
+                              (bottomRowGap * 2) -
+                              8.0)
+                          .clamp(140.0, 196.0);
+                      final double playBtnHeight = playBtnWidth / 2.686;
+
                       return SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         child: ConstrainedBox(
@@ -97,7 +109,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                           child: IntrinsicHeight(
                             child: Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: 24,
+                                horizontal: horizontalPadding,
                                 vertical: isVeryCompact ? 4 : 8,
                               ),
                               child: Column(
@@ -107,7 +119,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                   // Center Logo (home_icon.png) - Adjusted for optimal proportions
                                   Center(
                                     child: SizedBox(
-                                      width: math.min(size.width * 0.78, 280),
+                                      width: math.min(contentMaxWidth * 0.85, 280),
                                       child: Image.asset(
                                         'assets/home_icon.png',
                                         fit: BoxFit.contain,
@@ -152,7 +164,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
                                   // Featured Daily Garden Button directly down from "Bloom your garden" line
                                   SizedBox(
-                                    width: math.min(size.width * 0.85, 320),
+                                    width: math.min(contentMaxWidth, 320.0),
                                     child: GlossyGameButton.dailyGarden(
                                       height: buttonHeight,
                                       onPressed: () async {
@@ -174,76 +186,82 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
                                   // Compact Top 3 Leaderboard Podium Card (Directly down the Daily Garden button)
                                   SizedBox(
-                                    width: math.min(size.width * 0.85, 320),
+                                    width: math.min(contentMaxWidth, 320.0),
                                     child: const CompactTop3LeaderboardCard(),
                                   ),
 
-                                  const Spacer(flex: 1),
+                                  const Spacer(flex: 2),
 
-                                  // Centered Animated Glossy Play Button (styled like reference image)
-                                  Center(
-                                    child: AnimatedGlossyPlayButton(
-                                      height: isVeryCompact ? 72.0 : (isCompact ? 78.0 : 84.0),
-                                      width: math.min(size.width * 0.84, 310.0),
-                                      onPressed: state.isLoading
-                                          ? null
-                                          : () async {
+                                  // Bottom Action Row: Shop (Left), Animated Play (Middle), Garden (Right)
+                                  SizedBox(
+                                    width: contentMaxWidth,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.center,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          // 1. Left: Shop Icon (Circular Glossy Green Button)
+                                          GlossyRoundGameButton.shop(
+                                            size: roundBtnSize,
+                                            onPressed: () async {
                                               await Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) =>
-                                                      const LevelSelectView(),
+                                                      const GardenView(initialTabIndex: 1), // Shop / Decorate
                                                 ),
                                               );
                                               ref
                                                   .read(homeViewModelProvider.notifier)
                                                   .loadProgress();
                                             },
-                                    ),
-                                  ),
+                                          ),
 
-                                  const Spacer(flex: 1),
+                                          SizedBox(width: bottomRowGap),
 
-                                  // Bottom Action Row: Left Down Shop Icon & Right Side Garden Img Icon
-                                  SizedBox(
-                                    width: math.min(size.width * 0.85, 320.0),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        // Left Down: Shop Icon (Circular Glossy Green Button matching image)
-                                        GlossyRoundGameButton.shop(
-                                          size: isVeryCompact ? 54.0 : (isCompact ? 58.0 : 62.0),
-                                          onPressed: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const GardenView(initialTabIndex: 1), // Shop / Decorate
-                                              ),
-                                            );
-                                            ref
-                                                .read(homeViewModelProvider.notifier)
-                                                .loadProgress();
-                                          },
-                                        ),
+                                          // 2. Middle: Animated Glossy Play Button (in between shop and garden)
+                                          AnimatedGlossyPlayButton(
+                                            width: playBtnWidth,
+                                            height: playBtnHeight,
+                                            onPressed: state.isLoading
+                                                ? null
+                                                : () async {
+                                                    await Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            const LevelSelectView(),
+                                                      ),
+                                                    );
+                                                    ref
+                                                        .read(homeViewModelProvider.notifier)
+                                                        .loadProgress();
+                                                  },
+                                          ),
 
-                                        // Right Side: Garden Img Icon (Circular Glossy Green Button with garden image)
-                                        GlossyRoundGameButton.garden(
-                                          size: isVeryCompact ? 54.0 : (isCompact ? 58.0 : 62.0),
-                                          onPressed: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const GardenView(initialTabIndex: 0), // Main Garden
-                                              ),
-                                            );
-                                            ref
-                                                .read(homeViewModelProvider.notifier)
-                                                .loadProgress();
-                                          },
-                                        ),
-                                      ],
+                                          SizedBox(width: bottomRowGap),
+
+                                          // 3. Right: Garden Img Icon (Circular Glossy Green Button)
+                                          GlossyRoundGameButton.garden(
+                                            size: roundBtnSize,
+                                            onPressed: () async {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const GardenView(initialTabIndex: 0), // Main Garden
+                                                ),
+                                              );
+                                              ref
+                                                  .read(homeViewModelProvider.notifier)
+                                                  .loadProgress();
+                                            },
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
 
