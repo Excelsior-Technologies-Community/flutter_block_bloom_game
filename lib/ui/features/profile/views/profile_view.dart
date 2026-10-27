@@ -434,17 +434,32 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     final user = authState.user;
     final progress = homeState.progress;
 
-    final defaultName = _nameController.text.trim().isNotEmpty
-        ? _nameController.text.trim()
-        : ((user?.displayName != null && user!.displayName!.isNotEmpty)
-            ? user.displayName!
-            : (user?.email != null && user!.email!.contains('@')
-                ? user.email!.split('@').first
-                : 'JAYMIN DABHODA'));
+    final String defaultName;
+    if (_nameController.text.trim().isNotEmpty) {
+      defaultName = _nameController.text.trim();
+    } else if (user?.displayName != null && user!.displayName!.trim().isNotEmpty) {
+      defaultName = user.displayName!.trim();
+    } else if (user?.email != null && user!.email!.contains('@')) {
+      final prefix = user.email!.split('@').first.trim();
+      if (prefix.toLowerCase().contains('adbhut')) {
+        defaultName = 'Adbhut Keshav';
+      } else {
+        defaultName = prefix
+            .replaceAll(RegExp(r'[._-]'), ' ')
+            .split(' ')
+            .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+            .join(' ')
+            .trim();
+      }
+    } else {
+      defaultName = 'Adbhut Keshav';
+    }
 
-    final email = (user?.email != null && user!.email!.isNotEmpty)
-        ? user.email!
-        : 'jaymin@xyz.com';
+    final email = (user?.email != null && user!.email!.trim().isNotEmpty)
+        ? user.email!.trim()
+        : 'adbhutkeshav@gmail.com';
+
+    final initialLetter = (defaultName.trim().isNotEmpty ? defaultName.trim()[0] : 'A').toUpperCase();
 
     final flowers = progress?.flowers ?? 2450;
     final highScore = progress?.highestScore ?? 24580;
@@ -575,6 +590,14 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              // 0. Circular Profile Avatar Icon
+                              _buildProfileAvatar(
+                                photoUrl: user?.photoUrl,
+                                initialLetter: initialLetter,
+                              ),
+
+                              const SizedBox(height: 14),
+
                               // 1. User Name + Edit Icon Box
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -792,6 +815,93 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Circular Profile Avatar Icon with Elegant Gold Trim, Glow, and Initial / Photo
+  Widget _buildProfileAvatar({
+    required String? photoUrl,
+    required String initialLetter,
+  }) {
+    return Container(
+      width: 78,
+      height: 78,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFEC99),
+            Color(0xFFFFC800),
+            Color(0xFFB8860B),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFC800).withValues(alpha: 0.35),
+            blurRadius: 14,
+            spreadRadius: 1,
+            offset: const Offset(0, 3),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(2.5),
+      child: Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0C2B54),
+              Color(0xFF00152F),
+            ],
+          ),
+        ),
+        child: ClipOval(
+          child: (photoUrl != null && photoUrl.isNotEmpty)
+              ? Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) => _buildAvatarInitial(initialLetter),
+                )
+              : _buildAvatarInitial(initialLetter),
+        ),
+      ),
+    );
+  }
+
+  /// Initial letter fallback displayed inside the avatar circle (e.g. 'A')
+  Widget _buildAvatarInitial(String letter) {
+    return Center(
+      child: Text(
+        letter,
+        style: GoogleFonts.chakraPetch(
+          fontSize: 34,
+          fontWeight: FontWeight.w900,
+          color: const Color(0xFFFFC800),
+          letterSpacing: 1.0,
+          shadows: const [
+            Shadow(
+              color: Color(0x99000000),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+            Shadow(
+              color: Color(0x80FFC800),
+              blurRadius: 8,
+            ),
+          ],
+        ),
       ),
     );
   }
