@@ -61,11 +61,12 @@ class AuthService {
             }
           } catch (_) {}
 
+          final existing = await getStoredUser();
           final user = AppUser(
             uid: fbUser.uid,
-            displayName: fbUser.displayName,
-            email: fbUser.email,
-            photoUrl: fbUser.photoURL,
+            displayName: fbUser.displayName ?? existing?.displayName,
+            email: fbUser.email ?? existing?.email,
+            photoUrl: fbUser.photoURL ?? existing?.photoUrl,
             isGuest: fbUser.isAnonymous,
           );
           _saveUserToLocal(user);
@@ -541,6 +542,7 @@ class AuthService {
   Future<AppUser?> updateUserProfile({
     String? displayName,
     String? newPassword,
+    String? photoUrl,
   }) async {
     AppUser? currentUser = await getStoredUser();
     final fbUser = _firebaseAuth?.currentUser;
@@ -561,6 +563,35 @@ class AuthService {
       }
     }
 
+    if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+      final cleanPhoto = photoUrl.trim();
+      if (fbUser != null) {
+        try {
+          await fbUser.updatePhotoURL(cleanPhoto);
+        } catch (_) {}
+      }
+      if (currentUser != null) {
+        currentUser = currentUser.copyWith(photoUrl: cleanPhoto);
+      } else if (fbUser != null) {
+        currentUser = AppUser(
+          uid: fbUser.uid,
+          displayName: fbUser.displayName,
+          email: fbUser.email,
+          photoUrl: cleanPhoto,
+          isGuest: fbUser.isAnonymous,
+        );
+      }
+
+      if (currentUser != null && _isFirebaseInitialized) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+            'photoUrl': cleanPhoto,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      }
+    }
+
     if (displayName != null && displayName.trim().isNotEmpty) {
       final cleanName = displayName.trim();
       if (fbUser != null) {
@@ -573,7 +604,7 @@ class AuthService {
           uid: fbUser.uid,
           displayName: cleanName,
           email: fbUser.email,
-          photoUrl: fbUser.photoURL,
+          photoUrl: currentUser?.photoUrl ?? fbUser.photoURL,
           isGuest: fbUser.isAnonymous,
         );
       }

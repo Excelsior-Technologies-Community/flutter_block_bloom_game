@@ -369,7 +369,7 @@ class ProgressRepository extends ChangeNotifier {
     await box.put(_getKey('totalScore', targetUserId: targetUserId), progress.totalScore);
   }
 
-  Future<void> saveProgress(UserProgress progress, {String? displayName}) async {
+  Future<void> saveProgress(UserProgress progress, {String? displayName, String? photoUrl}) async {
     final calculatedTotal = max(progress.totalFlowers, progress.flowers);
     final progressToSave = progress.totalFlowers != calculatedTotal
         ? progress.copyWith(totalFlowers: calculatedTotal)
@@ -398,6 +398,7 @@ class ProgressRepository extends ChangeNotifier {
           ...jsonMap,
           'uid': _currentUserId,
           if (resolvedName != null && resolvedName.trim().isNotEmpty) 'displayName': resolvedName.trim(),
+          if (photoUrl != null && photoUrl.trim().isNotEmpty) 'photoUrl': photoUrl.trim(),
           'updatedAt': FieldValue.serverTimestamp(),
         };
         FirebaseFirestore.instance

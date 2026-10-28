@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/domain/models/game_avatar.dart';
 import 'package:block_bloom/ui/core/utils/app_validators.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
+import 'package:block_bloom/ui/core/widgets/game_avatar_widget.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class ProfileView extends ConsumerStatefulWidget {
@@ -57,6 +59,8 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
     final currentUser = ref.read(authViewModelProvider).user;
     final isGoogleUser = currentUser?.authProvider == 'google';
+    String? selectedAvatar = currentUser?.photoUrl;
+    final initialLetter = (currentName.trim().isNotEmpty ? currentName.trim()[0] : 'A').toUpperCase();
 
     if (!mounted) return;
     HapticFeedback.lightImpact();
@@ -82,9 +86,182 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                 child: Container(
                   width: double.infinity,
                   constraints: const BoxConstraints(maxWidth: 360),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF001834),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFFFC800),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.7),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                    image: const DecorationImage(
+                      image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                      fit: BoxFit.fill,
+                      colorFilter: ColorFilter.mode(
+                        Color(0xFF001834),
+                        BlendMode.modulate,
+                      ),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Title Bar with EDIT PROFILE & Close Button
+                        Row(
+                          children: [
+                            const SizedBox(width: 28),
+                            Expanded(
+                              child: Text(
+                                'EDIT PROFILE',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                AudioService.instance.playClickSound();
+                                Navigator.pop(context);
+                              },
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Centered Circle Profile Avatar with Edit Badge
+                        Center(
+                          child: GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              AudioService.instance.playClickSound();
+                              final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedAvatar = picked;
+                                });
+                              }
+                            },
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                GameAvatarWidget(
+                                  avatarIdOrUrl: selectedAvatar,
+                                  fallbackLetter: initialLetter,
+                                  size: 88,
+                                  showBorder: true,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFE066),
+                                          Color(0xFFFFC800),
+                                          Color(0xFFD47A00),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      border: Border.all(
+                                        color: const Color(0xFF00152F),
+                                        width: 2.0,
+                                      ),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x66000000),
+                                          blurRadius: 4,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit,
+                                      size: 15,
+                                      color: Color(0xFF00152F),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // Subtitle: Tap avatar to change
+                        GestureDetector(
+                          onTap: () async {
+                            HapticFeedback.lightImpact();
+                            AudioService.instance.playClickSound();
+                            final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
+                            if (picked != null) {
+                              setDialogState(() {
+                                selectedAvatar = picked;
+                              });
+                            }
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                size: 13,
+                                color: Color(0xFFFFC800),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Tap avatar to change',
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFFFC800),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
                       // 1. Name Input Field with Validation
                       _buildDialogTextField(
                         controller: _nameController,
@@ -172,78 +349,78 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                       const SizedBox(height: 22),
 
-                      // 4. Action Buttons Row (CANCEL & EDIT)
+                      // 4. Action Buttons Row (CANCEL & SAVE)
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // CANCEL Button
-                          SizedBox(
-                            width: 155,
-                            height: 40,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(9.0),
+                          Expanded(
+                            child: SizedBox(
+                              height: 42,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.black,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
                                 ),
-                              ),
-                              onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                              child: Text(
-                                'CANCEL',
-                                style: GoogleFonts.chakraPetch(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.black,
-                                  letterSpacing: 0.6,
+                                onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                                child: Text(
+                                  'CANCEL',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black,
+                                    letterSpacing: 0.6,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
 
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 14),
 
-                          // EDIT Button
-                          Container(
-                            width: 155,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF94C745),
-                                  Color(0xFF1E4A0F),
+                          // SAVE Button
+                          Expanded(
+                            child: Container(
+                              height: 42,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF94C745),
+                                    Color(0xFF1E4A0F),
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                                borderRadius: BorderRadius.circular(10.0),
+                                border: Border.all(
+                                  color: const Color(0xFF527E27),
+                                  width: 1.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF94C745).withValues(alpha: 0.40),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
                                 ],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
                               ),
-                              borderRadius: BorderRadius.circular(9.0),
-                              border: Border.all(
-                                color: const Color(0xFF527E27),
-                                width: 1.0,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF94C745).withValues(alpha: 0.40),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                elevation: 0,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(9.0),
-                                ),
-                              ),
-                              onPressed: isSubmitting
-                                  ? null
-                                  : () async {
+                                onPressed: isSubmitting
+                                    ? null
+                                    : () async {
                                       FocusScope.of(context).unfocus();
                                       AudioService.instance.playClickSound();
 
@@ -285,11 +462,16 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                         await ref.read(authViewModelProvider.notifier).updateUserProfile(
                                           displayName: newName.trim(),
                                           newPassword: newPass.isNotEmpty ? newPass : null,
+                                          photoUrl: selectedAvatar,
                                         );
 
                                         final repo = ref.read(progressRepositoryProvider);
                                         final p = await repo.getProgress();
-                                        await repo.saveProgress(p, displayName: newName.trim());
+                                        await repo.saveProgress(
+                                          p,
+                                          displayName: newName.trim(),
+                                          photoUrl: selectedAvatar,
+                                        );
 
                                         if (context.mounted) {
                                           Navigator.pop(context);
@@ -325,7 +507,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                       ),
                                     )
                                   : Text(
-                                      'EDIT',
+                                      'SAVE',
                                       style: GoogleFonts.chakraPetch(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w800,
@@ -335,7 +517,322 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                     ),
                             ),
                           ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              ),
+            );
+          },
+        ),
+      );
+    },
+  );
+}
+
+  /// Popup dialog displaying 10-15 avatars in a glossy game grid for selection
+  Future<String?> _showAvatarSelectionDialog(
+    BuildContext context,
+    String? currentSelected,
+  ) {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (dialogCtx) {
+        String? tempSelected = currentSelected;
+
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: StatefulBuilder(
+            builder: (ctx, setPickerState) {
+              return Dialog(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 380, maxHeight: 600),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00142D),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: const Color(0xFFFFC800),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                    image: const DecorationImage(
+                      image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                      fit: BoxFit.fill,
+                      colorFilter: ColorFilter.mode(
+                        Color(0xFF00142D),
+                        BlendMode.modulate,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header Row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFFFC800).withValues(alpha: 0.15),
+                            ),
+                            child: const Icon(
+                              Icons.face_retouching_natural_rounded,
+                              color: Color(0xFFFFC800),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'CHOOSE AVATAR',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '15 Garden Personas',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFFFFC800).withValues(alpha: 0.8),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              AudioService.instance.playClickSound();
+                              Navigator.pop(dialogCtx);
+                            },
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.12),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
                         ],
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Decorative Divider Line
+                      Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFFFFC800).withValues(alpha: 0.6),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Grid of 15 Avatars
+                      Flexible(
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: GameAvatarCatalog.avatars.length,
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.82,
+                          ),
+                          itemBuilder: (ctx, index) {
+                            final avatar = GameAvatarCatalog.avatars[index];
+                            final isSelected = tempSelected == avatar.id ||
+                                (tempSelected == null && index == 0);
+
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                AudioService.instance.playClickSound();
+                                setPickerState(() {
+                                  tempSelected = avatar.id;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF00305E).withValues(alpha: 0.85)
+                                      : const Color(0xFF001834).withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFF00E5FF)
+                                        : const Color(0xFFFFC800).withValues(alpha: 0.25),
+                                    width: isSelected ? 2.0 : 1.0,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFF00E5FF).withValues(alpha: 0.4),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Stack(
+                                      alignment: Alignment.center,
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        GameAvatarWidget(
+                                          avatarIdOrUrl: avatar.id,
+                                          size: 56,
+                                          showBorder: true,
+                                          isSelected: isSelected,
+                                        ),
+                                        if (isSelected)
+                                          Positioned(
+                                            right: -4,
+                                            top: -4,
+                                            child: Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: Color(0xFF00E5FF),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Color(0x66000000),
+                                                    blurRadius: 4,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: const Icon(
+                                                Icons.check,
+                                                size: 13,
+                                                color: Color(0xFF00152F),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      avatar.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.chakraPetch(
+                                        fontSize: 11,
+                                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                        color: isSelected ? const Color(0xFF00E5FF) : Colors.white,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // CONFIRM AVATAR Button
+                      Container(
+                        width: double.infinity,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF94C745),
+                              Color(0xFF1E4A0F),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          borderRadius: BorderRadius.circular(10.0),
+                          border: Border.all(
+                            color: const Color(0xFF527E27),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF94C745).withValues(alpha: 0.40),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                          ),
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            AudioService.instance.playClickSound();
+                            Navigator.pop(dialogCtx, tempSelected);
+                          },
+                          child: Text(
+                            'CONFIRM AVATAR',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -823,86 +1320,13 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
   Widget _buildProfileAvatar({
     required String? photoUrl,
     required String initialLetter,
+    double size = 78,
   }) {
-    return Container(
-      width: 78,
-      height: 78,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFEC99),
-            Color(0xFFFFC800),
-            Color(0xFFB8860B),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFC800).withValues(alpha: 0.35),
-            blurRadius: 14,
-            spreadRadius: 1,
-            offset: const Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(2.5),
-      child: Container(
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0C2B54),
-              Color(0xFF00152F),
-            ],
-          ),
-        ),
-        child: ClipOval(
-          child: (photoUrl != null && photoUrl.isNotEmpty)
-              ? Image.network(
-                  photoUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) => _buildAvatarInitial(initialLetter),
-                )
-              : _buildAvatarInitial(initialLetter),
-        ),
-      ),
-    );
-  }
-
-  /// Initial letter fallback displayed inside the avatar circle (e.g. 'A')
-  Widget _buildAvatarInitial(String letter) {
-    return Center(
-      child: Text(
-        letter,
-        style: GoogleFonts.chakraPetch(
-          fontSize: 34,
-          fontWeight: FontWeight.w900,
-          color: const Color(0xFFFFC800),
-          letterSpacing: 1.0,
-          shadows: const [
-            Shadow(
-              color: Color(0x99000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-            Shadow(
-              color: Color(0x80FFC800),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-      ),
+    return GameAvatarWidget(
+      avatarIdOrUrl: photoUrl,
+      fallbackLetter: initialLetter,
+      size: size,
+      showBorder: true,
     );
   }
 }

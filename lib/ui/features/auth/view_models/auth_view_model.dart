@@ -218,12 +218,17 @@ class AuthViewModel extends StateNotifier<AuthViewModelState> {
     state = state.copyWith(clearUser: true, isLoading: false);
   }
 
-  Future<bool> updateUserProfile({String? displayName, String? newPassword}) async {
+  Future<bool> updateUserProfile({
+    String? displayName,
+    String? newPassword,
+    String? photoUrl,
+  }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final updatedUser = await _authService.updateUserProfile(
         displayName: displayName,
         newPassword: newPassword,
+        photoUrl: photoUrl,
       );
       state = state.copyWith(user: updatedUser ?? state.user, isLoading: false);
       return true;

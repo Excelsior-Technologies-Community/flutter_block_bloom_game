@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
+import 'package:block_bloom/ui/core/widgets/game_avatar_widget.dart';
 import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
 
 /// Top 3 Leader entry data holder for the compact podium card
@@ -322,10 +323,11 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
               ),
               child: ClipOval(
                 child: item.photoUrl != null && item.photoUrl!.isNotEmpty
-                    ? Image.network(
-                        item.photoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _buildInitials(item.name, isFirstPlace),
+                    ? GameAvatarWidget(
+                        avatarIdOrUrl: item.photoUrl,
+                        fallbackLetter: item.name.isNotEmpty ? item.name[0] : '🌸',
+                        size: avatarSize,
+                        showBorder: false,
                       )
                     : _buildInitials(item.name, isFirstPlace),
               ),

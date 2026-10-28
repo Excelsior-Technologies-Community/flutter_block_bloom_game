@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:block_bloom/ui/core/widgets/glossy_game_button.dart';
 import 'package:flutter/services.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/features/level_select/views/level_select_view.dart';
@@ -14,6 +13,7 @@ import 'package:block_bloom/ui/features/profile/views/profile_view.dart';
 import 'package:block_bloom/ui/core/widgets/animated_glossy_play_button.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_round_game_button.dart';
 import 'package:block_bloom/ui/features/home/widgets/compact_top3_leaderboard_card.dart';
+import 'package:block_bloom/ui/features/home/widgets/daily_garden_preview_card.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -86,9 +86,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
                       final bool isVeryCompact = availableHeight < 560;
                       final bool isCompact = availableHeight < 680;
 
-                      final double buttonHeight =
-                          isVeryCompact ? 46.0 : (isCompact ? 50.0 : 54.0);
-
                       final double horizontalPadding = isVeryCompact ? 16.0 : 20.0;
                       final double contentMaxWidth =
                           constraints.maxWidth - (horizontalPadding * 2);
@@ -160,13 +157,20 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                     ),
                                   ),
 
-                                  SizedBox(height: isVeryCompact ? 10 : 16),
+                                  SizedBox(height: isVeryCompact ? 8 : 12),
 
-                                  // Featured Daily Garden Button directly down from "Bloom your garden" line
+                                  // Compact Top 3 Leaderboard Podium Card (Directly below subtitle)
                                   SizedBox(
                                     width: math.min(contentMaxWidth, 320.0),
-                                    child: GlossyGameButton.dailyGarden(
-                                      height: buttonHeight,
+                                    child: const CompactTop3LeaderboardCard(),
+                                  ),
+
+                                  SizedBox(height: isVeryCompact ? 8 : 10),
+
+                                  // Featured Daily Garden Preview Card (Directly down the Leaderboard section)
+                                  SizedBox(
+                                    width: math.min(contentMaxWidth, 320.0),
+                                    child: DailyGardenPreviewCard(
                                       onPressed: () async {
                                         await Navigator.push(
                                           context,
@@ -180,14 +184,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                             .loadProgress();
                                       },
                                     ),
-                                  ),
-
-                                  SizedBox(height: isVeryCompact ? 8 : 12),
-
-                                  // Compact Top 3 Leaderboard Podium Card (Directly down the Daily Garden button)
-                                  SizedBox(
-                                    width: math.min(contentMaxWidth, 320.0),
-                                    child: const CompactTop3LeaderboardCard(),
                                   ),
 
                                   const Spacer(flex: 2),
