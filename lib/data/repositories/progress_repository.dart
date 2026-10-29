@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:block_bloom/data/services/hive_service.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
 import 'package:block_bloom/domain/models/booster_reward.dart';
+import 'package:block_bloom/domain/models/bloom_quest_model.dart';
 
 class ProgressRepository extends ChangeNotifier {
   ProgressRepository({required this.hiveService});
@@ -606,6 +607,269 @@ class ProgressRepository extends ChangeNotifier {
         break;
     }
 
+    notifyListeners();
+  }
+
+  // =========================================================================
+  // ARCADE EVENTS & DAILY QUESTS SYSTEM
+  // =========================================================================
+
+  /// Petals collected in the current Bloom Festival event (default 14 / 60)
+  int getFestivalPetals() {
+    final box = hiveService.progressBox;
+    final key = _getKey('festival_petals');
+    final val = box.get(key);
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return 14; // Default starting progress matching Candy Crush reference (14/60)
+  }
+
+  Future<void> addFestivalPetals(int count) async {
+    final box = hiveService.progressBox;
+    final key = _getKey('festival_petals');
+    final current = getFestivalPetals();
+    final updated = (current + count).clamp(0, 60);
+    await box.put(key, updated);
+    notifyListeners();
+  }
+
+  /// Check whether Florist's Box was claimed today
+  bool isFloristBoxClaimedToday() {
+    final box = hiveService.progressBox;
+    final key = _getKey('florist_box_last_claim');
+    final lastClaim = box.get(key, defaultValue: '') as String;
+    return lastClaim == getTodayDateString();
+  }
+
+  /// Claims today's Florist Box reward (1 Bloom Hammer + 25 Gems)
+  Future<void> claimFloristBox() async {
+    final box = hiveService.progressBox;
+    await box.put(_getKey('florist_box_last_claim'), getTodayDateString());
+    await addBooster('hammer', 1);
+    await addGems(25);
+    notifyListeners();
+  }
+
+  /// Get list of claimed Daily Quest IDs for today
+  List<String> getClaimedDailyQuests() {
+    final box = hiveService.progressBox;
+    final dateKey = _getKey('daily_quests_date');
+    final savedDate = box.get(dateKey, defaultValue: '') as String;
+    final today = getTodayDateString();
+
+    if (savedDate != today) {
+      return [];
+    }
+
+    final key = _getKey('daily_quests_claimed');
+    final list = box.get(key);
+    if (list is List) {
+      return list.map((e) => e.toString()).toList();
+    }
+    return [];
+  }
+
+  /// Claims a daily quest and awards its item
+  Future<void> claimDailyQuest(String questId, int amount, String type) async {
+    final box = hiveService.progressBox;
+    final today = getTodayDateString();
+    final claimed = getClaimedDailyQuests();
+
+    if (!claimed.contains(questId)) {
+      claimed.add(questId);
+      await box.put(_getKey('daily_quests_date'), today);
+      await box.put(_getKey('daily_quests_claimed'), claimed);
+
+      switch (type) {
+        case 'flowers':
+          await addFlowers(amount);
+          break;
+        case 'gems':
+          await addGems(amount);
+          break;
+        case 'token':
+          await addBoosterWheelTokens(amount);
+          break;
+        case 'bomb':
+          await addBooster('bomb', amount);
+          break;
+        case 'hammer':
+          await addBooster('hammer', amount);
+          break;
+      }
+      notifyListeners();
+    }
+  }
+
+  /// Get list of claimed Garden Pass tiers
+  List<int> getClaimedGardenPassTiers() {
+    final box = hiveService.progressBox;
+    final key = _getKey('garden_pass_claimed_tiers');
+    final list = box.get(key);
+    if (list is List) {
+      return list.map((e) => int.tryParse(e.toString()) ?? 0).toList();
+    }
+    return [1, 2, 3]; // Default first 3 tiers claimed
+  }
+
+  /// Claims a Garden Pass tier reward
+  Future<void> claimGardenPassTier(int tierNumber, int amount, String type) async {
+    final box = hiveService.progressBox;
+    final claimed = getClaimedGardenPassTiers();
+
+    if (!claimed.contains(tierNumber)) {
+      claimed.add(tierNumber);
+      await box.put(_getKey('garden_pass_claimed_tiers'), claimed);
+
+      switch (type) {
+        case 'flowers':
+          await addFlowers(amount);
+          break;
+        case 'gems':
+          await addGems(amount);
+          break;
+        case 'token':
+          await addBoosterWheelTokens(amount);
+          break;
+        case 'bomb':
+          await addBooster('bomb', amount);
+          break;
+        case 'hammer':
+          await addBooster('hammer', amount);
+          break;
+        case 'double_score':
+          await addBooster('double_score', amount);
+          break;
+      }
+      notifyListeners();
+    }
+  }
+
+  // =========================================================================
+  // AUTHENTIC BLOCK BLOOM QUEST SYSTEM & GAMEPLAY TRACKING
+  // =========================================================================
+
+  /// Loads the active quests populated with today's real progress and claim state
+  List<BloomQuest> getBloomQuests(BloomQuestCategory category) {
+    final box = hiveService.progressBox;
+    final today = getTodayDateString();
+
+    // Check daily quest date reset
+    final savedDate = box.get(_getKey('bloom_quests_date'), defaultValue: '') as String;
+    final bool isNewDay = savedDate != today;
+
+    final templates = category == BloomQuestCategory.daily
+        ? kDefaultBloomDailyQuests
+        : kDefaultBloomWeeklyQuests;
+
+    return templates.map((q) {
+      if (category == BloomQuestCategory.daily && isNewDay) {
+        return q.copyWith(currentProgress: 0, isClaimed: false);
+      }
+
+      final progressVal = box.get(_getKey('quest_progress_${q.id}'), defaultValue: 0);
+      final int currentProg = progressVal is int ? progressVal : (progressVal is num ? progressVal.toInt() : 0);
+      final bool isClaimed = box.get(_getKey('quest_claimed_${q.id}'), defaultValue: false) as bool;
+
+      return q.copyWith(
+        currentProgress: currentProg,
+        isClaimed: isClaimed,
+      );
+    }).toList();
+  }
+
+  /// Increments progress for all active quests matching the given event type
+  Future<void> recordQuestProgress(BloomQuestType type, int increment) async {
+    if (increment <= 0) return;
+    final box = hiveService.progressBox;
+    final today = getTodayDateString();
+
+    // If new day, record today's date
+    final savedDate = box.get(_getKey('bloom_quests_date'), defaultValue: '') as String;
+    if (savedDate != today) {
+      await box.put(_getKey('bloom_quests_date'), today);
+      // Reset daily quest keys
+      for (final q in kDefaultBloomDailyQuests) {
+        await box.put(_getKey('quest_progress_${q.id}'), 0);
+        await box.put(_getKey('quest_claimed_${q.id}'), false);
+      }
+    }
+
+    final allQuests = [...kDefaultBloomDailyQuests, ...kDefaultBloomWeeklyQuests];
+    bool changed = false;
+
+    for (final q in allQuests) {
+      if (q.type == type) {
+        final key = _getKey('quest_progress_${q.id}');
+        final current = box.get(key, defaultValue: 0);
+        final currentVal = current is int ? current : (current is num ? current.toInt() : 0);
+
+        final updated = (type == BloomQuestType.comboStreak || type == BloomQuestType.highScore)
+            ? max(currentVal, increment)
+            : currentVal + increment;
+
+        await box.put(key, updated);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
+  /// Claims reward for a completed Bloom Quest
+  Future<void> claimBloomQuest(BloomQuest quest) async {
+    final box = hiveService.progressBox;
+    await box.put(_getKey('quest_claimed_${quest.id}'), true);
+
+    switch (quest.rewardType) {
+      case 'flowers':
+        await addFlowers(quest.rewardAmount);
+        break;
+      case 'gems':
+        await addGems(quest.rewardAmount);
+        break;
+      case 'token':
+        await addBoosterWheelTokens(quest.rewardAmount);
+        break;
+      case 'bomb':
+        await addBooster('bomb', quest.rewardAmount);
+        break;
+      case 'hammer':
+        await addBooster('hammer', quest.rewardAmount);
+        break;
+      case 'refresh':
+        await addBooster('refresh', quest.rewardAmount);
+        break;
+      case 'double_score':
+        await addBooster('double_score', quest.rewardAmount);
+        break;
+    }
+    notifyListeners();
+  }
+
+  /// Count of completed daily quests today (towards the 3-quest Daily Chest)
+  int getCompletedDailyQuestsCount() {
+    final quests = getBloomQuests(BloomQuestCategory.daily);
+    return quests.where((q) => q.isCompleted).length;
+  }
+
+  /// Check if today's 3-quest Mystery Bloom Chest was claimed
+  bool isDailyBloomChestClaimed() {
+    final box = hiveService.progressBox;
+    final today = getTodayDateString();
+    final lastClaim = box.get(_getKey('daily_bloom_chest_claim'), defaultValue: '') as String;
+    return lastClaim == today;
+  }
+
+  /// Claims the 3-quest Mystery Bloom Chest reward (100 Flowers + 25 Gems + 1 Bloom Hammer)
+  Future<void> claimDailyBloomChest() async {
+    final box = hiveService.progressBox;
+    await box.put(_getKey('daily_bloom_chest_claim'), getTodayDateString());
+    await addFlowers(100);
+    await addGems(25);
+    await addBooster('hammer', 1);
     notifyListeners();
   }
 

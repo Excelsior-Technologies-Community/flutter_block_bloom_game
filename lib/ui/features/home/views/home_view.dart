@@ -14,7 +14,7 @@ import 'package:block_bloom/ui/core/widgets/animated_glossy_play_button.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_round_game_button.dart';
 import 'package:block_bloom/ui/features/home/widgets/compact_top3_leaderboard_card.dart';
 import 'package:block_bloom/ui/features/home/widgets/daily_garden_preview_card.dart';
-import 'package:block_bloom/ui/features/shop/widgets/daily_booster_wheel_dialog.dart';
+import 'package:block_bloom/ui/features/shop/views/daily_bloom_quests_view.dart';
 import 'package:block_bloom/ui/features/home/widgets/daily_booster_wheel_preview_card.dart';
 import 'package:block_bloom/ui/providers.dart';
 
@@ -216,7 +216,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                               GlossyRoundGameButton.shop(
                                                 size: roundBtnSize,
                                                 onPressed: () async {
-                                                  await showDailyBoosterWheel(context);
+                                                  await showDailyBloomQuests(context);
                                                   ref
                                                       .read(homeViewModelProvider.notifier)
                                                       .loadProgress();

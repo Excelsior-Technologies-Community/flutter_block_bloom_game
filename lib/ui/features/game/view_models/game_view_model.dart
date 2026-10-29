@@ -5,6 +5,7 @@ import 'package:block_bloom/data/repositories/progress_repository.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/cell_state.dart';
 import 'package:block_bloom/domain/models/game_level.dart';
+import 'package:block_bloom/domain/models/bloom_quest_model.dart';
 import 'package:block_bloom/domain/use_cases/block_blast_rules.dart';
 import 'package:block_bloom/domain/use_cases/level_generator.dart';
 
@@ -398,6 +399,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
       trayGenerationId: state.trayGenerationId + 1,
       blueRefreshCharges: state.blueRefreshCharges - 1,
     );
+    progressRepository.recordQuestProgress(BloomQuestType.boosterUsed, 1);
     return true;
   }
 
@@ -470,6 +472,10 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
 
     if (clearedLines > 0) {
       currentCombo += 1;
+      progressRepository.recordQuestProgress(BloomQuestType.linesCleared, clearedLines);
+      if (currentCombo >= 3) {
+        progressRepository.recordQuestProgress(BloomQuestType.comboStreak, currentCombo);
+      }
     } else {
       currentCombo = 0;
     }
@@ -762,6 +768,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
   }
 
   bool _detonateBombPiece(int pieceIndex, int centerRow, int centerCol) {
+    progressRepository.recordQuestProgress(BloomQuestType.boosterUsed, 1);
     if (!state.hasMadeMove) {
       progressRepository.recordGameStarted();
     }
@@ -896,6 +903,12 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         flowersEarned: state.sessionFlowersEarned,
       );
     }
+    if (state.sessionFlowersEarned > 0) {
+      progressRepository.recordQuestProgress(BloomQuestType.flowersEarned, state.sessionFlowersEarned);
+    }
+    if (state.score > 0) {
+      progressRepository.recordQuestProgress(BloomQuestType.highScore, state.score);
+    }
   }
 
   void resetLevel() {
@@ -915,6 +928,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         score: state.score,
         elapsedSeconds: 0,
       );
+      progressRepository.recordQuestProgress(BloomQuestType.levelsWon, 1);
     }
   }
 
@@ -930,6 +944,7 @@ class GameViewModel extends StateNotifier<GameViewModelState> {
         maxCombo: state.maxComboCount,
         isFinal: true,
       );
+      progressRepository.recordQuestProgress(BloomQuestType.dailyGardenPlayed, 1);
     }
   }
 }
