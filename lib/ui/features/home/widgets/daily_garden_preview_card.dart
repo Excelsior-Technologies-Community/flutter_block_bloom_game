@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/board_template.dart';
 import 'package:block_bloom/ui/providers.dart';
-import 'package:block_bloom/ui/features/home/view_models/home_view_model.dart';
 import 'package:block_bloom/ui/features/daily_garden/views/daily_garden_intro_view.dart';
 
 /// Aesthetic Daily Garden Preview Card

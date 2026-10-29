@@ -613,7 +613,7 @@ class TermsAndConditionsView extends StatelessWidget {
                     letterSpacing: 0.2,
                   ),
                 ),
-                if (extraWidget != null) extraWidget,
+                ?extraWidget,
               ],
             ),
           ),

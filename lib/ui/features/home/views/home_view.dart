@@ -14,6 +14,8 @@ import 'package:block_bloom/ui/core/widgets/animated_glossy_play_button.dart';
 import 'package:block_bloom/ui/core/widgets/glossy_round_game_button.dart';
 import 'package:block_bloom/ui/features/home/widgets/compact_top3_leaderboard_card.dart';
 import 'package:block_bloom/ui/features/home/widgets/daily_garden_preview_card.dart';
+import 'package:block_bloom/ui/features/shop/widgets/daily_booster_wheel_dialog.dart';
+import 'package:block_bloom/ui/features/home/widgets/daily_booster_wheel_preview_card.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -186,6 +188,14 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                     ),
                                   ),
 
+                                  SizedBox(height: isVeryCompact ? 6 : 8),
+
+                                  // Featured Daily Booster Wheel Card
+                                  SizedBox(
+                                    width: math.min(contentMaxWidth, 320.0),
+                                    child: const DailyBoosterWheelPreviewCard(),
+                                  ),
+
                                   const Spacer(flex: 2),
 
                                   // Bottom Action Row: Shop (Left), Animated Play (Middle), Garden (Right)
@@ -199,21 +209,60 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         crossAxisAlignment: CrossAxisAlignment.center,
                                         children: [
-                                          // 1. Left: Shop Icon (Circular Glossy Green Button)
-                                          GlossyRoundGameButton.shop(
-                                            size: roundBtnSize,
-                                            onPressed: () async {
-                                              await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      const GardenView(initialTabIndex: 1), // Shop / Decorate
+                                          // 1. Left: Shop Icon (Circular Glossy Green Button with Free Spin Badge)
+                                          Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              GlossyRoundGameButton.shop(
+                                                size: roundBtnSize,
+                                                onPressed: () async {
+                                                  await showDailyBoosterWheel(context);
+                                                  ref
+                                                      .read(homeViewModelProvider.notifier)
+                                                      .loadProgress();
+                                                },
+                                              ),
+                                              if (ref.watch(progressRepositoryProvider).isBoosterWheelFreeSpinAvailable())
+                                                Positioned(
+                                                  top: -3,
+                                                  right: -3,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 2,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      gradient: const LinearGradient(
+                                                        colors: [
+                                                          Color(0xFFFF4081),
+                                                          Color(0xFFE91E63),
+                                                        ],
+                                                      ),
+                                                      borderRadius: BorderRadius.circular(10),
+                                                      border: Border.all(
+                                                        color: Colors.white,
+                                                        width: 1.5,
+                                                      ),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black.withValues(alpha: 0.35),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(0, 2),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Text(
+                                                      'FREE',
+                                                      style: GoogleFonts.sniglet(
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: Colors.white,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                  ),
                                                 ),
-                                              );
-                                              ref
-                                                  .read(homeViewModelProvider.notifier)
-                                                  .loadProgress();
-                                            },
+                                            ],
                                           ),
 
                                           SizedBox(width: bottomRowGap),

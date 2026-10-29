@@ -1,9 +1,14 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/game_avatar.dart';
 import 'package:block_bloom/ui/core/utils/app_validators.dart';
@@ -166,11 +171,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                             onTap: () async {
                               HapticFeedback.lightImpact();
                               AudioService.instance.playClickSound();
-                              final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
-                              if (picked != null) {
-                                setDialogState(() {
-                                  selectedAvatar = picked;
-                                });
+                              final choice = await _showChangePhotoOptions(context);
+                              if (!context.mounted || choice == null) return;
+
+                              if (choice == 'CHOOSE_CATALOG') {
+                                final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
+                                if (picked != null) {
+                                  setDialogState(() {
+                                    selectedAvatar = picked;
+                                  });
+                                }
+                              } else if (choice == 'CHOOSE_STORAGE') {
+                                final picked = await _pickImageFromStorage(context);
+                                if (picked != null) {
+                                  setDialogState(() {
+                                    selectedAvatar = picked;
+                                  });
+                                }
                               }
                             },
                             child: Stack(
@@ -231,11 +248,23 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           onTap: () async {
                             HapticFeedback.lightImpact();
                             AudioService.instance.playClickSound();
-                            final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
-                            if (picked != null) {
-                              setDialogState(() {
-                                selectedAvatar = picked;
-                              });
+                            final choice = await _showChangePhotoOptions(context);
+                            if (!context.mounted || choice == null) return;
+
+                            if (choice == 'CHOOSE_CATALOG') {
+                              final picked = await _showAvatarSelectionDialog(context, selectedAvatar);
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedAvatar = picked;
+                                });
+                              }
+                            } else if (choice == 'CHOOSE_STORAGE') {
+                              final picked = await _pickImageFromStorage(context);
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedAvatar = picked;
+                                });
+                              }
                             }
                           },
                           child: Row(
@@ -670,6 +699,59 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
                       const SizedBox(height: 14),
 
+                      // Quick Action: Choose custom photo from device local storage
+                      GestureDetector(
+                        onTap: () async {
+                          HapticFeedback.lightImpact();
+                          AudioService.instance.playClickSound();
+                          final picked = await _pickImageFromStorage(context);
+                          if (picked != null && dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx, picked);
+                          }
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF002244).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF00E5FF).withValues(alpha: 0.6),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.add_photo_alternate_rounded,
+                                color: Color(0xFF00E5FF),
+                                size: 17,
+                              ),
+                              const SizedBox(width: 7),
+                              Text(
+                                'CHOOSE FROM LOCAL STORAGE',
+                                style: GoogleFonts.chakraPetch(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF00E5FF),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
                       // Grid of 15 Avatars
                       Flexible(
                         child: GridView.builder(
@@ -843,6 +925,312 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
         );
       },
     );
+  }
+
+  /// Modal dialog allowing user to choose between 15 Game Avatars or device local storage / gallery
+  Future<String?> _showChangePhotoOptions(BuildContext context) {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (dialogCtx) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 360),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00142D),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: const Color(0xFFFFC800),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+                image: const DecorationImage(
+                  image: AssetImage('assets/leaderboard_icons/back_design.png'),
+                  fit: BoxFit.fill,
+                  colorFilter: ColorFilter.mode(
+                    Color(0xFF00142D),
+                    BlendMode.modulate,
+                  ),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFFFC800).withValues(alpha: 0.15),
+                            ),
+                            child: const Icon(
+                              Icons.add_a_photo_rounded,
+                              color: Color(0xFFFFC800),
+                              size: 19,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'CHANGE AVATAR',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          AudioService.instance.playClickSound();
+                          Navigator.pop(dialogCtx);
+                        },
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.12),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Divider
+                  Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          const Color(0xFFFFC800).withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Option 1: Choose from 15 Game Avatars
+                  _buildPhotoOptionCard(
+                    title: 'CHOOSE GAME AVATAR',
+                    subtitle: 'Select from 15 custom botanical personas',
+                    icon: Icons.face_retouching_natural_rounded,
+                    accentColor: const Color(0xFFFFC800),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      AudioService.instance.playClickSound();
+                      Navigator.pop(dialogCtx, 'CHOOSE_CATALOG');
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Option 2: Choose from Local Storage / Gallery
+                  _buildPhotoOptionCard(
+                    title: 'CHOOSE FROM STORAGE',
+                    subtitle: 'Pick custom photo from device gallery',
+                    icon: Icons.photo_library_rounded,
+                    accentColor: const Color(0xFF00E5FF),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      AudioService.instance.playClickSound();
+                      Navigator.pop(dialogCtx, 'CHOOSE_STORAGE');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Option card widget for avatar source selection
+  Widget _buildPhotoOptionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF001E3D).withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.5),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.12),
+                blurRadius: 6,
+                offset: const Offset(0, 0),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accentColor.withValues(alpha: 0.3),
+                      accentColor.withValues(alpha: 0.08),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.8),
+                    width: 1.2,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: accentColor.withValues(alpha: 0.8),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Picks an image from local device storage / gallery and returns saved file path or uploaded URL
+  Future<String?> _pickImageFromStorage(BuildContext context) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return null;
+
+      // 1. Copy to permanent application documents directory
+      final appDir = await getApplicationDocumentsDirectory();
+      final ext = pickedFile.path.contains('.') ? pickedFile.path.split('.').last : 'jpg';
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final savedFile = await File(pickedFile.path).copy('${appDir.path}/$fileName');
+
+      // 2. If Firebase user is signed in, upload to Firebase Storage
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          final storageRef = FirebaseStorage.instance
+              .ref('user_avatars')
+              .child('${currentUser.uid}.$ext');
+          await storageRef.putFile(savedFile);
+          final downloadUrl = await storageRef.getDownloadURL();
+          return downloadUrl;
+        }
+      } catch (uploadError) {
+        debugPrint('Firebase Storage upload note: $uploadError');
+      }
+
+      // Return local file path so it displays immediately and functions offline
+      return savedFile.path;
+    } catch (e) {
+      debugPrint('Error picking image from local storage: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: const Color(0xFFFF3B30),
+          ),
+        );
+      }
+      return null;
+    }
   }
 
   /// Text Field with distinct border pill, dark fill, and inline error feedback

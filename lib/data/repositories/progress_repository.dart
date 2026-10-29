@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:block_bloom/data/services/hive_service.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
+import 'package:block_bloom/domain/models/booster_reward.dart';
 
 class ProgressRepository extends ChangeNotifier {
   ProgressRepository({required this.hiveService});
@@ -485,6 +486,127 @@ class ProgressRepository extends ChangeNotifier {
       totalFlowers: newTotalFlowers,
     );
     await saveProgress(updated);
+  }
+
+  Future<void> addGems(int amount) async {
+    final current = await getProgress();
+    final newGems = current.gems + amount;
+    final updated = current.copyWith(gems: newGems);
+    await saveProgress(updated);
+  }
+
+  // --- DAILY BOOSTER WHEEL & INVENTORY PERSISTENCE ---
+
+  int getBoosterWheelLastSpinEpoch() {
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_wheel_last_spin');
+    final val = box.get(key);
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return 0;
+  }
+
+  int getBoosterWheelTokens() {
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_wheel_tokens');
+    final val = box.get(key);
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return 0;
+  }
+
+  bool isBoosterWheelFreeSpinAvailable() {
+    final lastSpin = getBoosterWheelLastSpinEpoch();
+    if (lastSpin <= 0) return true;
+    final lastDate = DateTime.fromMillisecondsSinceEpoch(lastSpin);
+    final diff = DateTime.now().difference(lastDate);
+    return diff.inHours >= 24;
+  }
+
+  Duration getBoosterWheelRemainingCooldown() {
+    final lastSpin = getBoosterWheelLastSpinEpoch();
+    if (lastSpin <= 0) return Duration.zero;
+    final lastDate = DateTime.fromMillisecondsSinceEpoch(lastSpin);
+    final elapsed = DateTime.now().difference(lastDate);
+    const cooldown = Duration(hours: 24);
+    if (elapsed >= cooldown) return Duration.zero;
+    return cooldown - elapsed;
+  }
+
+  int getBoosterCount(String boosterId) {
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_inv_$boosterId');
+    final val = box.get(key);
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    return 0;
+  }
+
+  Future<void> addBooster(String boosterId, int amount) async {
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_inv_$boosterId');
+    final current = getBoosterCount(boosterId);
+    await box.put(key, current + amount);
+    notifyListeners();
+  }
+
+  Future<bool> consumeBooster(String boosterId) async {
+    final current = getBoosterCount(boosterId);
+    if (current <= 0) return false;
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_inv_$boosterId');
+    await box.put(key, current - 1);
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> addBoosterWheelTokens(int count) async {
+    final box = hiveService.progressBox;
+    final key = _getKey('booster_wheel_tokens');
+    final current = getBoosterWheelTokens();
+    await box.put(key, current + count);
+    notifyListeners();
+  }
+
+  Future<void> recordBoosterWheelSpinRedeemed(BoosterReward reward) async {
+    final box = hiveService.progressBox;
+    final bool freeAvailable = isBoosterWheelFreeSpinAvailable();
+    final tokens = getBoosterWheelTokens();
+
+    if (freeAvailable) {
+      await box.put(_getKey('booster_wheel_last_spin'), DateTime.now().millisecondsSinceEpoch);
+    } else if (tokens > 0) {
+      await box.put(_getKey('booster_wheel_tokens'), tokens - 1);
+    } else {
+      await box.put(_getKey('booster_wheel_last_spin'), DateTime.now().millisecondsSinceEpoch);
+    }
+
+    // Credit reward to player
+    switch (reward.type) {
+      case BoosterRewardType.flowers:
+        await addFlowers(reward.amount);
+        break;
+      case BoosterRewardType.gems:
+        await addGems(reward.amount);
+        break;
+      case BoosterRewardType.trayRefresh:
+        await addBooster('refresh', reward.amount);
+        break;
+      case BoosterRewardType.bloomBomb:
+        await addBooster('bomb', reward.amount);
+        break;
+      case BoosterRewardType.scoreMultiplier:
+        await addBooster('double_score', reward.amount);
+        break;
+      case BoosterRewardType.bloomHammer:
+        await addBooster('hammer', reward.amount);
+        break;
+      case BoosterRewardType.spinToken:
+        await addBoosterWheelTokens(reward.amount);
+        break;
+    }
+
+    notifyListeners();
   }
 
   Future<bool> upgradeGarden(int flowerCost) async {

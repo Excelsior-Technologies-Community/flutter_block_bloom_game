@@ -582,7 +582,7 @@ class HowToPlayView extends StatelessWidget {
                     letterSpacing: 0.2,
                   ),
                 ),
-                if (customChild != null) customChild,
+                ?customChild,
               ],
             ),
           ),

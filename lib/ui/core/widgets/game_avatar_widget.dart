@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/domain/models/game_avatar.dart';
@@ -141,7 +142,25 @@ class GameAvatarWidget extends StatelessWidget {
       );
     }
 
-    // 5. Default Fallback
+    // 5. If it's a local file from device storage
+    if (avatarIdOrUrl != null && !avatarIdOrUrl!.startsWith('assets/')) {
+      final cleanPath = avatarIdOrUrl!.replaceFirst('file://', '');
+      try {
+        final file = File(cleanPath);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) =>
+                _buildFallbackInitial(),
+          );
+        }
+      } catch (_) {}
+    }
+
+    // 6. Default Fallback
     return _buildFallbackInitial();
   }
 
