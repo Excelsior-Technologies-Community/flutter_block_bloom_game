@@ -29,8 +29,11 @@ class AudioService with WidgetsBindingObserver {
   static final AudioService instance = AudioService._internal();
   factory AudioService() => instance;
 
-  final List<AudioPlayer> _sfxPool = List.generate(4, (_) => AudioPlayer());
-  final AudioPlayer _bgmPlayer = AudioPlayer();
+  final List<AudioPlayer> _sfxPool = List.generate(
+    4,
+    (_) => AudioPlayer()..positionUpdater = null,
+  );
+  final AudioPlayer _bgmPlayer = AudioPlayer()..positionUpdater = null;
   int _sfxIndex = 0;
 
   double _sfxVolume = 0.8;
@@ -89,8 +92,13 @@ class AudioService with WidgetsBindingObserver {
 
     try {
       for (final player in _sfxPool) {
+        player.positionUpdater = null;
+        try {
+          await player.setPlayerMode(PlayerMode.lowLatency);
+        } catch (_) {}
         player.setVolume(_sfxVolume);
       }
+      _bgmPlayer.positionUpdater = null;
       _bgmPlayer.setVolume(_bgmVolume);
       await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
 
