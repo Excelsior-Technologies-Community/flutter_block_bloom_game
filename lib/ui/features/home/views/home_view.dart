@@ -15,7 +15,6 @@ import 'package:block_bloom/ui/core/widgets/glossy_round_game_button.dart';
 import 'package:block_bloom/ui/features/home/widgets/compact_top3_leaderboard_card.dart';
 import 'package:block_bloom/ui/features/home/widgets/daily_garden_preview_card.dart';
 import 'package:block_bloom/ui/features/shop/views/daily_bloom_quests_view.dart';
-import 'package:block_bloom/ui/features/home/widgets/daily_booster_wheel_preview_card.dart';
 import 'package:block_bloom/ui/providers.dart';
 
 class HomeView extends ConsumerStatefulWidget {
@@ -118,7 +117,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                   // Center Logo (home_icon.png) - Adjusted for optimal proportions
                                   Center(
                                     child: SizedBox(
-                                      width: math.min(contentMaxWidth * 0.85, 280),
+                                      width: math.min(contentMaxWidth * 0.86, 280.0),
                                       child: Image.asset(
                                         'assets/home_icon.png',
                                         fit: BoxFit.contain,
@@ -163,7 +162,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
                                   // Compact Top 3 Leaderboard Podium Card (Directly below subtitle)
                                   SizedBox(
-                                    width: math.min(contentMaxWidth, 320.0),
+                                    width: math.min(contentMaxWidth, 344.0),
                                     child: const CompactTop3LeaderboardCard(),
                                   ),
 
@@ -171,7 +170,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
                                   // Featured Daily Garden Preview Card (Directly down the Leaderboard section)
                                   SizedBox(
-                                    width: math.min(contentMaxWidth, 320.0),
+                                    width: math.min(contentMaxWidth, 344.0),
                                     child: DailyGardenPreviewCard(
                                       onPressed: () async {
                                         await Navigator.push(
@@ -186,14 +185,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
                                             .loadProgress();
                                       },
                                     ),
-                                  ),
-
-                                  SizedBox(height: isVeryCompact ? 6 : 8),
-
-                                  // Featured Daily Booster Wheel Card
-                                  SizedBox(
-                                    width: math.min(contentMaxWidth, 320.0),
-                                    child: const DailyBoosterWheelPreviewCard(),
                                   ),
 
                                   const Spacer(flex: 2),

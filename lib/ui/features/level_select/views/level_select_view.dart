@@ -177,17 +177,32 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     _previousUnlockedLevel = unlocked;
     _currentUnlockedLevel = unlocked;
 
-    // Calculate exact screen dimensions to start at the bottom of the map
+    // Calculate initial screen dimensions to focus directly on the player's current unlocked level
     final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
     final double screenHeight = view != null && view.physicalSize.height > 0
         ? view.physicalSize.height / view.devicePixelRatio
         : 800.0;
+    final double screenWidth = view != null && view.physicalSize.width > 0
+        ? view.physicalSize.width / view.devicePixelRatio
+        : 400.0;
 
-    final double mapHeight = _calculateMapHeight();
-    final double bottomOffset = math.max(0.0, mapHeight - screenHeight);
+    // Directly open focused on the current unlocked level (no bottom-to-top panning)
+    final double initialTargetOffset = _calculateTargetOffset(
+      level: unlocked,
+      screenWidth: screenWidth,
+      screenHeight: screenHeight,
+    );
+    _scrollController = ScrollController(initialScrollOffset: initialTargetOffset);
 
-    // Camera starts from the bottom view of the map!
-    _scrollController = ScrollController(initialScrollOffset: bottomOffset);
+    /*
+    // =========================================================================
+    // [BOTTOM-TO-TOP FUNCTIONALITY - PRESERVED FOR FUTURE USE]
+    // To restore camera starting from the bottom of the map, uncomment below:
+    // final double mapHeight = _calculateMapHeight();
+    // final double bottomOffset = math.max(0.0, mapHeight - screenHeight);
+    // _scrollController = ScrollController(initialScrollOffset: bottomOffset);
+    // =========================================================================
+    */
 
     // Pulse controller for active node
     _pulseController = AnimationController(
@@ -256,8 +271,30 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
           _currentUnlockedLevel = updatedUnlocked;
         });
 
-        // Smoothly and slowly pan upwards from the bottom to that level
-        _animateFromBottomToLevel(updatedUnlocked);
+        // Directly position camera at the current unlocked level
+        if (_scrollController.hasClients) {
+          final double sHeight = MediaQuery.of(context).size.height;
+          final double sWidth = MediaQuery.of(context).size.width;
+          final double targetOffset = _calculateTargetOffset(
+            level: updatedUnlocked,
+            screenWidth: sWidth,
+            screenHeight: sHeight,
+          );
+          _scrollController.jumpTo(targetOffset);
+        }
+
+        // Trigger avatar entrance drop-in bounce immediately on current level
+        _avatarEntranceController.forward(from: 0.0);
+
+        /*
+        // =====================================================================
+        // [BOTTOM-TO-TOP FUNCTIONALITY - PRESERVED FOR FUTURE USE]
+        // If you want to re-enable the cinematic slow pan upwards from Level 1
+        // (bottom of the map) to the current unlocked level, comment out the
+        // jumpTo & forward calls above and uncomment the line below:
+        // =====================================================================
+        // _animateFromBottomToLevel(updatedUnlocked);
+        */
       }
     });
   }
@@ -426,8 +463,15 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     );
   }
 
-  /// Smoothly and slowly pans camera upwards in genuine, ultra-relaxing slow-motion from the bottom
-  /// of the map up to that level, then plays the avatar drop-in bounce entrance upon arrival.
+  // ===========================================================================
+  // [BOTTOM-TO-TOP FUNCTIONALITY - PRESERVED FOR FUTURE USE]
+  // Smoothly and slowly pans camera upwards in genuine, ultra-relaxing slow-motion
+  // from the bottom of the map up to that level, then plays the avatar drop-in
+  // bounce entrance upon arrival.
+  //
+  // To restore: In initState/addPostFrameCallback, call:
+  //   _animateFromBottomToLevel(updatedUnlocked);
+  // ===========================================================================
   void _animateFromBottomToLevel(int targetLevel) {
     if (!_scrollController.hasClients) return;
 
@@ -513,6 +557,15 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
       });
     }
     _scrollToCurrentLevel();
+  }
+
+  /// Action triggered when clicking anywhere in the current active level radius
+  /// (avatar crown, circular avatar, "★ YOU" badge, pedestal button, or surrounding glow).
+  /// Opens the level preview play dialog (target score, boosters & play button),
+  /// matching the exact behavior of tapping any unlocked level.
+  void _onCurrentLevelRadiusTap(int levelNum) {
+    AudioService.instance.playClickSound();
+    _showLevelPreviewDialog(levelNum, isCompleted: false);
   }
 
   void _onNodeTap(int levelNum, int unlockedLevels) {
@@ -1920,6 +1973,19 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
                 child: _buildAvatarBadge(isMoving: false),
               ),
             ),
+
+            // Expanded interactive touch target for current level radius:
+            // Encompasses avatar crown, circular avatar, "★ YOU" badge, pedestal button & glow
+            Positioned(
+              left: currPos.dx - 55,
+              top: currPos.dy - 90 + entranceOffset + bobOffset,
+              width: 110,
+              height: 136,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _onCurrentLevelRadiusTap(unlockedLevels),
+              ),
+            ),
           ],
         );
       },
@@ -2122,7 +2188,13 @@ class _LevelSelectViewState extends ConsumerState<LevelSelectView>
     }
 
     Widget nodeButton = GestureDetector(
-      onTap: () => _onNodeTap(levelNum, unlockedLevels),
+      onTap: () {
+        if (isCurrent) {
+          _onCurrentLevelRadiusTap(levelNum);
+        } else {
+          _onNodeTap(levelNum, unlockedLevels);
+        }
+      },
       child: Stack(
         alignment: Alignment.center,
         children: [

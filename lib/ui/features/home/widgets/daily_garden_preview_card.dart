@@ -71,7 +71,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () => _handleTap(context),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: const Color(0xFF001530).withValues(alpha: 0.90),
             borderRadius: BorderRadius.circular(16),
@@ -104,7 +104,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
               // 1. Left: Live Mini Board Preview
               _buildMiniBoardPreview(todayTemplate),
 
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
 
               // 2. Right: Challenge Info, Status Badge & CTA Button
               Expanded(
@@ -112,7 +112,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Row 1: "DAILY GARDEN" Title with Calendar Icon + Status Badge
+                    // Row 1: "DAILY GARDEN" Title with Calendar Icon + Completed Badge if any
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -121,21 +121,21 @@ class DailyGardenPreviewCard extends ConsumerWidget {
                           children: [
                             Image.asset(
                               'assets/daily_garden_calendar.png',
-                              width: 13,
-                              height: 13,
+                              width: 14,
+                              height: 14,
                               fit: BoxFit.contain,
                               errorBuilder: (ctx, err, st) => SvgPicture.asset(
                                 'assets/calendar_icon.svg',
-                                width: 13,
-                                height: 13,
+                                width: 14,
+                                height: 14,
                                 fit: BoxFit.contain,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 5),
                             Text(
                               '$dateString • DAILY GARDEN',
                               style: GoogleFonts.chakraPetch(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
                                 color: const Color(0xFFFFD54F),
@@ -144,54 +144,30 @@ class DailyGardenPreviewCard extends ConsumerWidget {
                           ],
                         ),
 
-                        // Status badge (COMPLETED or 1 ATTEMPT)
-                        _buildStatusBadge(isCompletedToday, todayScore),
+                        // Completed status badge if completed today (1 attempt badge removed per request)
+                        if (isCompletedToday)
+                          _buildStatusBadge(true, todayScore),
                       ],
                     ),
 
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
 
-                    // Row 2: Template Name with Emoji & Tile Count Pill
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${todayTemplate.emoji} ${todayTemplate.name.toUpperCase()}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF002952),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: const Color(0xFF0052A4),
-                              width: 0.6,
-                            ),
-                          ),
-                          child: Text(
-                            '${todayTemplate.totalPlayableCells} TILES',
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF6EE7B7),
-                            ),
-                          ),
-                        ),
-                      ],
+                    // Row 2: Template Name with Emoji (Tile count badge removed per request)
+                    Text(
+                      '${todayTemplate.emoji} ${todayTemplate.name.toUpperCase()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                     ),
 
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 6),
 
-                    // Row 3: Flower Reward Pill (Left) + Glossy CTA Button (Right)
+                    // Row 3: Flower Reward Pill (Left) + Glossy Play CTA Button (Right)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -199,7 +175,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
                         // Flower reward badge
                         _buildFlowerBonusBadge(isCompletedToday),
 
-                        // Action Play / View CTA Button
+                        // Glossy Action Play / View CTA Button
                         _buildGlossyActionButton(isCompletedToday),
                       ],
                     ),
@@ -216,11 +192,11 @@ class DailyGardenPreviewCard extends ConsumerWidget {
   /// Live Mini Board Silhouette Container
   Widget _buildMiniBoardPreview(BoardTemplate template) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 66,
+      height: 66,
       decoration: BoxDecoration(
         color: const Color(0xFF001024),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: const Color(0xFFFFC800).withValues(alpha: 0.45),
           width: 1.0,
@@ -244,7 +220,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(3.0),
             child: CustomPaint(
-              size: const Size(54, 54),
+              size: const Size(60, 60),
               painter: _MiniBoardPreviewPainter(template: template),
             ),
           ),
@@ -254,9 +230,9 @@ class DailyGardenPreviewCard extends ConsumerWidget {
             top: 0,
             left: 0,
             right: 0,
-            height: 26,
+            height: 28,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -277,7 +253,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
             bottom: 2,
             right: 2,
             child: Container(
-              padding: const EdgeInsets.all(1.5),
+              padding: const EdgeInsets.all(2.0),
               decoration: BoxDecoration(
                 color: const Color(0xFF001834).withValues(alpha: 0.95),
                 shape: BoxShape.circle,
@@ -288,7 +264,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
               ),
               child: Text(
                 template.emoji,
-                style: const TextStyle(fontSize: 8),
+                style: const TextStyle(fontSize: 9),
               ),
             ),
           ),
@@ -297,58 +273,38 @@ class DailyGardenPreviewCard extends ConsumerWidget {
     );
   }
 
-  /// Status badge indicating completion or attempt status
+  /// Status badge indicating completion status
   Widget _buildStatusBadge(bool isCompleted, int score) {
-    if (isCompleted) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF10B981).withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: const Color(0xFF10B981).withValues(alpha: 0.8),
-            width: 0.8,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              size: 9,
-              color: Color(0xFF10B981),
-            ),
-            const SizedBox(width: 2.5),
-            Text(
-              score > 0 ? '$score PTS' : 'DONE',
-              style: GoogleFonts.chakraPetch(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF6EE7B7),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (!isCompleted) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFC800).withValues(alpha: 0.15),
+        color: const Color(0xFF10B981).withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: const Color(0xFFFFC800).withValues(alpha: 0.7),
+          color: const Color(0xFF10B981).withValues(alpha: 0.8),
           width: 0.8,
         ),
       ),
-      child: Text(
-        '1 ATTEMPT',
-        style: GoogleFonts.chakraPetch(
-          fontSize: 8.5,
-          fontWeight: FontWeight.w800,
-          color: const Color(0xFFFFD54F),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.check_circle_rounded,
+            size: 10,
+            color: Color(0xFF10B981),
+          ),
+          const SizedBox(width: 3),
+          Text(
+            score > 0 ? '$score PTS' : 'DONE',
+            style: GoogleFonts.chakraPetch(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF6EE7B7),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -356,7 +312,7 @@ class DailyGardenPreviewCard extends ConsumerWidget {
   /// Flower reward badge preview
   Widget _buildFlowerBonusBadge(bool isCompleted) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
         color: const Color(0xFF001E3D).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(8),
@@ -370,20 +326,20 @@ class DailyGardenPreviewCard extends ConsumerWidget {
         children: [
           Image.asset(
             'assets/flower.png',
-            width: 11,
-            height: 11,
+            width: 12,
+            height: 12,
             fit: BoxFit.contain,
             errorBuilder: (ctx, err, st) => const Icon(
               Icons.local_florist_rounded,
-              size: 10,
+              size: 11,
               color: Color(0xFFFF80AB),
             ),
           ),
-          const SizedBox(width: 3.5),
+          const SizedBox(width: 4),
           Text(
             isCompleted ? 'REWARDED' : '+50 FLOWERS',
             style: GoogleFonts.chakraPetch(
-              fontSize: 8.5,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               color: const Color(0xFFFFD54F),
               letterSpacing: 0.3,
@@ -394,51 +350,108 @@ class DailyGardenPreviewCard extends ConsumerWidget {
     );
   }
 
-  /// Glossy CTA button (PLAY NOW or VIEW RECAP)
+  /// Premium Glossy Game CTA button (PLAY NOW or VIEW RECAP)
   Widget _buildGlossyActionButton(bool isCompleted) {
+    // Exact glossy green gaming button aesthetic from Figma (Figma: #94C745 to #1A3C0E)
+    const topGradient = Color(0xFF94C745);
+    const midGradient = Color(0xFF4F7A23);
+    const bottomGradient = Color(0xFF1A3C0E);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+      height: 32,
+      padding: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: isCompleted
-              ? const [Color(0xFF26A69A), Color(0xFF00796B)]
-              : const [Color(0xFF34D399), Color(0xFF059669)],
+              ? const [Color(0xFF26A69A), Color(0xFF00796B), Color(0xFF004D40)]
+              : const [topGradient, midGradient, bottomGradient],
+          stops: const [0.0, 0.55, 1.0],
         ),
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isCompleted ? const Color(0xFF80CBC4) : const Color(0xFFA7F3D0),
-          width: 0.9,
+          color: isCompleted
+              ? const Color(0xFF80CBC4)
+              : const Color(0xFFB9F064).withValues(alpha: 0.9),
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: (isCompleted ? const Color(0xFF00796B) : const Color(0xFF059669))
-                .withValues(alpha: 0.45),
-            blurRadius: 5,
-            offset: const Offset(0, 1.5),
+            color: (isCompleted ? const Color(0xFF00796B) : const Color(0xFF4F7A23))
+                .withValues(alpha: 0.50),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+          const BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            isCompleted ? 'VIEW' : 'PLAY',
-            style: GoogleFonts.chakraPetch(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
-              color: Colors.white,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Top Gloss Sheen Overlay Arc
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 14,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.elliptical(80, 14),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.65),
+                      Colors.white.withValues(alpha: 0.08),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 3),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 8,
-            color: Colors.white,
-          ),
-        ],
+
+            // Button Text & Icon
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isCompleted ? 'VIEW' : 'PLAY',
+                    style: GoogleFonts.chakraPetch(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                      color: Colors.white,
+                      shadows: const [
+                        Shadow(
+                          color: Color(0x99000000),
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.play_arrow_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

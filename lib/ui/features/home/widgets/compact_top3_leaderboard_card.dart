@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/ui/core/widgets/game_avatar_widget.dart';
 import 'package:block_bloom/ui/features/leaderboard/views/leaderboard_view.dart';
+import 'package:block_bloom/ui/providers.dart';
 
 /// Top 3 Leader entry data holder for the compact podium card
 class _Top3LeaderItem {
@@ -27,19 +29,23 @@ class _Top3LeaderItem {
 /// - Olympic / Game Podium structure: Rank 2 (Left), Rank 1 (Center, tallest), Rank 3 (Right)
 /// - Exact aesthetic from the reference image: royal purple center pillar (1), warm coral side pillars (2 & 3)
 /// - Gold crown on Rank 1, circular avatars, compact score pills, and player names
+/// - Displays current logged-in user's highest score badge in the header
+/// - Displays individual score pills on each podium pillar
 /// - Glassmorphism navy background with subtle gold border and back_design texture
-/// - Compact height (~126px) so it leaves ample breathing room for other home screen actions
 /// - Tapping anywhere opens the full [LeaderboardView]
-class CompactTop3LeaderboardCard extends StatelessWidget {
+class CompactTop3LeaderboardCard extends ConsumerWidget {
   const CompactTop3LeaderboardCard({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProgress = ref.watch(homeViewModelProvider).progress;
+    final currentUserScore = userProgress?.highestScore ?? 0;
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
         final leaders = _extractTop3(snapshot.data?.docs);
-        return _buildCard(context, leaders);
+        return _buildCard(context, leaders, currentUserScore);
       },
     );
   }
@@ -115,7 +121,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
     return result;
   }
 
-  Widget _buildCard(BuildContext context, List<_Top3LeaderItem> leaders) {
+  Widget _buildCard(BuildContext context, List<_Top3LeaderItem> leaders, int currentUserScore) {
     final leader1 = leaders.firstWhere((e) => e.rank == 1, orElse: () => leaders[0]);
     final leader2 = leaders.firstWhere((e) => e.rank == 2, orElse: () => leaders.length > 1 ? leaders[1] : leaders[0]);
     final leader3 = leaders.firstWhere((e) => e.rank == 3, orElse: () => leaders.length > 2 ? leaders[2] : leaders[0]);
@@ -135,7 +141,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: const Color(0xFF001530).withValues(alpha: 0.90),
             borderRadius: BorderRadius.circular(16),
@@ -165,23 +171,24 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Mini Header: Trophy / Star + Title + "ALL ›"
+              // Mini Header: Trophy Icon + "TOP GARDENERS" + [YOU: Score Badge] + "SEE ALL ›"
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.emoji_events_rounded,
-                        size: 13,
+                        size: 14,
                         color: Color(0xFFFFD54F),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'TOP GARDENERS',
                         style: GoogleFonts.chakraPetch(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
                           color: const Color(0xFFFFD54F),
@@ -189,15 +196,46 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
                       ),
                     ],
                   ),
+
+                  // User's Best Score Pill (Proper Google Play / Gaming alignment)
+                  if (currentUserScore > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF001024),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFFFFC800).withValues(alpha: 0.75),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('⭐', style: TextStyle(fontSize: 9)),
+                          const SizedBox(width: 3.5),
+                          Text(
+                            'YOU: ${_formatScore(currentUserScore)}',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFFFD54F),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'SEE ALL',
                         style: GoogleFonts.outfit(
-                          fontSize: 9.5,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white.withValues(alpha: 0.80),
+                          color: Colors.white.withValues(alpha: 0.85),
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -205,14 +243,14 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
                       Icon(
                         Icons.chevron_right_rounded,
                         size: 13,
-                        color: Colors.white.withValues(alpha: 0.80),
+                        color: Colors.white.withValues(alpha: 0.85),
                       ),
                     ],
                   ),
                 ],
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
 
               // The 3-Pillar Olympic Podium Row: [2 (Left)] [1 (Center, Tallest)] [3 (Right)]
               Row(
@@ -222,7 +260,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
                   Expanded(
                     child: _buildPodiumSlot(
                       item: leader2,
-                      pillarHeight: 30.0,
+                      pillarHeight: 34.0,
                       pillarGradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -235,13 +273,13 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
 
                   // Rank 1: Center Pillar (Tallest)
                   Expanded(
                     child: _buildPodiumSlot(
                       item: leader1,
-                      pillarHeight: 44.0,
+                      pillarHeight: 50.0,
                       pillarGradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -254,13 +292,13 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
 
                   // Rank 3: Right Pillar
                   Expanded(
                     child: _buildPodiumSlot(
                       item: leader3,
-                      pillarHeight: 22.0,
+                      pillarHeight: 26.0,
                       pillarGradient: const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -291,7 +329,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
     required String crownAsset,
     required bool isFirstPlace,
   }) {
-    final double avatarSize = isFirstPlace ? 28.0 : 24.0;
+    final double avatarSize = isFirstPlace ? 32.0 : 26.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -335,11 +373,11 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
 
             // Top Crown Badge
             Positioned(
-              top: isFirstPlace ? -9 : -7,
+              top: isFirstPlace ? -10 : -8,
               child: Image.asset(
                 crownAsset,
-                width: isFirstPlace ? 15 : 12,
-                height: isFirstPlace ? 15 : 12,
+                width: isFirstPlace ? 16 : 13,
+                height: isFirstPlace ? 16 : 13,
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
@@ -347,7 +385,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
           ],
         ),
 
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
 
         // Player Name (Gracefully truncated)
         Padding(
@@ -358,7 +396,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: GoogleFonts.chakraPetch(
-              fontSize: isFirstPlace ? 9.5 : 8.5,
+              fontSize: isFirstPlace ? 10.0 : 9.0,
               fontWeight: isFirstPlace ? FontWeight.w800 : FontWeight.w600,
               color: isFirstPlace ? const Color(0xFFFFEC99) : Colors.white.withValues(alpha: 0.95),
               height: 1.1,
@@ -366,7 +404,33 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
+
+        // User Score Pill (Clean, readable, gaming podium standard)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF001024).withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isFirstPlace
+                  ? const Color(0xFFFFD54F)
+                  : const Color(0xFFFFC800).withValues(alpha: 0.45),
+              width: 0.7,
+            ),
+          ),
+          child: Text(
+            _formatScore(item.score),
+            style: GoogleFonts.chakraPetch(
+              fontSize: isFirstPlace ? 9.5 : 8.5,
+              fontWeight: FontWeight.w800,
+              color: isFirstPlace ? const Color(0xFFFFD54F) : Colors.white,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 3),
 
         // Podium Pillar with Rank Number
         Container(
@@ -387,7 +451,7 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
           child: Text(
             '${item.rank}',
             style: GoogleFonts.chakraPetch(
-              fontSize: isFirstPlace ? 18 : 15,
+              fontSize: isFirstPlace ? 19 : 16,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               height: 1.0,
@@ -419,5 +483,18 @@ class CompactTop3LeaderboardCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _formatScore(int score) {
+    if (score <= 0) return '0';
+    final str = score.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < str.length; i++) {
+      if (i > 0 && (str.length - i) % 3 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(str[i]);
+    }
+    return buffer.toString();
   }
 }
