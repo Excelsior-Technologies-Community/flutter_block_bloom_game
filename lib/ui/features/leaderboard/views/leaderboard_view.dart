@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:block_bloom/ui/core/widgets/floral_header_title.dart';
+import 'package:block_bloom/ui/core/widgets/game_avatar_widget.dart';
 import 'package:block_bloom/ui/providers.dart';
 import 'package:block_bloom/data/services/audio_service.dart';
 import 'package:block_bloom/domain/models/user_progress.dart';
@@ -23,6 +24,7 @@ class _RawUserRecord {
   final int highestScore;
   final int totalScore;
   final bool isUser;
+  final String? photoUrl;
 
   const _RawUserRecord({
     required this.id,
@@ -30,6 +32,7 @@ class _RawUserRecord {
     required this.highestScore,
     required this.totalScore,
     required this.isUser,
+    this.photoUrl,
   });
 }
 
@@ -62,12 +65,14 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           : (currentUser?.email != null && currentUser!.email!.contains('@')
               ? currentUser.email!.split('@').first
               : '');
+      final currentUserPhoto = currentUser?.photoUrl;
 
       if (currentUserId != null && currentUserId.isNotEmpty) {
         final progress = await ref.read(progressRepositoryProvider).getProgress();
         await ref.read(progressRepositoryProvider).saveProgress(
           progress,
           displayName: currentUserName,
+          photoUrl: currentUserPhoto,
         );
       }
     } catch (e) {
@@ -113,6 +118,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     UserProgress? progress,
     String currentUserName,
     String? currentUserId,
+    String? currentUserPhoto,
   ) {
     final localHighest = progress?.highestScore ?? 0;
     final localTotal = progress?.totalScore ?? 0;
@@ -145,6 +151,17 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           (stats['totalScore'] as num?)?.toInt() ??
           highestScore;
 
+      final docPhoto = (data['photoUrl'] as String?) ??
+          (data['photoURL'] as String?) ??
+          (data['avatarUrl'] as String?) ??
+          (stats['photoUrl'] as String?) ??
+          (stats['photoURL'] as String?) ??
+          (stats['avatarUrl'] as String?);
+
+      final resolvedPhoto = (isUser && currentUserPhoto != null && currentUserPhoto.isNotEmpty)
+          ? currentUserPhoto
+          : docPhoto;
+
       final userDocId = isUser ? currentUserId : id;
 
       if (recordsMap.containsKey(userDocId)) {
@@ -155,6 +172,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           highestScore: math.max(existing.highestScore, highestScore),
           totalScore: math.max(existing.totalScore, totalScore),
           isUser: isUser || existing.isUser,
+          photoUrl: resolvedPhoto ?? existing.photoUrl,
         );
       } else {
         recordsMap[userDocId] = _RawUserRecord(
@@ -163,6 +181,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           highestScore: highestScore,
           totalScore: totalScore,
           isUser: isUser,
+          photoUrl: resolvedPhoto,
         );
       }
     }
@@ -177,6 +196,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           highestScore: math.max(existing.highestScore, localHighest),
           totalScore: math.max(existing.totalScore, localTotal),
           isUser: true,
+          photoUrl: currentUserPhoto ?? existing.photoUrl,
         );
       } else {
         recordsMap[currentUserId] = _RawUserRecord(
@@ -185,6 +205,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           highestScore: localHighest,
           totalScore: localTotal,
           isUser: true,
+          photoUrl: currentUserPhoto,
         );
       }
     }
@@ -198,6 +219,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
         name: rec.name,
         score: score,
         rank: 0,
+        photoUrl: rec.photoUrl,
         id: rec.id,
         isUser: rec.isUser,
       );
@@ -225,6 +247,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
         score: evaluatedList[i].score,
         rank: rankNum,
         crownAsset: crown,
+        photoUrl: evaluatedList[i].photoUrl,
         id: evaluatedList[i].id,
         isUser: evaluatedList[i].isUser,
       );
@@ -239,11 +262,18 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     final top10List = processedList.take(10).toList();
     final isUserInTopList = top10List.any((e) => e.isUser);
 
+    String? userPhotoUrl = currentUserPhoto;
+    if (userPhotoUrl == null || userPhotoUrl.isEmpty) {
+      final userEntry = processedList.where((e) => e.isUser).firstOrNull;
+      userPhotoUrl = userEntry?.photoUrl;
+    }
+
     return _LeaderboardDisplayData(
       top10List: top10List,
       userRank: userRank,
       userScore: userScore,
       userName: userCleanName,
+      userPhotoUrl: userPhotoUrl,
       isUserInTopList: isUserInTopList,
     );
   }
@@ -258,6 +288,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
         : (user?.email != null && user!.email!.contains('@')
             ? user.email!.split('@').first
             : '');
+    final userPhoto = user?.photoUrl;
 
     return FutureBuilder<UserProgress>(
       future: _progressFuture,
@@ -269,7 +300,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
           stream: FirebaseFirestore.instance.collection('users').snapshots(),
           builder: (context, firestoreSnapshot) {
             final docs = firestoreSnapshot.data?.docs ?? [];
-            final displayData = _processSnapshot(docs, progress, userName, currentUserId);
+            final displayData = _processSnapshot(docs, progress, userName, currentUserId, userPhoto);
 
             return Scaffold(
               backgroundColor: const Color(0xFF001026),
@@ -411,18 +442,20 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
                                           children: [
                                             // Table Header Row: RANK | PLAYER | SCORE
                                             Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                               child: Row(
                                                 children: [
                                                   SizedBox(
                                                     width: 36,
-                                                    child: Text(
-                                                      'RANK',
-                                                      style: GoogleFonts.chakraPetch(
-                                                        fontSize: 13.5,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: Colors.white,
-                                                        letterSpacing: 1.0,
+                                                    child: Center(
+                                                      child: Text(
+                                                        'RANK',
+                                                        style: GoogleFonts.chakraPetch(
+                                                          fontSize: 13.5,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: Colors.white,
+                                                          letterSpacing: 1.0,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
@@ -489,6 +522,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
                                                 rank: displayData.userRank,
                                                 name: displayData.userName,
                                                 score: displayData.userScore,
+                                                photoUrl: displayData.userPhotoUrl,
                                               ),
                                             ],
                                           ],
@@ -646,12 +680,12 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
       ),
       child: Row(
         children: [
-          // Rank Column: Crown PNG icon for Top 3 or Number for Ranks 4-10
+          // 1. Rank Column: Crown PNG icon for Top 3 (as previous) OR properly centered Number for Ranks 4-10
           SizedBox(
             width: 36,
-            child: entry.crownAsset != null
-                ? Center(
-                    child: Image.asset(
+            child: Center(
+              child: entry.crownAsset != null
+                  ? Image.asset(
                       entry.crownAsset!,
                       width: 22,
                       height: 22,
@@ -665,21 +699,31 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
                                 : const Color(0xFFFFAB40)),
                         size: 20,
                       ),
+                    )
+                  : Text(
+                      '${entry.rank}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: isUser ? const Color(0xFFFFC800) : Colors.white,
+                      ),
                     ),
-                  )
-                : Text(
-                    '${entry.rank}',
-                    style: GoogleFonts.chakraPetch(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: isUser ? const Color(0xFFFFC800) : Colors.white,
-                    ),
-                  ),
+            ),
           ),
 
           const SizedBox(width: 8),
 
-          // Player Name Column
+          // 2. Circular Actual User Profile Avatar (right of the rank / crown / number)
+          _buildUserAvatar(
+            photoUrl: entry.photoUrl,
+            name: entry.name,
+            isUser: isUser,
+          ),
+
+          const SizedBox(width: 8),
+
+          // 3. Player Name Column
           Expanded(
             child: Text(
               entry.name,
@@ -693,7 +737,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
             ),
           ),
 
-          // Score Column
+          // 4. Score Column
           Text(
             _formatScore(entry.score),
             style: GoogleFonts.chakraPetch(
@@ -714,7 +758,16 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     required int rank,
     required String name,
     required int score,
+    String? photoUrl,
   }) {
+    final crownAsset = rank == 1
+        ? 'assets/leaderboard_icons/gold_crown.png'
+        : (rank == 2
+            ? 'assets/leaderboard_icons/silver_crown.png'
+            : (rank == 3
+                ? 'assets/leaderboard_icons/platinum_crown.png'
+                : null));
+
     return Container(
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -746,17 +799,46 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
       ),
       child: Row(
         children: [
-          // User Rank
+          // User Rank: Crown if top 3, otherwise properly centered number
           SizedBox(
             width: 36,
-            child: Text(
-              '$rank',
-              style: GoogleFonts.chakraPetch(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-              ),
+            child: Center(
+              child: crownAsset != null
+                  ? Image.asset(
+                      crownAsset,
+                      width: 22,
+                      height: 22,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.workspace_premium_rounded,
+                        color: rank == 1
+                            ? const Color(0xFFFFC800)
+                            : (rank == 2
+                                ? const Color(0xFFE0E0E0)
+                                : const Color(0xFFFFAB40)),
+                        size: 20,
+                      ),
+                    )
+                  : Text(
+                      '$rank',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
+                    ),
             ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // User Profile Avatar (right of the number / rank)
+          _buildUserAvatar(
+            photoUrl: photoUrl,
+            name: name,
+            isUser: true,
+            isHighlightRow: true,
           ),
 
           const SizedBox(width: 8),
@@ -789,6 +871,46 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     );
   }
 
+  /// Circular actual user profile avatar supporting Google profile picture, catalog avatars, local files, and initial fallback
+  Widget _buildUserAvatar({
+    required String? photoUrl,
+    required String name,
+    required bool isUser,
+    bool isHighlightRow = false,
+  }) {
+    final borderColor = isHighlightRow
+        ? const Color(0xFF001834)
+        : (isUser ? const Color(0xFFFFC800) : const Color(0xFFFFC800).withValues(alpha: 0.7));
+
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF00152F),
+        border: Border.all(
+          color: borderColor,
+          width: isUser ? 1.3 : 1.0,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: GameAvatarWidget(
+          avatarIdOrUrl: photoUrl,
+          fallbackLetter: name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '🌸',
+          size: 24,
+          showBorder: false,
+        ),
+      ),
+    );
+  }
+
   String _formatScore(int score) {
     final str = score.toString();
     final buffer = StringBuffer();
@@ -807,6 +929,7 @@ class _LeaderboardEntry {
   final int score;
   final int rank;
   final String? crownAsset;
+  final String? photoUrl;
   final String id;
   final bool isUser;
 
@@ -815,6 +938,7 @@ class _LeaderboardEntry {
     required this.score,
     required this.rank,
     this.crownAsset,
+    this.photoUrl,
     this.id = '',
     this.isUser = false,
   });
@@ -825,6 +949,7 @@ class _LeaderboardDisplayData {
   final int userRank;
   final int userScore;
   final String userName;
+  final String? userPhotoUrl;
   final bool isUserInTopList;
 
   const _LeaderboardDisplayData({
@@ -832,6 +957,7 @@ class _LeaderboardDisplayData {
     required this.userRank,
     required this.userScore,
     required this.userName,
+    this.userPhotoUrl,
     required this.isUserInTopList,
   });
 }

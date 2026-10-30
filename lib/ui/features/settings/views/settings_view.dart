@@ -529,7 +529,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                                     _buildDivider(),
 
                                     // HOW TO PLAY Action Card
-                                    GestureDetector(
+                                    GestureDetector( 
                                       onTap: () {
                                         HapticFeedback.lightImpact();
                                         AudioService.instance.playClickSound();
